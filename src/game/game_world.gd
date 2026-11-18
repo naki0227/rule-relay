@@ -475,6 +475,11 @@ func _recall_one(entity_id: int) -> RuleToken:
 	return ordered[0]
 
 
+## いまの届き方（触る／投げる）で target に届くか。照準の色分けにも使う。
+func is_within_reach(target: RuleBlock) -> bool:
+	return target != null and _within_reach(target)
+
+
 func _within_reach(target: RuleBlock) -> bool:
 	var chest := player.global_position + Vector3(0.0, 1.0, 0.0)
 	return chest.distance_to(target.global_position) <= reach() + RuleBlock.SIZE * 0.5

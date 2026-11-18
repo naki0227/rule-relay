@@ -34,29 +34,97 @@ func picked_index() -> int:
 
 func _draw() -> void:
 	var center := size * 0.5
-	draw_circle(center, RADIUS + 34.0, Color(0.05, 0.05, 0.08, 0.72))
-	draw_arc(center, RadialSelector.DEADZONE, 0.0, TAU, 48, Color(1, 1, 1, 0.35), 2.0)
-	var picked := picked_index()
-	var font := get_theme_default_font()
 	var count := RadialSelector.MODES.size()
+	var picked := picked_index()
+	var outer := RADIUS + 30.0
+	var inner := RadialSelector.DEADZONE + 8.0
+	# 暗い半透明のリング。方式ごとに扇形の区画を描き、選ばれている区画を金で満たす
+	draw_circle(center, outer + 2.0, Color(0, 0, 0, 0.25))
+	for i in count:
+		var mid := RadialSelector.option_angle(i, count)
+		var span := TAU / count
+		var arc := _sector(center, inner, outer, mid - span * 0.5 + 0.02, mid + span * 0.5 - 0.02)
+		var supported := TriggerMode.is_supported(RadialSelector.MODES[i])
+		var fill := UiTheme.SURFACE_SOLID
+		if i == picked and supported:
+			fill = Color(UiTheme.ACCENT, 0.85)
+		elif i == picked:
+			fill = Color(1, 1, 1, 0.12)
+		draw_colored_polygon(arc, fill)
+		var outline := arc.duplicate()
+		outline.append(arc[0])
+		draw_polyline(outline, UiTheme.LINE, 1.0, true)
+	draw_circle(center, inner - 6.0, UiTheme.SURFACE_SOLID)
+	draw_arc(center, inner - 6.0, 0, TAU, 48, UiTheme.LINE, 1.0, true)
+	var title_font := UiTheme.font(700, 1)
+	var small := UiTheme.font(500)
 	for i in count:
 		var mode := RadialSelector.MODES[i]
 		var dir := Vector2.from_angle(RadialSelector.option_angle(i, count))
-		var spot := center + dir * RADIUS * 0.72
+		var spot := center + dir * (inner + outer) * 0.5
 		var supported := TriggerMode.is_supported(mode)
-		var fill := Color(0.8, 0.15, 0.15, 0.9) if i == picked else Color(0.25, 0.25, 0.3, 0.9)
-		if not supported:
-			fill = fill.darkened(0.5)
-		draw_circle(spot, 48.0, fill)
-		if mode == current_mode:
-			draw_arc(spot, 50.0, 0.0, TAU, 32, Color(1.0, 0.9, 0.4), 4.0)
-		var text := TriggerMode.label(mode)
-		if i == picked:
-			text = "▶" + text
-		if not supported:
-			text += "\n(P1)"
-		draw_multiline_string(
-			font, spot + Vector2(-50, -2), text, HORIZONTAL_ALIGNMENT_CENTER, 100.0, 16
+		var ink := UiTheme.TEXT
+		if i == picked and supported:
+			ink = Color("#1b1a17")
+		elif not supported:
+			ink = UiTheme.TEXT_FAINT
+		draw_string(
+			title_font,
+			spot + Vector2(-60, 6),
+			TriggerMode.label(mode),
+			HORIZONTAL_ALIGNMENT_CENTER,
+			120.0,
+			20,
+			ink
 		)
-	draw_line(center, center + offset, Color(1, 1, 1, 0.8), 3.0)
-	draw_circle(center + offset, 6.0, Color.WHITE)
+		var note := ""
+		if mode == current_mode:
+			note = "使用中"
+		if not supported:
+			note = "P1 で追加"
+		if not note.is_empty():
+			draw_string(
+				small,
+				spot + Vector2(-60, 26),
+				note,
+				HORIZONTAL_ALIGNMENT_CENTER,
+				120.0,
+				12,
+				Color(ink, 0.75)
+			)
+	# 中心: いま選ぼうとしている方式の説明
+	var hint := "ドラッグして選ぶ"
+	if picked >= 0:
+		hint = _describe(RadialSelector.MODES[picked])
+	draw_string(
+		small,
+		center + Vector2(-34, 5),
+		hint,
+		HORIZONTAL_ALIGNMENT_CENTER,
+		68.0,
+		11,
+		UiTheme.TEXT_DIM
+	)
+	draw_line(center, center + offset, Color(UiTheme.ACCENT, 0.8), 1.5, true)
+	draw_circle(center + offset, 4.0, UiTheme.ACCENT)
+
+
+func _describe(mode: TriggerMode.Kind) -> String:
+	match mode:
+		TriggerMode.Kind.SINGLE_SHOT:
+			return "キーで1回"
+		TriggerMode.Kind.REPEAT:
+			return "自動で反復"
+		TriggerMode.Kind.SIGNAL:
+			return "音で動く"
+	return ""
+
+
+func _sector(center: Vector2, r0: float, r1: float, a0: float, a1: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	var steps := 24
+	for k in steps + 1:
+		points.append(center + Vector2.from_angle(lerpf(a0, a1, float(k) / steps)) * r1)
+	for k in range(steps, -1, -1):
+		points.append(center + Vector2.from_angle(lerpf(a0, a1, float(k) / steps)) * r0)
+	return points

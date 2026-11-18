@@ -127,16 +127,35 @@ func show_tokens(tokens: Array[RuleToken]) -> void:
 	_in_range = in_range
 	_update_markers()
 	_update_outline()
-	var lines := PackedStringArray()
-	for t in tokens:
-		if t.is_prohibition:
-			lines.append("⛔ %s禁止" % RuleAction.label(t.action))
-		else:
-			var range_mark := "◎範囲 " if t.is_range else ""
-			lines.append(
-				"%s%s（%s）" % [range_mark, RuleAction.label(t.action), TriggerMode.label(t.mode)]
-			)
-	_label.text = "\n".join(lines)
+	# 持っている能力・禁止を、ブロックの上に器のアイコンで並べる（文字より重なりにくい）。
+	# 禁止は赤い輪と斜線の形で、能力の下には発動方式を小さく書く
+	for child in _label.get_children():
+		child.queue_free()
+	var count := tokens.size()
+	for i in count:
+		var t := tokens[i]
+		var icon := Sprite3D.new()
+		icon.texture = ItemIcons.for_token(t)
+		icon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		icon.pixel_size = 0.0032
+		icon.no_depth_test = true
+		icon.render_priority = 1
+		icon.position = Vector3((float(i) - float(count - 1) * 0.5) * 0.46, 0.0, 0.0)
+		_label.add_child(icon)
+		if not t.is_prohibition:
+			var note := Label3D.new()
+			note.text = ("範囲・" if t.is_range else "") + TriggerMode.label(t.mode)
+			note.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			note.pixel_size = 0.0035
+			note.font = UiTheme.font(600)
+			note.font_size = 36
+			note.modulate = UiTheme.TEXT
+			note.outline_modulate = Color(0, 0, 0, 0.6)
+			note.outline_size = 12
+			note.no_depth_test = true
+			note.render_priority = 2
+			note.position = Vector3(0.0, -0.27, 0.0)
+			icon.add_child(note)
 
 
 func _physics_process(delta: float) -> void:
@@ -251,9 +270,12 @@ func _build_visuals() -> void:
 
 	_label = Label3D.new()
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.position = Vector3(0.0, SIZE * 0.95, 0.0)
-	_label.pixel_size = 0.006
+	_label.position = Vector3(0.0, SIZE * 0.95 + 0.12, 0.0)
+	_label.pixel_size = 0.005
+	_label.font = UiTheme.medium()
 	_label.font_size = 40
-	_label.outline_size = 10
+	_label.modulate = UiTheme.TEXT
+	_label.outline_modulate = Color(0, 0, 0, 0.6)
+	_label.outline_size = 14
 	_label.no_depth_test = true
 	add_child(_label)

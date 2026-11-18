@@ -174,7 +174,10 @@ func _add_label(at: Vector3, text: String) -> void:
 	label.text = text
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position = at
-	label.pixel_size = 0.006
-	label.font_size = 36
-	label.outline_size = 8
+	label.pixel_size = 0.005
+	label.font = UiTheme.font(700, 2)
+	label.font_size = 40
+	label.modulate = UiTheme.TEXT
+	label.outline_modulate = Color(0, 0, 0, 0.6)
+	label.outline_size = 14
 	add_child(label)
