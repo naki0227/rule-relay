@@ -91,8 +91,23 @@ func teleport(target: Vector3, new_velocity_y: float) -> void:
 	_step_time = -1.0
 
 
+## チェックポイント用。1ブロック移動の途中で保存しても、復元後に同じ動きの続きをして
+## マス目に収まるよう、移動の始点・終点・経過時間も残す。
 func capture_state() -> Dictionary:
-	return {"position": global_position, "velocity_y": velocity_y}
+	return {
+		"position": global_position,
+		"velocity_y": velocity_y,
+		"step_from": _step_from,
+		"step_to": _step_to,
+		"step_time": _step_time,
+	}
+
+
+func restore_state(state: Dictionary) -> void:
+	teleport(state["position"] as Vector3, float(state["velocity_y"]))
+	_step_from = state.get("step_from", global_position) as Vector3
+	_step_to = state.get("step_to", global_position) as Vector3
+	_step_time = float(state.get("step_time", -1.0))
 
 
 ## 照準が当たっているとき（黄）。付与先の赤い輪郭とは色と太さで区別する。

@@ -9,6 +9,7 @@ var world: GameWorld
 var radial_menu: RadialMenu
 
 var inventory: InventoryPanel
+var pause_menu: PauseMenu
 
 var _slots: Array[Label] = []
 var _slot_icons: Array[TextureRect] = []
@@ -21,6 +22,7 @@ var _preview_label: Label
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # 一時停止中もメニューを動かす
 	_build()
 	if world != null:
 		world.state_changed.connect(refresh)
@@ -187,3 +189,9 @@ func _build() -> void:
 	inventory.position = Vector2(-280, -230)
 	inventory.visible = false
 	root.add_child(inventory)
+
+	pause_menu = PauseMenu.new()
+	pause_menu.world = world
+	root.add_child(pause_menu)
+	if world != null:
+		world.checkpoint_changed.connect(pause_menu.refresh)

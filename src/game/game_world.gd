@@ -7,6 +7,7 @@ extends Node3D
 signal message_posted(text: String)
 signal state_changed
 signal goal_reached
+signal checkpoint_changed
 
 const FIRST_BLOCK_ID: int = 100
 
@@ -27,7 +28,8 @@ var goal_box: AABB = AABB()
 var _next_block_id: int = FIRST_BLOCK_ID
 var _repeat_cursors: Dictionary[int, RepeatCursor] = {}
 var _repeat_timers: Dictionary[int, float] = {}
-var _checkpoint: Dictionary = {}
+var _history: CheckpointHistory = CheckpointHistory.new()
+var _home_cells: Dictionary[int, Vector3i] = {}
 var _spawn_point: Vector3 = Vector3.ZERO
 var _highlighted: RuleBlock
 var _range_preview_active: bool = false
@@ -63,6 +65,7 @@ func add_block(cell: Vector3i, color: Color = Color(0.85, 0.65, 0.35)) -> RuleBl
 	block.setup(id, cell, color)
 	add_child(block)
 	blocks[id] = block
+	_home_cells[id] = cell
 	ledger.register_entity(id, EntityKind.Kind.BLOCK)
 	_repeat_cursors[id] = RepeatCursor.new()
 	_repeat_timers[id] = 0.0
@@ -233,7 +236,6 @@ func cancel_range_preview() -> void:
 func interact(target: RuleBlock) -> void:
 	if is_on_checkpoint():
 		save_checkpoint()
-		_post("チェックポイントを保存しました")
 		return
 	if target != null and _within_reach(target):
 		var picked := _recall_one(target.entity_id)
@@ -287,14 +289,68 @@ func update_highlight(target: RuleBlock) -> void:
 # --- チェックポイント（企画書 9） ------------------------------------------
 
 
-func save_checkpoint() -> void:
+## 島に入った時点の状態を記録する（いつでも「最初からやり直す」で戻れる）。
+func set_initial_checkpoint() -> void:
+	_history.set_initial(_capture())
+	checkpoint_changed.emit()
+
+
+## F でチェックポイントに保存する。詰みにつながる状態なら保存せず、理由を表示して false を返す。
+func save_checkpoint() -> bool:
+	var blockers := CheckpointPolicy.save_blockers(
+		ledger, player.is_on_floor(), _falling_blocks().size()
+	)
+	if not blockers.is_empty():
+		var reasons := PackedStringArray()
+		for b in blockers:
+			reasons.append(CheckpointPolicy.describe(b))
+		_post("保存できません: %s" % "／".join(reasons))
+		return false
+	_history.push(_capture())
+	_post("チェックポイントを保存しました")
+	checkpoint_changed.emit()
+	return true
+
+
+## 最後に保存した時点へ、世界を丸ごと戻す。能力だけを戻すのではない。
+func restore_checkpoint() -> void:
+	_apply(_history.latest())
+	_post("チェックポイントへ戻りました")
+
+
+## 最後の保存を取り消して、ひとつ前の保存（無ければ島に入った時点）へ戻る。
+## 詰んだ状態で保存してしまったときの逃げ道。能力が何も無くてもメニューから使える。
+func restore_previous_checkpoint() -> bool:
+	if not _history.can_discard_latest():
+		return false
+	_apply(_history.discard_latest())
+	_post("最後の保存を取り消して、ひとつ前へ戻りました")
+	checkpoint_changed.emit()
+	return true
+
+
+func restart_island() -> void:
+	_apply(_history.reset_to_initial())
+	_post("島の最初からやり直します")
+	checkpoint_changed.emit()
+
+
+func checkpoint_save_count() -> int:
+	return _history.save_count()
+
+
+func can_restore_previous_checkpoint() -> bool:
+	return _history.can_discard_latest()
+
+
+func _capture() -> Dictionary:
 	var block_states := {}
 	for id in blocks:
 		var state := blocks[id].capture_state()
 		state["cursor"] = _repeat_cursors[id].get_index()
 		state["timer"] = _repeat_timers[id]
 		block_states[id] = state
-	_checkpoint = {
+	return {
 		"ledger": ledger.snapshot(),
 		"player_position": player.global_position,
 		"blocks": block_states,
@@ -304,24 +360,48 @@ func save_checkpoint() -> void:
 	}
 
 
-## 世界を丸ごと保存時点へ戻す。能力だけを戻すのではない。
-func restore_checkpoint() -> void:
-	if _checkpoint.is_empty():
+func _apply(snapshot: Dictionary) -> void:
+	if snapshot.is_empty():
 		return
-	ledger.restore(_checkpoint["ledger"] as Dictionary)
-	player.global_position = _checkpoint["player_position"] as Vector3
+	cancel_range_preview()
+	ledger.restore(snapshot["ledger"] as Dictionary)
+	player.global_position = snapshot["player_position"] as Vector3
 	player.velocity = Vector3.ZERO
-	var block_states := _checkpoint["blocks"] as Dictionary
+	var block_states := snapshot["blocks"] as Dictionary
 	for id: int in block_states:
 		var state := block_states[id] as Dictionary
-		blocks[id].teleport(state["position"] as Vector3, float(state["velocity_y"]))
+		blocks[id].restore_state(state)
 		_repeat_cursors[id].set_index(int(state["cursor"]))
 		_repeat_timers[id] = float(state["timer"])
-	selected_slot = int(_checkpoint["selected_slot"])
-	lend_mode = int(_checkpoint["lend_mode"]) as TriggerMode.Kind
-	goal_cleared = bool(_checkpoint["goal_cleared"])
-	_post("チェックポイントへ戻りました")
+	selected_slot = int(snapshot["selected_slot"])
+	lend_mode = int(snapshot["lend_mode"]) as TriggerMode.Kind
+	goal_cleared = bool(snapshot["goal_cleared"])
 	state_changed.emit()
+
+
+## 島から落ちていく途中（地面の高さより下）のブロック。
+func _falling_blocks() -> Array[RuleBlock]:
+	var result: Array[RuleBlock] = []
+	for block: RuleBlock in blocks.values():
+		if block.global_position.y < -0.5:
+			result.append(block)
+	return result
+
+
+## 島の外へ落ちきったブロックを救済する（仮の方針、docs/TODO.md）: 自分が貸していた
+## 能力・禁止は器へ戻し、ブロックは最初の位置に戻す。レベルに置かれていた能力・禁止はブロックに残る。
+func _rescue_lost_blocks() -> void:
+	for id in blocks:
+		var block := blocks[id]
+		if block.global_position.y >= Tuning.FALL_LIMIT_Y:
+			continue
+		var returned := 0
+		for t in ledger.tokens_on(id):
+			if t.vessel_id != -1 and ledger.recall(t.id):
+				returned += 1
+		block.teleport(RuleBlock.cell_center(_home_cells[id]), 0.0)
+		var note := "（貸していた %d 個は手元に戻りました）" % returned if returned > 0 else ""
+		_post("島から落ちたブロックを元の位置に戻しました%s" % note)
 
 
 # --- 毎フレーム -------------------------------------------------------------
@@ -331,6 +411,7 @@ func _physics_process(delta: float) -> void:
 	_tick_repeats(delta)
 	if player == null:
 		return
+	_rescue_lost_blocks()
 	if player.global_position.y < Tuning.FALL_LIMIT_Y:
 		restore_checkpoint()
 	if not goal_cleared and goal_box.has_volume() and goal_box.has_point(player.global_position):
