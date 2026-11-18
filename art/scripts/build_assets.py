@@ -148,6 +148,8 @@ def bevel_all(bm, offset, segments=2, profile=0.5):
 def save_and_export(name, objects):
     SOURCE_DIR.mkdir(parents=True, exist_ok=True)
     EXPORT_DIR.mkdir(parents=True, exist_ok=True)
+    # 上書き保存のたびに .blend1（自動バックアップ）を作らない。履歴は Git で持つ
+    bpy.context.preferences.filepaths.save_version = 0
     bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE_DIR / f"{name}.blend"), compress=True)
     bpy.ops.object.select_all(action="DESELECT")
     for obj in objects:
