@@ -16,6 +16,8 @@ const ITEMS: Array[Array] = [
 ]
 
 var world: GameWorld
+## 効果音を鳴らす関数（Hud.play_ui）。無ければ鳴らさない。
+var play_sound: Callable
 
 var _card: PanelContainer
 var _buttons: Dictionary[String, Button] = {}
@@ -46,12 +48,15 @@ func open() -> void:
 	tween.tween_property(self, "modulate:a", 1.0, UiTheme.FAST)
 	tween.parallel().tween_property(_card, "position", rest, UiTheme.NORMAL)
 	get_tree().paused = true
+	_sound(&"ui_open")
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	refresh()
 	_buttons["resume"].grab_focus()
 
 
 func close() -> void:
+	if visible:
+		_sound(&"ui_close")
 	visible = false
 	get_tree().paused = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -70,6 +75,10 @@ func refresh() -> void:
 func choose(item: String) -> void:
 	if item != "restart":
 		_restart_armed = false
+	if item == "previous" and not world.can_restore_previous_checkpoint():
+		_sound(&"ui_error")
+		return
+	_sound(&"ui_select" if item == "restart" and not _restart_armed else &"ui_confirm")
 	match item:
 		"resume":
 			close()
@@ -149,4 +158,11 @@ func _build() -> void:
 
 
 func _describe(text: String) -> void:
+	if visible and _description.text != text:
+		_sound(&"ui_hover")
 	_description.text = text
+
+
+func _sound(event: StringName) -> void:
+	if play_sound.is_valid():
+		play_sound.call(event)

@@ -90,10 +90,13 @@ func _handle_gameplay(event: InputEvent) -> void:
 		world.cancel_range_preview()
 		if hud != null:
 			hud.radial_menu.open(world.lend_mode)
+			hud.play_ui(&"radial_open")
 	elif event.is_action_pressed(&"cycle_mode"):
 		world.cycle_mode()
+		hud.play_ui(&"ui_select")
 	elif event.is_action_pressed(&"toggle_reach"):
 		world.toggle_reach()
+		hud.play_ui(&"ui_select")
 		if hud != null:
 			hud.hints.used("throw")
 	elif event.is_action_pressed(&"interact"):
@@ -122,7 +125,10 @@ func _handle_radial(event: InputEvent) -> void:
 		var index := hud.radial_menu.picked_index()
 		hud.radial_menu.close()
 		if index >= 0:
-			world.set_lend_mode(RadialSelector.MODES[index])
+			var ok := world.set_lend_mode(RadialSelector.MODES[index])
+			hud.play_ui(&"ui_confirm" if ok else &"ui_error")
+		else:
+			hud.play_ui(&"ui_cancel")
 	elif event.is_action_pressed(&"restore_checkpoint"):
 		hud.radial_menu.close()
 

@@ -52,6 +52,9 @@ gdformat --check "${GD_FILES[@]}"
 step "lint"
 gdlint "${GD_FILES[@]}"
 
+step "sound budget (tools/sfx)"
+python3 -m unittest discover -s tools/sfx -p 'test_*.py'
+
 step "import"
 run_godot import --headless --import
 

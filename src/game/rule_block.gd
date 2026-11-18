@@ -6,6 +6,11 @@ extends AnimatableBody3D
 ## プレイヤーとは衝突判定しない（collision_mask にプレイヤーを含めない）ので、乗っている人に
 ## 押し戻されて止まることはない。
 
+## 効果音のための合図（音そのものは SoundBank が鳴らす）。
+signal jumped
+signal landed(impact_speed: float)
+signal stepped
+
 const SIZE: float = 1.0
 
 var entity_id: int = -1
@@ -71,7 +76,9 @@ func is_ready_for(action: RuleAction.Kind) -> bool:
 func perform(action: RuleAction.Kind) -> void:
 	if action == RuleAction.Kind.JUMP:
 		velocity_y = Tuning.jump_velocity(Tuning.BLOCK_JUMP_HEIGHT)
+		jumped.emit()
 		return
+	stepped.emit()
 	_step_from = global_position
 	_step_to = global_position + Vector3(RuleAction.world_direction(action)) * SIZE
 	_step_time = 0.0
@@ -177,6 +184,8 @@ func _integrate_vertical(delta: float) -> void:
 			# 上のブロックを押し上げ、次のフレームから一緒に上がる
 			above.receive_lift(velocity_y)
 	global_position += travel
+	if velocity_y < -3.0:
+		landed.emit(-velocity_y)
 	velocity_y = 0.0
 
 

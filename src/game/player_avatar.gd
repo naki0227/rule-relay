@@ -4,16 +4,25 @@ extends CharacterBody3D
 ## どの方向へ動けるかは、毎フレーム ledger（能力・禁止）に問い合わせて決める。
 ## 移動はカメラ相対（企画書 4-1）。W を失っても、視点を回して A などで同じ方角へ進めるのは許容する。
 
+## 効果音のための合図。
+signal jumped
+signal landed(impact_speed: float)
+signal footstep
+
 const HEIGHT: float = 1.6
 const RADIUS: float = 0.3
 
 ## x = 右(+)/左(-)、y = 前(+)/後(-)。値は -1〜1。
+## 足音の間隔（歩いた距離、m）。
+const STEP_DISTANCE: float = 1.7
+
 var move_intent: Vector2 = Vector2.ZERO
 ## 移動の基準にするカメラの水平向き（ラジアン、Y軸回り）。
 var view_yaw: float = 0.0
 var ledger: RuleLedger
 
 var _jump_requested: bool = false
+var _walked: float = 0.0
 var _visual: Node3D
 var _limbs: Dictionary[String, Node3D] = {}
 var _walk_phase: float = 0.0
@@ -50,11 +59,21 @@ func _physics_process(delta: float) -> void:
 		_jump_requested = false
 		if is_on_floor() and ledger != null and ledger.player_can(RuleAction.Kind.JUMP):
 			velocity.y = Tuning.jump_velocity(Tuning.PLAYER_JUMP_HEIGHT)
+			jumped.emit()
 	_animate(delta, direction)
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z) * delta
 	# 段差補助は「床に立って歩いている」ときだけ。空中で壁に触れても登らせない
 	var was_on_floor := is_on_floor() and velocity.y <= 0.0
+	var fall_speed := -velocity.y
+	var airborne := not is_on_floor()
 	move_and_slide()
+	if airborne and is_on_floor() and fall_speed > 4.0:
+		landed.emit(fall_speed)
+	if is_on_floor() and horizontal.length() > 0.0:
+		_walked += horizontal.length()
+		if _walked >= STEP_DISTANCE:
+			_walked = 0.0
+			footstep.emit()
 	if was_on_floor and is_on_wall() and horizontal.length() > 0.0001:
 		_try_step_up(horizontal)
 
