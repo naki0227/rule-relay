@@ -32,7 +32,19 @@ func _run_all() -> void:
 				failed += 1
 	var elapsed := Time.get_ticks_msec() - started
 	print("\n%d passed, %d failed (%d ms)" % [passed, failed, elapsed])
+	await _release_everything()
 	quit(1 if failed > 0 or passed == 0 else 0)
+
+
+## 終了前に、テストが残したノードと鳴っている音を片付ける。queue_free の直後に quit すると、
+## 速いマシンでは削除待ちのノードや再生中の音が残り、「resources still in use at exit」が出る。
+func _release_everything() -> void:
+	for child in root.get_children():
+		if child is AudioStreamPlayer:
+			(child as AudioStreamPlayer).stop()
+		child.queue_free()
+	for i in 3:
+		await process_frame
 
 
 func _run_one(script: GDScript, method_name: String, label: String) -> bool:
