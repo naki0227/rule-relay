@@ -3,7 +3,6 @@
     python3 -m unittest discover -s tools/sfx -p 'test_*.py'
 """
 
-import hashlib
 import sys
 import unittest
 from pathlib import Path
@@ -58,16 +57,18 @@ class SoundBudget(unittest.TestCase):
 
 
 class Reproducible(unittest.TestCase):
-    def test_build_is_deterministic(self):
-        before = {p.stem: hashlib.sha256(p.read_bytes()).hexdigest() for p in analyze.SFX.glob("*.wav")}
-        build_sfx.RNG = build_sfx.np.random.default_rng(20261118)
+    def test_build_reproduces_the_committed_files(self):
+        """スクリプトから同じ音が出る（原本のない音を防ぐ）。CPU やライブラリの違いによる
+        最後の桁の差は許す（16bit の値で 2 まで）。"""
+        np = build_sfx.np
+        build_sfx.RNG = np.random.default_rng(20261118)
         for name, build in build_sfx.SOUNDS.items():
-            data = build()
-            pcm = (build_sfx.np.clip(data, -1, 1) * 32767).astype(build_sfx.np.int16).tobytes()
-            path = analyze.SFX / f"{name}.wav"
+            fresh = (np.clip(build(), -1, 1) * 32767).astype(np.int16).astype(int)
+            committed, _ = analyze.load(analyze.SFX / f"{name}.wav")
+            committed = np.round(committed * 32768).astype(int)
             with self.subTest(name):
-                self.assertIn(pcm, path.read_bytes(), "regenerate with tools/sfx/build_sfx.py")
-        self.assertTrue(before)
+                self.assertEqual(len(fresh), len(committed), "regenerate with tools/sfx/build_sfx.py")
+                self.assertLessEqual(int(np.max(np.abs(fresh - committed))), 2)
 
 
 if __name__ == "__main__":
