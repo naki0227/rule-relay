@@ -5,6 +5,7 @@
 | パス | 内容 |
 |---|---|
 | `scripts/build_assets.py` | すべてのモデルを生成する Blender の Python スクリプト（正本） |
+| `scripts/build_icons.py` | 能力・禁止の器のアイコン10枚を描画して `assets/icons/*.png`（128px・透明背景）に書き出す |
 | `scripts/render_previews.py` | 原本を1枚ずつ描画して確認用の PNG を作る（Cycles・CPU） |
 | `source/*.blend` | Blender の原本（スクリプトが書き出す。手で直したら、スクリプトにも反映する） |
 
@@ -13,6 +14,7 @@
 ```bash
 blender -b --factory-startup --python art/scripts/build_assets.py              # 全部
 blender -b --factory-startup --python art/scripts/build_assets.py -- block     # 一部（名前は BUILDERS を参照）
+blender -b --factory-startup --python art/scripts/build_icons.py               # アイコン
 blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/previews
 ```
 
@@ -38,5 +40,6 @@ blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/pre
 | `island_base` | 浮かぶ島の底（ゲーム側で島の大きさに拡大） |
 | `tree_round` / `tree_tall` / `grass_tuft` / `flower` / `pebbles` | 置物 |
 | `checkpoint_pad` / `goal_beacon` | チェックポイントの台、到達目標の目印 |
+| `item_icons.blend` → `assets/icons/` | 器のアイコン。金のメダル＝能力、灰色＋赤い輪と斜線＝禁止。記号は矢印（W/A/S/D）と二重の山形（ジャンプ） |
 
 すべて生成スクリプトで作った自作のモデルで、外部素材・3D生成AI（Tripo など）は使っていない。Tripo を使うときは、出力の利用規約と、コンテストの AI 利用ガイドラインに沿って `docs/ai-usage.md` に記録する。

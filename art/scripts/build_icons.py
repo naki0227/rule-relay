@@ -1,0 +1,206 @@
+"""能力・禁止の「器」のアイコンを Blender で描画し、assets/icons/*.png（透明背景）に書き出す。
+
+    blender -b --factory-startup --python art/scripts/build_icons.py
+
+器は丸いメダル型。中央の記号で行動を示す（W/A/S/D は矢印、ジャンプは二重の山形）。
+禁止は同じ記号を灰色にし、赤い輪と斜線を重ねる（色だけに頼らない）。
+矢印の向きはアイコン上の向きで、ゲーム内ではプレイヤーはカメラ相対、ブロックは世界の方角になる。
+原本は art/source/item_icons.blend（全アイコンを並べたシーン）。
+"""
+
+import math
+from pathlib import Path
+
+import bmesh
+import bpy
+from mathutils import Matrix, Vector
+
+ROOT = Path(__file__).resolve().parents[2]
+SOURCE = ROOT / "art" / "source" / "item_icons.blend"
+OUT_DIR = ROOT / "assets" / "icons"
+SIZE = 128
+
+ACTIONS = {
+    "forward": 0.0,  # 記号の回転（度）。0 = 上向き
+    "left": 90.0,
+    "back": 180.0,
+    "right": -90.0,
+    "jump": None,
+}
+
+
+def srgb(hex_color):
+    hex_color = hex_color.lstrip("#")
+    out = []
+    for i in range(0, 6, 2):
+        c = int(hex_color[i : i + 2], 16) / 255.0
+        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    return (*out, 1.0)
+
+
+def material(name, color, roughness=0.5, metallic=0.0, emission=None, strength=0.0):
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    bsdf = mat.node_tree.nodes["Principled BSDF"]
+    bsdf.inputs["Base Color"].default_value = srgb(color)
+    bsdf.inputs["Roughness"].default_value = roughness
+    bsdf.inputs["Metallic"].default_value = metallic
+    if emission:
+        bsdf.inputs["Emission Color"].default_value = srgb(emission)
+        bsdf.inputs["Emission Strength"].default_value = strength
+    return mat
+
+
+def to_object(name, bm, mats, smooth=True):
+    mesh = bpy.data.meshes.new(name)
+    bm.to_mesh(mesh)
+    bm.free()
+    for m in mats:
+        mesh.materials.append(m)
+    obj = bpy.data.objects.new(name, mesh)
+    bpy.context.collection.objects.link(obj)
+    if smooth:
+        mesh.shade_smooth()
+        mesh.set_sharp_from_angle(angle=math.radians(40))
+    return obj
+
+
+def medal(name, rim_color, face_color):
+    """丸いメダル（縁が太く、面が少しくぼむ）。"""
+    rim = material(name + "Rim", rim_color, 0.35, metallic=0.5)
+    face = material(name + "Face", face_color, 0.6)
+    bm = bmesh.new()
+    geom = bmesh.ops.create_cone(
+        bm, cap_ends=True, segments=48, radius1=0.46, radius2=0.46, depth=0.14
+    )
+    bmesh.ops.bevel(
+        bm, geom=list(bm.verts) + list(bm.edges), offset=0.03, segments=3,
+        affect="EDGES", clamp_overlap=True,
+    )
+    top = [f for f in bm.faces if f.normal.z > 0.99 and f.calc_center_median().z > 0.06]
+    bmesh.ops.inset_individual(bm, faces=top, thickness=0.07, depth=-0.025)
+    for f in bm.faces:
+        f.material_index = 1 if f in top else 0
+    return to_object(name, bm, [rim, face])
+
+
+def extruded_polygon(name, points, depth, mat, rotation_deg=0.0, z=0.06):
+    bm = bmesh.new()
+    verts = [bm.verts.new((x, y, z)) for x, y in points]
+    face = bm.faces.new(verts)
+    ext = bmesh.ops.extrude_face_region(bm, geom=[face])
+    moved = [e for e in ext["geom"] if isinstance(e, bmesh.types.BMVert)]
+    bmesh.ops.translate(bm, vec=Vector((0, 0, depth)), verts=moved)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bmesh.ops.bevel(
+        bm, geom=list(bm.edges), offset=0.008, segments=2, affect="EDGES", clamp_overlap=True
+    )
+    bmesh.ops.rotate(
+        bm, verts=bm.verts, cent=(0, 0, 0), matrix=Matrix.Rotation(math.radians(rotation_deg), 3, "Z")
+    )
+    return to_object(name, bm, [mat], smooth=False)
+
+
+ARROW = [(-0.07, -0.24), (0.07, -0.24), (0.07, 0.02), (0.18, 0.02), (0.0, 0.25), (-0.18, 0.02),
+         (-0.07, 0.02)]
+
+
+def chevron(y, width=0.2, thickness=0.085, height=0.12):
+    return [(-width, y), (0.0, y + height), (width, y), (width, y + thickness),
+            (0.0, y + height + thickness), (-width, y + thickness)]
+
+
+def symbol(name, action, mat):
+    if ACTIONS[action] is None:
+        objs = [extruded_polygon(name + "A", chevron(-0.2), 0.05, mat),
+                extruded_polygon(name + "B", chevron(0.0), 0.05, mat)]
+        return objs
+    return [extruded_polygon(name, ARROW, 0.05, mat, ACTIONS[action])]
+
+
+def prohibition_mark(name):
+    red = material(name + "Red", "#d8342c", 0.4, emission="#d8342c", strength=0.3)
+    bm = bmesh.new()
+    ring = bmesh.ops.create_circle(bm, cap_ends=False, segments=48, radius=0.36)
+    inner = bmesh.ops.create_circle(bm, cap_ends=False, segments=48, radius=0.29)
+    bmesh.ops.bridge_loops(bm, edges=list(bm.edges))
+    bmesh.ops.translate(bm, vec=Vector((0, 0, 0.13)), verts=bm.verts)
+    ring_obj = to_object(name + "Ring", bm, [red], smooth=False)
+    slash = extruded_polygon(
+        name + "Slash", [(-0.035, -0.31), (0.035, -0.31), (0.035, 0.31), (-0.035, 0.31)],
+        0.02, red, -45.0, z=0.13,
+    )
+    _ = ring, inner
+    return [ring_obj, slash]
+
+
+def setup_scene():
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    scene.cycles.device = "CPU"
+    scene.cycles.samples = 48
+    scene.render.film_transparent = True
+    scene.render.resolution_x = SIZE
+    scene.render.resolution_y = SIZE
+    scene.render.image_settings.file_format = "PNG"
+    scene.render.image_settings.color_mode = "RGBA"
+    scene.view_settings.view_transform = "Standard"
+    cam_data = bpy.data.cameras.new("IconCam")
+    cam_data.type = "ORTHO"
+    cam_data.ortho_scale = 1.08
+    cam = bpy.data.objects.new("IconCam", cam_data)
+    cam.location = (0, -0.9, 2.2)
+    cam.rotation_euler = (math.radians(22), 0, 0)
+    scene.collection.objects.link(cam)
+    scene.camera = cam
+    key = bpy.data.lights.new("Key", "AREA")
+    key.energy = 120
+    key.size = 2.0
+    key_obj = bpy.data.objects.new("Key", key)
+    key_obj.location = (-1.2, -1.2, 2.5)
+    key_obj.rotation_euler = (math.radians(40), math.radians(-30), 0)
+    scene.collection.objects.link(key_obj)
+    world = bpy.data.worlds.new("IconWorld")
+    world.use_nodes = True
+    world.node_tree.nodes["Background"].inputs[1].default_value = 0.8
+    scene.world = world
+    return scene
+
+
+def build_icon(scene, kind, action):
+    """1枚分のオブジェクトを作って描画し、描画後は非表示にする（原本の .blend に全部残す）。"""
+    name = f"{kind}_{action}"
+    if kind == "ability":
+        base = medal(name + "Medal", "#c99a3c", "#f3dfa2")
+        mark = material(name + "Symbol", "#7a4e16", 0.5)
+        objs = [base] + symbol(name + "Symbol", action, mark)
+    else:
+        base = medal(name + "Medal", "#6c6a70", "#c9c6c2")
+        mark = material(name + "Symbol", "#55525a", 0.6)
+        objs = [base] + symbol(name + "Symbol", action, mark) + prohibition_mark(name)
+    for other in scene.objects:
+        if other.type == "MESH":
+            other.hide_render = other not in objs
+    scene.render.filepath = str(OUT_DIR / f"{name}.png")
+    bpy.ops.render.render(write_still=True)
+    # 原本のシーンでは、横に並べて全部見えるようにする
+    index = list(ACTIONS).index(action) + (0 if kind == "ability" else len(ACTIONS))
+    for obj in objs:
+        obj.location.x += 1.2 * (index % len(ACTIONS))
+        obj.location.y += -1.2 * (index // len(ACTIONS))
+
+
+def main():
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    scene = setup_scene()
+    for kind in ("ability", "prohibition"):
+        for action in ACTIONS:
+            build_icon(scene, kind, action)
+    for obj in scene.objects:
+        obj.hide_render = False
+    bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE), compress=True)
+    print("icons done")
+
+
+main()
