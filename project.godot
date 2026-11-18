@@ -1,0 +1,34 @@
+; Engine configuration file.
+; Godot 4.6 系で開く。設定の変更理由は docs/adr を参照。
+
+config_version=5
+
+[application]
+
+config/name="rule-relay (working title)"
+config/description="能力を世界へ貸す3D箱庭探索パズルの試作"
+run/main_scene="res://scenes/boot.tscn"
+config/features=PackedStringArray("4.6", "Forward Plus")
+config/icon="res://icon.svg"
+
+[debug]
+
+gdscript/warnings/untyped_declaration=2
+gdscript/warnings/unsafe_property_access=2
+gdscript/warnings/unsafe_method_access=2
+gdscript/warnings/unsafe_call_argument=1
+gdscript/warnings/return_value_discarded=0
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+common/physics_ticks_per_second=60
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
