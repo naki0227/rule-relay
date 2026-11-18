@@ -14,6 +14,10 @@ var view_yaw: float = 0.0
 var ledger: RuleLedger
 
 var _jump_requested: bool = false
+var _visual: Node3D
+var _limbs: Dictionary[String, Node3D] = {}
+var _walk_phase: float = 0.0
+var _facing: float = 0.0
 
 
 func _ready() -> void:
@@ -46,6 +50,7 @@ func _physics_process(delta: float) -> void:
 		_jump_requested = false
 		if is_on_floor() and ledger != null and ledger.player_can(RuleAction.Kind.JUMP):
 			velocity.y = Tuning.jump_velocity(Tuning.PLAYER_JUMP_HEIGHT)
+	_animate(delta, direction)
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z) * delta
 	# 段差補助は「床に立って歩いている」ときだけ。空中で壁に触れても登らせない
 	var was_on_floor := is_on_floor() and velocity.y <= 0.0
@@ -94,6 +99,42 @@ func _try_step_up(horizontal: Vector3) -> void:
 	velocity.y = maxf(velocity.y, 0.0)
 
 
+## 歩きの見た目: 進む向きへ体を回し、速さに合わせて手足を振る（骨格なしの簡易アニメーション）。
+func _animate(delta: float, direction: Vector3) -> void:
+	if _visual == null:
+		return
+	var speed := direction.length()
+	if speed > 0.05:
+		var target := atan2(-direction.x, -direction.z)
+		_facing = lerp_angle(_facing, target, minf(1.0, delta * 12.0))
+		_visual.rotation.y = _facing
+	var grounded := is_on_floor()
+	if grounded and speed > 0.05:
+		_walk_phase = fmod(_walk_phase + delta * 11.0 * speed, TAU)
+	else:
+		_walk_phase = lerpf(_walk_phase, 0.0 if _walk_phase < PI else TAU, minf(1.0, delta * 8.0))
+	var swing := sin(_walk_phase) * 0.7 * speed
+	if not grounded:
+		swing = -0.5  # 空中では足をそろえて腕を少し上げる
+	_set_limb("LegL", swing, 0.0)
+	_set_limb("LegR", -swing, 0.0)
+	_set_limb("ArmL", -swing * 0.8, -0.08)
+	_set_limb("ArmR", swing * 0.8, 0.08)
+	var bob := absf(sin(_walk_phase)) * 0.04 * speed
+	var body := _limbs.get("Body") as Node3D
+	var head := _limbs.get("Head") as Node3D
+	if body != null:
+		body.position.y = 0.42 + bob
+	if head != null:
+		head.position.y = 1.06 + bob
+
+
+func _set_limb(limb_name: String, pitch: float, roll: float) -> void:
+	var limb := _limbs.get(limb_name) as Node3D
+	if limb != null:
+		limb.rotation = Vector3(pitch, 0.0, roll)
+
+
 func _build_body() -> void:
 	var shape := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
@@ -103,21 +144,13 @@ func _build_body() -> void:
 	shape.position = Vector3(0.0, HEIGHT * 0.5, 0.0)
 	add_child(shape)
 
-	var mesh := MeshInstance3D.new()
-	var capsule_mesh := CapsuleMesh.new()
-	capsule_mesh.radius = RADIUS
-	capsule_mesh.height = HEIGHT
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.3, 0.55, 0.95)
-	capsule_mesh.material = material
-	mesh.mesh = capsule_mesh
-	mesh.position = shape.position
-	add_child(mesh)
-
-	# 向きが分かるように前方へ小さな鼻を付ける
-	var nose := MeshInstance3D.new()
-	var nose_mesh := BoxMesh.new()
-	nose_mesh.size = Vector3(0.15, 0.15, 0.25)
-	nose.mesh = nose_mesh
-	nose.position = Vector3(0.0, HEIGHT * 0.8, -RADIUS)
-	add_child(nose)
+	# 見た目は Blender のモデル（art/source/traveler.blend）。手足は関節に原点がある
+	_visual = Node3D.new()
+	_visual.name = "Visual"
+	add_child(_visual)
+	var model := ModelLibrary.instantiate("traveler")
+	_visual.add_child(model)
+	for limb_name: String in ["Body", "Head", "ArmL", "ArmR", "LegL", "LegR"]:
+		var limb := model.find_child(limb_name, true, false) as Node3D
+		if limb != null:
+			_limbs[limb_name] = limb
