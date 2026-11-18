@@ -1,0 +1,21 @@
+# Godot
+.godot/
+.import/
+*.translation
+export_credentials.cfg
+
+# Build outputs
+build/
+
+# Python tooling
+__pycache__/
+.venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# Secrets (never commit)
+.env
+.env.*
