@@ -30,6 +30,9 @@ var _repeat_timers: Dictionary[int, float] = {}
 var _checkpoint: Dictionary = {}
 var _spawn_point: Vector3 = Vector3.ZERO
 var _highlighted: RuleBlock
+var _range_preview_active: bool = false
+var _previewed: Array[RuleBlock] = []
+var _range_preview_visual: RangePreview
 
 
 func _ready() -> void:
@@ -78,14 +81,23 @@ func select_slot(slot: int) -> void:
 	state_changed.emit()
 
 
-## 単発 ↔ 繰り返し。信号は P1。中央の円形 UI ができるまでの仮操作（Q／ホイール押し込み）。
-func cycle_mode() -> void:
-	if lend_mode == TriggerMode.Kind.SINGLE_SHOT:
-		lend_mode = TriggerMode.Kind.REPEAT
-	else:
-		lend_mode = TriggerMode.Kind.SINGLE_SHOT
+## 円形 UI で選んだ発動方式にする。まだ使えない方式（信号）は選ばず false を返す。
+func set_lend_mode(mode: TriggerMode.Kind) -> bool:
+	if not TriggerMode.is_supported(mode):
+		_post("%s は音波と一緒に実装予定です（P1）" % TriggerMode.label(mode))
+		return false
+	lend_mode = mode
 	_post("付与方式: %s" % TriggerMode.label(lend_mode))
 	state_changed.emit()
+	return true
+
+
+## 単発 ↔ 繰り返し。円形 UI の代わりに使える代替キー（Q）。
+func cycle_mode() -> void:
+	if lend_mode == TriggerMode.Kind.SINGLE_SHOT:
+		set_lend_mode(TriggerMode.Kind.REPEAT)
+	else:
+		set_lend_mode(TriggerMode.Kind.SINGLE_SHOT)
 
 
 func toggle_reach() -> void:
@@ -120,11 +132,8 @@ func lend_to(target: RuleBlock, use_range: bool) -> RuleLedger.LendResult:
 	var mode := TriggerMode.Kind.NONE if t.is_prohibition else lend_mode
 	var result: RuleLedger.LendResult
 	if use_range:
-		var layer := target.cell().y
-		var center := target.global_position
-		var spec := {"center": center, "radius": BlockRules.DEFAULT_RANGE_RADIUS, "layer": layer}
-		var ids := BlockRules.select_in_range(center, spec["radius"], layer, _block_cells())
-		result = ledger.lend(v.id, ids, mode, spec)
+		var selection := range_selection(target)
+		result = ledger.lend(v.id, selection["ids"] as PackedInt32Array, mode, selection)
 	else:
 		result = ledger.lend(v.id, PackedInt32Array([target.entity_id]), mode)
 	_post(_describe_lend(t, result, use_range))
@@ -133,6 +142,90 @@ func lend_to(target: RuleBlock, use_range: bool) -> RuleLedger.LendResult:
 			# 付与してすぐ動き出すように、最初の周期を短くする
 			_repeat_timers[holder] = Tuning.REPEAT_PERIOD - 0.25
 	return result
+
+
+## 範囲付与で選ばれるブロック。プレビューと実際の付与で同じ計算を使う。
+## 戻り値は RuleLedger.lend の range_spec としてもそのまま使える
+## {"center": Vector3, "radius": float, "layer": int, "ids": PackedInt32Array}。
+func range_selection(target: RuleBlock) -> Dictionary:
+	var layer := target.cell().y
+	var center := target.global_position
+	var radius := BlockRules.DEFAULT_RANGE_RADIUS
+	var ids := BlockRules.select_in_range(center, radius, layer, _block_cells())
+	return {"center": center, "radius": radius, "layer": layer, "ids": ids}
+
+
+## 右クリックを押している間の範囲プレビュー（企画書 8 の要検証項目）。離すと付与、Esc で取り消し。
+func begin_range_preview() -> void:
+	_range_preview_active = true
+	state_changed.emit()
+
+
+func is_range_preview_active() -> bool:
+	return _range_preview_active
+
+
+## プレビューの内容。付与できない理由があれば "reason" に入れ、"ids" は空にする。
+## ledger は変更しない。
+func preview_range(target: RuleBlock) -> Dictionary:
+	var empty := {"ids": PackedInt32Array(), "reason": ""}
+	var v := selected_vessel()
+	if v == null:
+		empty["reason"] = "ホットバー %d は空です" % (selected_slot + 1)
+		return empty
+	var t := ledger.token(v.token_id)
+	if t.is_lent():
+		empty["reason"] = "%s は貸出中です" % t.describe()
+		return empty
+	if t.is_prohibition:
+		empty["reason"] = "禁止の範囲付与は未実装です（P0）"
+		return empty
+	if target == null:
+		empty["reason"] = "ブロックを狙ってください"
+		return empty
+	if not _within_reach(target):
+		empty["reason"] = "届きません（%.1fブロック）" % reach()
+		return empty
+	var selection := range_selection(target)
+	selection["reason"] = ""
+	return selection
+
+
+## 毎フレーム、狙っているブロックでプレビューの表示を更新する。
+func update_range_preview(target: RuleBlock) -> Dictionary:
+	var preview := preview_range(target) if _range_preview_active else {}
+	var ids := preview.get("ids", PackedInt32Array()) as PackedInt32Array
+	for block in _previewed:
+		block.set_preview(false)
+	_previewed.clear()
+	for id in ids:
+		blocks[id].set_preview(true)
+		_previewed.append(blocks[id])
+	if _range_preview_visual == null:
+		_range_preview_visual = RangePreview.new()
+		_range_preview_visual.name = "RangePreview"
+		add_child(_range_preview_visual)
+	if ids.is_empty():
+		_range_preview_visual.visible = false
+	else:
+		_range_preview_visual.show_at(
+			preview["center"] as Vector3, float(preview["radius"]), int(preview["layer"])
+		)
+	return preview
+
+
+func commit_range_preview(target: RuleBlock) -> RuleLedger.LendResult:
+	_range_preview_active = false
+	update_range_preview(null)
+	return lend_to(target, true)
+
+
+func cancel_range_preview() -> void:
+	if not _range_preview_active:
+		return
+	_range_preview_active = false
+	update_range_preview(null)
+	_post("範囲付与を取り消しました")
 
 
 ## F: チェックポイント上なら保存。そうでなければ狙ったブロックから1つ回収し、

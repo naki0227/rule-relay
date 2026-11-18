@@ -20,6 +20,9 @@ var _corner_markers: Node3D
 var _label: Label3D
 var _aimed: bool = false
 var _assigned: bool = false
+var _in_range: bool = false
+var _previewed: bool = false
+var _marker_material: StandardMaterial3D
 
 
 func _ready() -> void:
@@ -106,7 +109,8 @@ func show_tokens(tokens: Array[RuleToken]) -> void:
 	for t in tokens:
 		_assigned = _assigned or (t.vessel_id != -1 and not t.is_prohibition)
 		in_range = in_range or t.is_range
-	_corner_markers.visible = in_range
+	_in_range = in_range
+	_update_markers()
 	_update_outline()
 	var lines := PackedStringArray()
 	for t in tokens:
@@ -160,6 +164,25 @@ func _integrate_horizontal(delta: float) -> void:
 		_step_time = -1.0
 
 
+## 範囲プレビューの対象になっているか（右クリックを押している間）。
+func set_preview(on: bool) -> void:
+	_previewed = on
+	_update_markers()
+
+
+func is_previewed() -> bool:
+	return _previewed
+
+
+## 角マーカー: 付与済みの範囲は濃い赤、プレビュー中は明るい赤で、背を高くして区別する。
+func _update_markers() -> void:
+	if _corner_markers == null:
+		return
+	_corner_markers.visible = _in_range or _previewed
+	_marker_material.albedo_color = Color(1.0, 0.35, 0.35) if _previewed else Color(0.5, 0.0, 0.05)
+	_corner_markers.scale = Vector3(1.0, 1.6 if _previewed else 1.0, 1.0)
+
+
 func _update_outline() -> void:
 	if _outline == null:
 		return
@@ -202,10 +225,9 @@ func _build_visuals() -> void:
 	_corner_markers = Node3D.new()
 	var marker_mesh := BoxMesh.new()
 	marker_mesh.size = Vector3(0.12, 0.3, 0.12)
-	var marker_material := StandardMaterial3D.new()
-	marker_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	marker_material.albedo_color = Color(0.5, 0.0, 0.05)
-	marker_mesh.material = marker_material
+	_marker_material = StandardMaterial3D.new()
+	_marker_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	marker_mesh.material = _marker_material
 	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
 		var post := MeshInstance3D.new()
 		post.mesh = marker_mesh
