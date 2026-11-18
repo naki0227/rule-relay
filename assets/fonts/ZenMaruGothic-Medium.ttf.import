@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://1tjnxhm0hvrd"
-path="res://.godot/imported/NotoSansJP-VF.ttf-72cc5b322ac5c4a091e62df99e544085.fontdata"
+uid="uid://bfgdx8ioevljm"
+path="res://.godot/imported/ZenMaruGothic-Medium.ttf-64a1ae3f8edc2e0ebf03adf997326e3f.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/NotoSansJP-VF.ttf"
-dest_files=["res://.godot/imported/NotoSansJP-VF.ttf-72cc5b322ac5c4a091e62df99e544085.fontdata"]
+source_file="res://assets/fonts/ZenMaruGothic-Medium.ttf"
+dest_files=["res://.godot/imported/ZenMaruGothic-Medium.ttf-64a1ae3f8edc2e0ebf03adf997326e3f.fontdata"]
 
 [params]
 

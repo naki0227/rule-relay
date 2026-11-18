@@ -83,3 +83,10 @@ func test_no_match() -> void:
 
 func test_normalize() -> void:
 	assert_eq(InventoryQuery.normalize("  ＡＢＣ　ジャンプ  Jump "), "abc じゃんぷ jump")
+
+
+func test_lent_filter() -> void:
+	assert_eq(InventoryQuery.search(ledger, "", InventoryQuery.Category.LENT).size(), 0)
+	ledger.lend(jump.id, PackedInt32Array([BLOCK]), TriggerMode.Kind.SINGLE_SHOT)
+	var lent := InventoryQuery.search(ledger, "", InventoryQuery.Category.LENT)
+	assert_eq(labels(lent), ["ジャンプ"] as Array[String])

@@ -77,12 +77,15 @@ func _handle_gameplay(event: InputEvent) -> void:
 		if event.is_action_pressed(StringName("slot_%d" % (i + 1))):
 			world.select_slot(i)
 	if event.is_action_pressed(&"lend_single"):
-		world.lend_to(world.aimed_block(), false)
+		if world.lend_to(world.aimed_block(), false) == RuleLedger.LendResult.OK and hud != null:
+			hud.hints.used("lend")
 	elif event.is_action_pressed(&"lend_range"):
 		world.begin_range_preview()
 	elif event.is_action_released(&"lend_range"):
 		if world.is_range_preview_active():
-			world.commit_range_preview(world.aimed_block())
+			var result := world.commit_range_preview(world.aimed_block())
+			if result == RuleLedger.LendResult.OK and hud != null:
+				hud.hints.used("range")
 	elif event.is_action_pressed(&"radial_menu"):
 		world.cancel_range_preview()
 		if hud != null:
@@ -91,7 +94,11 @@ func _handle_gameplay(event: InputEvent) -> void:
 		world.cycle_mode()
 	elif event.is_action_pressed(&"toggle_reach"):
 		world.toggle_reach()
+		if hud != null:
+			hud.hints.used("throw")
 	elif event.is_action_pressed(&"interact"):
+		if hud != null:
+			hud.hints.used("save" if world.is_on_checkpoint() else "recall")
 		world.interact(world.aimed_block())
 	elif event.is_action_pressed(&"restore_checkpoint"):
 		# プレビュー中の Esc は取り消しだけにする。それ以外はメニューを開く（戻る操作はメニューから）

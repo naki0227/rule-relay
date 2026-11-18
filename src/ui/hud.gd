@@ -1,14 +1,10 @@
 class_name Hud
 extends CanvasLayer
-## 画面表示。方針は docs/ui-research.md（AAA タイトルの調査）、色と書体は UiTheme。
-## - 普段の画面は最小限: 照準、ホットバー、知らせだけ。ホットバーは操作が無いと薄くなる
-## - 操作の案内は常に並べず、狙ったものに応じて照準の下に出す（文脈の案内）
-## - 知らせは画面左の1か所に、順に出して消す
-## - 重ねて出す画面（持ち物・一時停止）は全画面で背景をぼかす
-## 状態は色だけでなく文字・形（印・線）でも示す（企画書 8）。
-
-const IDLE_FADE_AFTER: float = 4.0
-const IDLE_ALPHA: float = 0.42
+## 画面表示（設計は docs/ui-design.md）。景色とキャラクターを主役にし、UI は生成りの札で静かに添える。
+## - 普段: 照準、下中央のホットバー（生成りの台）、右に方式と届き方の印、左上に短い知らせ
+## - 操作の案内: 対象を狙ったとき、慣れるまで（同じ操作を3回するまで）照準の下に出す
+## - 重ねて出す画面: 円形 UI、持ち物（E）、一時停止（Esc）、到達のカード
+## 状態は色だけでなく形（帯・印・輪）でも示す（企画書 8）。
 
 var world: GameWorld
 var radial_menu: RadialMenu
@@ -16,18 +12,24 @@ var inventory: InventoryPanel
 var pause_menu: PauseMenu
 var toasts: ToastStack
 var crosshair: Crosshair
+var hints: HintMemory = HintMemory.new()
 
 var _root: Control
 var _hotbar: Control
 var _slots: Array[HotbarSlot] = []
-var _item_name: Label
-var _mode_value: Label
-var _reach_value: Label
-var _context: HBoxContainer
+var _item_name: PanelContainer
+var _item_name_label: Label
+var _badge: ModeBadge
+var _badge_label: PanelContainer
+var _badge_text: Label
+var _context: PanelContainer
+var _context_row: HBoxContainer
+var _preview: PanelContainer
 var _preview_label: Label
-var _goal: Control
-var _idle: float = 0.0
+var _goal: PanelContainer
 var _last_selected: int = -1
+var _last_mode: int = -1
+var _last_throw: int = -1
 
 
 func _ready() -> void:
@@ -39,12 +41,6 @@ func _ready() -> void:
 		world.goal_reached.connect(_show_goal)
 		world.checkpoint_changed.connect(refresh)
 	refresh()
-
-
-func _process(delta: float) -> void:
-	_idle += delta
-	var target := 1.0 if _idle < IDLE_FADE_AFTER else IDLE_ALPHA
-	_hotbar.modulate.a = move_toward(_hotbar.modulate.a, target, delta * 2.5)
 
 
 func is_inventory_open() -> bool:
@@ -68,12 +64,15 @@ func refresh() -> void:
 		_slots[i].show_token(
 			null if v == null else world.ledger.token(v.token_id), i == world.selected_slot
 		)
-	_mode_value.text = TriggerMode.label(world.lend_mode)
-	_reach_value.text = "投げる" if world.throw_mode else "触る"
-	_wake()
+	_badge.show_state(world.lend_mode, world.throw_mode)
 	if world.selected_slot != _last_selected:
 		_last_selected = world.selected_slot
 		_flash_item_name()
+	if int(world.lend_mode) != _last_mode or int(world.throw_mode) != _last_throw:
+		if _last_mode != -1:
+			_flash_badge_label()
+		_last_mode = int(world.lend_mode)
+		_last_throw = int(world.throw_mode)
 	if inventory != null:
 		inventory.refresh()
 	if pause_menu != null:
@@ -90,22 +89,17 @@ func hotbar_descriptions() -> PackedStringArray:
 
 ## 右クリックを押している間の範囲プレビューの説明。
 func show_range_preview(active: bool, preview: Dictionary) -> void:
-	if _preview_label == null:
+	if _preview == null:
 		return
-	_preview_label.visible = active
+	_preview.visible = active
 	if not active:
 		return
-	_wake()
 	var ids := preview.get("ids", PackedInt32Array()) as PackedInt32Array
 	var reason := String(preview.get("reason", ""))
 	if not reason.is_empty():
 		_preview_label.text = reason
-		_preview_label.add_theme_color_override("font_color", UiTheme.TEXT_DIM)
 	else:
-		_preview_label.text = (
-			"範囲に渡す　%d 個 · 半径 %.0f · 1層" % [ids.size(), float(preview.get("radius", 0.0))]
-		)
-		_preview_label.add_theme_color_override("font_color", UiTheme.ACCENT)
+		_preview_label.text = "範囲に渡す　%d こ" % ids.size()
 
 
 func set_aim(aim: Crosshair.Aim) -> void:
@@ -113,53 +107,79 @@ func set_aim(aim: Crosshair.Aim) -> void:
 		crosshair.set_aim(aim)
 
 
-## 照準の下の文脈の案内。狙っているもの・いる場所に応じて、使えるキーだけを出す。
+## 照準の下の案内。狙っているもの・いる場所に応じて、まだ慣れていない操作だけを出す。
 func update_context(target: RuleBlock, in_reach: bool, on_checkpoint: bool) -> void:
 	var prompts: Array[Array] = []
-	if on_checkpoint:
-		prompts.append(["F", "保存"])
+	if on_checkpoint and hints.should_show("save"):
+		prompts.append(["F", "ここで保存"])
 	if target != null and in_reach:
-		prompts.append(["左クリック", "渡す"])
-		prompts.append(["右長押し", "範囲"])
-		if world != null and not world.ledger.tokens_on(target.entity_id).is_empty():
+		if hints.should_show("lend"):
+			prompts.append(["左クリック", "渡す"])
+		if hints.should_show("range"):
+			prompts.append(["右クリック", "まとめて"])
+		var holds := world != null and not world.ledger.tokens_on(target.entity_id).is_empty()
+		if holds and hints.should_show("recall"):
 			prompts.append(["F", "回収"])
-	elif target != null:
-		prompts.append(["C", "投げるに切り替え" if not world.throw_mode else "届かない"])
+	elif target != null and hints.should_show("throw"):
+		prompts.append(["C", "投げるで届く" if not world.throw_mode else "遠すぎる"])
 	var key := str(prompts)
 	if _context.get_meta("key", "") == key:
 		return
 	_context.set_meta("key", key)
-	for child in _context.get_children():
+	for child in _context_row.get_children():
 		child.queue_free()
 	for p in prompts:
-		_context.add_child(KeyPrompt.make(String(p[0]), String(p[1])))
+		_context_row.add_child(KeyPrompt.make(String(p[0]), String(p[1])))
+	_context.visible = not prompts.is_empty()
+
+
+## いま照準の下に出ている案内の動作（テスト用）。
+func context_actions() -> PackedStringArray:
+	var out := PackedStringArray()
+	if not _context.visible:
+		return out
+	for prompt in _context_row.get_children():
+		if not prompt.is_queued_for_deletion():
+			out.append((prompt.get_child(1) as Label).text)
+	return out
 
 
 func _set_world_hud_visible(on: bool) -> void:
-	for node: CanvasItem in [crosshair, _context, _hotbar, toasts, _item_name]:
+	for node: CanvasItem in [crosshair, _hotbar, toasts]:
 		node.visible = on
-
-
-func _wake() -> void:
-	_idle = 0.0
+	if not on:
+		_context.visible = false
 
 
 func _flash_item_name() -> void:
 	var slot := _slots[world.selected_slot]
-	_item_name.text = slot.item_name() if slot.token != null else "空き"
+	_item_name_label.text = slot.item_name() if slot.token != null else "からっぽ"
 	_item_name.modulate.a = 1.0
 	var tween := _item_name.create_tween()
-	tween.tween_interval(1.6)
-	tween.tween_property(_item_name, "modulate:a", 0.0, 0.5)
+	tween.tween_interval(1.4)
+	tween.tween_property(_item_name, "modulate:a", 0.0, 0.4)
+
+
+func _flash_badge_label() -> void:
+	_badge_text.text = (
+		"%s · %s" % [TriggerMode.label(world.lend_mode), "投げる" if world.throw_mode else "触る"]
+	)
+	_badge_label.modulate.a = 1.0
+	var tween := _badge_label.create_tween()
+	tween.tween_interval(1.4)
+	tween.tween_property(_badge_label, "modulate:a", 0.0, 0.4)
 
 
 func _show_goal() -> void:
 	_goal.visible = true
 	_goal.modulate.a = 0.0
-	var tween := _goal.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-	tween.tween_property(_goal, "modulate:a", 1.0, 0.5)
-	tween.tween_interval(4.5)
-	tween.tween_property(_goal, "modulate:a", 0.0, 1.0)
+	_goal.pivot_offset = _goal.size * 0.5
+	_goal.scale = Vector2.ONE * 0.9
+	var tween := _goal.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(_goal, "modulate:a", 1.0, 0.3)
+	tween.parallel().tween_property(_goal, "scale", Vector2.ONE, 0.4)
+	tween.tween_interval(3.6)
+	tween.tween_property(_goal, "modulate:a", 0.0, 0.6)
 	tween.tween_callback(func() -> void: _goal.visible = false)
 
 
@@ -170,47 +190,37 @@ func _build() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 
-	# 文字が集まる所だけ、画面の端から薄い暗がりを敷く（文字の影より読みやすく、箱より軽い）
-	_root.add_child(
-		_scrim(Control.PRESET_BOTTOM_WIDE, Vector2(0, -300), Vector2(0, 300), true, 0.5)
-	)
-	_root.add_child(_scrim(Control.PRESET_LEFT_WIDE, Vector2.ZERO, Vector2(820, 0), false, 0.32))
-
 	crosshair = Crosshair.new()
 	crosshair.set_anchors_preset(Control.PRESET_CENTER)
 	crosshair.position = Vector2(-24, -24)
 	crosshair.size = Vector2(48, 48)
 	_root.add_child(crosshair)
 
-	_context = HBoxContainer.new()
+	_context = _bubble()
+	# 照準の右下に出す（肩越しのカメラで、キャラクターは照準の左にいる）
 	_context.set_anchors_preset(Control.PRESET_CENTER)
-	_context.position = Vector2(-300, 40)
-	_context.size = Vector2(600, 30)
-	_context.alignment = BoxContainer.ALIGNMENT_CENTER
-	_context.add_theme_constant_override("separation", 22)
-	_context.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-	_context.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_context.position = Vector2(36, 22)
+	_context.visible = false
+	_context_row = HBoxContainer.new()
+	_context_row.add_theme_constant_override("separation", 20)
+	_context.add_child(_context_row)
 	_root.add_child(_context)
 
 	toasts = ToastStack.new()
-	toasts.set_anchors_preset(Control.PRESET_CENTER_LEFT)
-	toasts.position = Vector2(UiTheme.SAFE_MARGIN, -220)
-	toasts.size = Vector2(760, 150)
+	toasts.position = Vector2(UiTheme.SAFE_MARGIN, UiTheme.SAFE_MARGIN)
+	toasts.size = Vector2(760, 200)
 	_root.add_child(toasts)
 
 	_build_hotbar()
 
+	_preview = _bubble(UiTheme.SUN_SOFT, UiTheme.SUN)
 	_preview_label = Label.new()
-	_preview_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_preview_label.position = Vector2(-400, -190)
-	_preview_label.size = Vector2(800, 30)
-	_preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_preview_label.theme_type_variation = &"Strong"
-	_preview_label.add_theme_font_size_override("font_size", 19)
-	_preview_label.visible = false
-	_root.add_child(_preview_label)
+	_preview.add_child(_preview_label)
+	_preview.visible = false
+	_center_band(_preview, UiTheme.SAFE_MARGIN + HotbarSlot.SIZE.y + 80, true)
 
-	_build_goal_banner()
+	_build_goal_card()
 
 	radial_menu = RadialMenu.new()
 	radial_menu.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
@@ -231,16 +241,55 @@ func _build() -> void:
 	_root.add_child(pause_menu)
 
 
+## 画面の横幅いっぱいの帯に child を置き、横方向の中央にそろえる。y は上端（bottom なら下端）からの距離。
+func _center_band(child: Control, y: float, from_bottom: bool) -> void:
+	var band := CenterContainer.new()
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.set_anchors_and_offsets_preset(
+		Control.PRESET_BOTTOM_WIDE if from_bottom else Control.PRESET_TOP_WIDE
+	)
+	if from_bottom:
+		band.offset_top = -y - 60
+		band.offset_bottom = -y
+	else:
+		band.offset_top = y
+		band.offset_bottom = y + 200
+	band.use_top_left = false
+	band.add_child(child)
+	_root.add_child(band)
+
+
+func _bubble(fill: Color = UiTheme.CREAM, edge: Color = UiTheme.EDGE) -> PanelContainer:
+	var bubble := PanelContainer.new()
+	bubble.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var box := UiTheme.pill_box(Color(fill, 0.94), edge)
+	box.content_margin_left = 20
+	box.content_margin_right = 20
+	box.content_margin_top = 8
+	box.content_margin_bottom = 9
+	bubble.add_theme_stylebox_override("panel", box)
+	return bubble
+
+
 func _build_hotbar() -> void:
+	var gap := 10
+	var width := RuleLedger.HOTBAR_SIZE * HotbarSlot.SIZE.x + (RuleLedger.HOTBAR_SIZE - 1) * gap
 	_hotbar = Control.new()
 	_hotbar.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_hotbar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hotbar.position = Vector2(0, -UiTheme.SAFE_MARGIN)
 	_root.add_child(_hotbar)
-	var gap := 10.0
-	var width := RuleLedger.HOTBAR_SIZE * HotbarSlot.SIZE.x + (RuleLedger.HOTBAR_SIZE - 1) * gap
+	# 生成りの台（景色が少し透ける）
+	var tray := Panel.new()
+	tray.add_theme_stylebox_override(
+		"panel", UiTheme.panel_box(Color(UiTheme.CREAM, 0.72), 26, 0.0)
+	)
+	tray.position = Vector2(-width * 0.5 - 14, -HotbarSlot.SIZE.y - 14)
+	tray.size = Vector2(width + 28, HotbarSlot.SIZE.y + 28)
+	tray.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hotbar.add_child(tray)
 	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", int(gap))
+	bar.add_theme_constant_override("separation", gap)
 	bar.position = Vector2(-width * 0.5, -HotbarSlot.SIZE.y)
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	for i in RuleLedger.HOTBAR_SIZE:
@@ -250,127 +299,56 @@ func _build_hotbar() -> void:
 		_slots.append(slot)
 	_hotbar.add_child(bar)
 
-	# ホットバーの右: 付与方式と届き方（切り替えのキーつき）
-	var status := VBoxContainer.new()
-	status.position = Vector2(width * 0.5 + 32, -HotbarSlot.SIZE.y + 2)
-	status.add_theme_constant_override("separation", 6)
-	_mode_value = _status_row(status, "方式", "Q")
-	_reach_value = _status_row(status, "届き方", "C")
-	_hotbar.add_child(status)
+	_badge = ModeBadge.new()
+	_badge.position = Vector2(width * 0.5 + 32, -HotbarSlot.SIZE.y + 8)
+	_badge.size = Vector2(124, 64)
+	_hotbar.add_child(_badge)
+	_badge_label = _bubble()
+	_badge_label.position = Vector2(width * 0.5 + 24, -HotbarSlot.SIZE.y - 54)
+	_badge_text = Label.new()
+	_badge_text.theme_type_variation = &"Strong"
+	_badge_text.add_theme_font_size_override("font_size", UiTheme.SIZE_SMALL)
+	_badge_label.add_child(_badge_text)
+	_badge_label.modulate.a = 0.0
+	_hotbar.add_child(_badge_label)
 
-	_item_name = Label.new()
-	_item_name.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_item_name.position = Vector2(-200, -UiTheme.SAFE_MARGIN - HotbarSlot.SIZE.y - 46)
-	_item_name.size = Vector2(400, 28)
-	_item_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_item_name.theme_type_variation = &"Strong"
-	_item_name.add_theme_font_size_override("font_size", 20)
+	_item_name = _bubble()
+	_item_name_label = Label.new()
+	_item_name_label.theme_type_variation = &"Strong"
+	_item_name.add_child(_item_name_label)
 	_item_name.modulate.a = 0.0
-	_root.add_child(_item_name)
+	_center_band(_item_name, UiTheme.SAFE_MARGIN + HotbarSlot.SIZE.y + 24, true)
 
 
-func _status_row(parent: VBoxContainer, caption: String, key: String) -> Label:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 10)
-	var cap := PanelContainer.new()
-	cap.theme_type_variation = &"KeyCap"
-	var key_label := Label.new()
-	key_label.text = key
-	key_label.theme_type_variation = &"KeyLabel"
-	cap.add_child(key_label)
-	row.add_child(cap)
-	var label := Label.new()
-	label.text = caption
-	label.theme_type_variation = &"Caption"
-	label.add_theme_font_size_override("font_size", 14)
-	label.custom_minimum_size = Vector2(52, 0)
-	row.add_child(label)
-	var value := Label.new()
-	value.theme_type_variation = &"Strong"
-	value.add_theme_font_size_override("font_size", 16)
-	row.add_child(value)
-	parent.add_child(row)
-	return value
-
-
-## 到達の演出: 箱を使わず、画面の帯に大きな文字と左右に伸びる細い線（映画のテロップのように）。
-func _build_goal_banner() -> void:
-	_goal = Control.new()
-	_goal.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+## 到達のカード: 画面の上に、生成りの札が小さく降りてきて、少ししたら消える。
+func _build_goal_card() -> void:
+	_goal = PanelContainer.new()
+	_goal.custom_minimum_size = Vector2(460, 0)
+	_goal.add_theme_stylebox_override("panel", UiTheme.panel_box(UiTheme.CREAM, 26, 22.0))
 	_goal.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_goal.visible = false
-	_root.add_child(_goal)
-	var band := TextureRect.new()
-	var gradient := Gradient.new()
-	gradient.set_color(0, Color(0, 0, 0, 0))
-	gradient.set_color(1, Color(0, 0, 0, 0))
-	gradient.add_point(0.5, Color(0, 0, 0, 0.55))
-	var texture := GradientTexture2D.new()
-	texture.gradient = gradient
-	texture.fill_from = Vector2(0, 0)
-	texture.fill_to = Vector2(0, 1)
-	band.texture = texture
-	band.stretch_mode = TextureRect.STRETCH_SCALE
-	band.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	band.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	band.position = Vector2(-1200, 230)
-	band.size = Vector2(2400, 200)
-	_goal.add_child(band)
 	var box := VBoxContainer.new()
-	box.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	box.position = Vector2(-500, 262)
-	box.size = Vector2(1000, 140)
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_theme_constant_override("separation", 6)
+	box.add_theme_constant_override("separation", 4)
 	_goal.add_child(box)
-	var kicker := Label.new()
-	kicker.text = "REACHED"
-	kicker.theme_type_variation = &"Kicker"
-	kicker.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(kicker)
-	var title_row := HBoxContainer.new()
-	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	title_row.add_theme_constant_override("separation", 28)
-	box.add_child(title_row)
-	title_row.add_child(_rule_line())
+	var stars := HBoxContainer.new()
+	stars.alignment = BoxContainer.ALIGNMENT_CENTER
+	stars.add_theme_constant_override("separation", 10)
+	for i in 3:
+		var leaf := ColorRect.new()
+		leaf.color = UiTheme.LEAF if i != 1 else UiTheme.SUN
+		leaf.custom_minimum_size = Vector2(8, 8)
+		leaf.rotation = PI * 0.25
+		stars.add_child(leaf)
+	box.add_child(stars)
 	var title := Label.new()
 	title.text = "高台に到達しました"
-	title.theme_type_variation = &"Display"
-	title_row.add_child(title)
-	title_row.add_child(_rule_line())
+	title.theme_type_variation = &"Title"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(title)
 	var note := Label.new()
-	note.text = "法則どおりなら、どの順番で着いても到達です（仮のゴール）"
-	note.theme_type_variation = &"Caption"
+	note.text = "どの順番でたどり着いても正解（仮のゴール）"
+	note.theme_type_variation = &"Note"
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(note)
-
-
-## 端から伸びる薄い暗がり。vertical なら下から上へ、そうでなければ左から右へ薄くなる。
-func _scrim(
-	preset: Control.LayoutPreset, offset: Vector2, extent: Vector2, vertical: bool, strength: float
-) -> TextureRect:
-	var gradient := Gradient.new()
-	gradient.set_color(0, Color(0, 0, 0, strength if not vertical else 0.0))
-	gradient.set_color(1, Color(0, 0, 0, 0.0 if not vertical else strength))
-	var texture := GradientTexture2D.new()
-	texture.gradient = gradient
-	texture.fill_to = Vector2(0, 1) if vertical else Vector2(1, 0)
-	var rect := TextureRect.new()
-	rect.texture = texture
-	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	rect.stretch_mode = TextureRect.STRETCH_SCALE
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rect.set_anchors_and_offsets_preset(preset)
-	if vertical:
-		rect.offset_top = offset.y
-	else:
-		rect.offset_right = extent.x
-	return rect
-
-
-func _rule_line() -> Control:
-	var line := ColorRect.new()
-	line.color = Color(UiTheme.ACCENT, 0.7)
-	line.custom_minimum_size = Vector2(120, 1)
-	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	return line
+	_center_band(_goal, 96.0, false)

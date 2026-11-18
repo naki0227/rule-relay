@@ -1,23 +1,41 @@
 class_name InventoryPanel
 extends Control
-## 持ち物の画面（E）。全画面で、後ろのゲームをぼかす。左に検索・種類のタブ・一覧、右に選んだ器の
-## 詳しい説明、下に操作の案内（AAA のメニューの組み方。docs/ui-research.md）。
-## 何を出すかは InventoryQuery が決め、ここは表示と選択だけを受け持つ（企画書 7 の UI 必須項目）。
+## 持ち物の画面（E）。カテゴリのタブで切り替えるのをやめ、1つの画面を領域で分ける。
+##   左: キャラクターと装備の枠（頭・体・手・足）
+##   中央: かばん（通常インベントリ。容量無制限のスクロールするアイコングリッド）
+##   右: 選んだ／指したアイテムの詳しい説明と、貸し出し中の一覧
+##   下: ホットバー9枠（ここにある能力だけ自分に効く）
+##   上: 目立ちすぎない検索欄と、小さな絞り込みのチップ
+## 同じ器を複数の場所に出すとき（貸し出し中の一覧など）は、複製せず同じ器 ID を参照する。
+## 何を出すかの判定は InventoryQuery、所有の変更は RuleLedger が受け持つ（企画書 7）。
+
+const EQUIP_SLOTS: PackedStringArray = ["頭", "体", "手", "足"]
+const CHIPS: Array[InventoryQuery.Category] = [
+	InventoryQuery.Category.ALL,
+	InventoryQuery.Category.ABILITY,
+	InventoryQuery.Category.PROHIBITION,
+	InventoryQuery.Category.LENT,
+]
 
 var ledger: RuleLedger
 var category: InventoryQuery.Category = InventoryQuery.Category.ALL
 
 var _search: LineEdit
-var _list: ItemList
-var _count: Label
-var _category_buttons: Array[Button] = []
-var _ids: PackedInt32Array = PackedInt32Array()
-var _entries: Array[InventoryQuery.Entry] = []
+var _chips: Array[Button] = []
+var _grid: ItemGrid
+var _bag_count: Label
+var _hotbar_slots: Array[InventorySlot] = []
+var _equip_slots: Array[InventorySlot] = []
+var _matches: Array[InventoryQuery.Entry] = []
+var _selected_id: int = -1
+var _hover_id: int = -1
 var _detail_icon: TextureRect
 var _detail_name: Label
 var _detail_state: Label
 var _detail_where: Label
 var _detail_text: Label
+var _lent_list: VBoxContainer
+var _book: PanelContainer
 
 
 func _ready() -> void:
@@ -28,14 +46,17 @@ func _ready() -> void:
 func open() -> void:
 	visible = true
 	modulate.a = 0.0
-	create_tween().tween_property(self, "modulate:a", 1.0, UiTheme.FAST)
+	_book.scale = Vector2.ONE * 0.97
+	var tween := create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(self, "modulate:a", 1.0, UiTheme.FAST)
+	tween.parallel().tween_property(_book, "scale", Vector2.ONE, UiTheme.NORMAL)
 	refresh()
 	_search.grab_focus()
 
 
 func close() -> void:
 	_search.release_focus()
-	_list.release_focus()
+	_grid.release_focus()
 	visible = false
 
 
@@ -49,288 +70,456 @@ func set_query(text: String, new_category: InventoryQuery.Category) -> void:
 	refresh()
 
 
-## いま一覧に出ている器の ID（表示順）。
+## 検索・絞り込みに合う器の ID（ホットバーの枠の順 → かばんの順）。
 func visible_vessel_ids() -> PackedInt32Array:
-	return _ids
+	var ids := PackedInt32Array()
+	for entry in _matches:
+		ids.append(entry.vessel_id)
+	return ids
+
+
+## かばんのグリッドに出ている器の ID（ホットバーの器は含まない）。
+func bag_vessel_ids() -> PackedInt32Array:
+	var ids := PackedInt32Array()
+	for entry in _grid.entries:
+		ids.append(entry.vessel_id)
+	return ids
 
 
 func select_vessel(vessel_id: int) -> bool:
-	var index := _ids.find(vessel_id)
-	if index < 0:
+	if _find(vessel_id) == null:
 		return false
-	_list.select(index)
-	_show_detail(index)
+	_selected_id = vessel_id
+	_grid.select(vessel_id)
+	_update_slots()
+	_show_detail()
 	return true
 
 
 func selected_vessel_id() -> int:
-	var selected := _list.get_selected_items()
-	return -1 if selected.is_empty() else _ids[selected[0]]
+	return _selected_id
 
 
 ## 選んでいる器をホットバーの slot へ（入っていた器と入れ替え）。
 func move_selected_to_hotbar(slot: int) -> bool:
-	var id := selected_vessel_id()
-	return id != -1 and ledger.move_to_hotbar(id, slot)
+	return _selected_id != -1 and ledger.move_to_hotbar(_selected_id, slot)
 
 
-## 選んでいる器を通常インベントリへ。能力はここでは本人に効かなくなる（禁止は効いたまま）。
+## 選んでいる器をかばん（通常インベントリ）へ。能力はかばんでは自分に効かない（禁止は効いたまま）。
 func move_selected_to_inventory() -> bool:
-	var id := selected_vessel_id()
-	return id != -1 and ledger.move_to_inventory(id)
+	return _selected_id != -1 and ledger.move_to_inventory(_selected_id)
+
+
+## ドラッグ＆ドロップと同じ処理（テストからも呼ぶ）。
+func drop_on_hotbar(vessel_id: int, slot: int) -> bool:
+	_selected_id = vessel_id
+	return ledger.move_to_hotbar(vessel_id, slot)
+
+
+func drop_into_bag(vessel_id: int) -> bool:
+	_selected_id = vessel_id
+	return ledger.move_to_inventory(vessel_id)
+
+
+## 右の詳しい説明に出ている名前（テスト用）。
+func detail_title() -> String:
+	return _detail_name.text
 
 
 func refresh() -> void:
-	if ledger == null or _list == null or not visible:
+	if ledger == null or _grid == null or not visible:
 		return
-	var keep := selected_vessel_id()
-	_list.clear()
-	_ids = PackedInt32Array()
-	_entries = InventoryQuery.search(ledger, _search.text, category)
-	var name_width := 0.0
-	for entry in _entries:
-		name_width = maxf(name_width, _text_width(entry.label))
-	for entry in _entries:
-		# 名前の幅をそろえて、場所と状態の列を縦にそろえる（ItemList は列を持たないため）
-		var text := (
-			"%s%s%s · %s"
-			% [
-				entry.label,
-				_pad(name_width + 48.0 - _text_width(entry.label)),
-				InventoryQuery.location_text(entry),
-				entry.state_text,
-			]
-		)
-		var index := _list.add_item(text, ItemIcons.for_token(entry.token))
-		if entry.state == InventoryQuery.State.LENT:
-			_list.set_item_custom_fg_color(index, UiTheme.ACCENT)
-		elif entry.state == InventoryQuery.State.STORED:
-			_list.set_item_custom_fg_color(index, UiTheme.TEXT_FAINT)
-		_ids.append(entry.vessel_id)
-	var total := InventoryQuery.search(ledger, "", InventoryQuery.Category.ALL).size()
-	_count.text = "%d / %d" % [_entries.size(), total]
-	if _entries.is_empty():
-		_count.text += "　該当なし"
-	for i in _category_buttons.size():
-		_category_buttons[i].button_pressed = i == int(category)
-	if keep != -1 and select_vessel(keep):
+	_matches = InventoryQuery.search(ledger, _search.text, category)
+	var bag: Array[InventoryQuery.Entry] = []
+	for entry in _matches:
+		if entry.location == RuleVessel.Location.INVENTORY:
+			bag.append(entry)
+	_grid.set_entries(bag)
+	var bag_total := ledger.inventory_vessels().size()
+	_bag_count.text = (
+		"%d こ" % bag_total if bag.size() == bag_total else "%d / %d こ" % [bag.size(), bag_total]
+	)
+	for i in _chips.size():
+		_chips[i].button_pressed = CHIPS[i] == category
+	if _find(_selected_id) == null:
+		_selected_id = -1 if _matches.is_empty() else _matches[0].vessel_id
+	_grid.select(_selected_id)
+	_update_slots()
+	_update_lent_list()
+	_show_detail()
+
+
+func _find(vessel_id: int) -> InventoryQuery.Entry:
+	for entry in _matches:
+		if entry.vessel_id == vessel_id:
+			return entry
+	return null
+
+
+func _update_slots() -> void:
+	var filtering := (
+		not _search.text.strip_edges().is_empty() or category != InventoryQuery.Category.ALL
+	)
+	for slot in _hotbar_slots:
+		var v := ledger.hotbar_vessel(slot.slot_index)
+		var id := -1 if v == null else v.id
+		var t: RuleToken = null if v == null else ledger.token(v.token_id)
+		var dim := filtering and t != null and _find(id) == null
+		slot.show_vessel(id, t, id != -1 and id == _selected_id, dim)
+
+
+## 貸し出し中の一覧。器はホットバーかかばんに残ったままで、ここは同じ器への参照。
+func _update_lent_list() -> void:
+	for child in _lent_list.get_children():
+		child.queue_free()
+	var lent := InventoryQuery.search(ledger, "", InventoryQuery.Category.LENT)
+	if lent.is_empty():
+		var none := Label.new()
+		none.text = "いまは何も貸していません"
+		none.theme_type_variation = &"Note"
+		_lent_list.add_child(none)
 		return
-	if not _ids.is_empty():
-		_list.select(0)
-		_show_detail(0)
-	else:
-		_show_detail(-1)
+	for entry in lent:
+		var row := Button.new()
+		row.theme_type_variation = &"Chip"
+		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		row.icon = ItemIcons.for_token(entry.token)
+		row.expand_icon = true
+		row.custom_minimum_size = Vector2(0, 44)
+		row.add_theme_constant_override("icon_max_width", 30)
+		var target := "範囲 %d こ" % entry.token.holder_ids.size() if entry.token.is_range else "1つ"
+		row.text = "%s　%s · %s" % [entry.label, target, TriggerMode.label(entry.token.mode)]
+		row.focus_mode = Control.FOCUS_NONE
+		row.pressed.connect(_on_lent_pressed.bind(entry.vessel_id))
+		_lent_list.add_child(row)
 
 
-func _text_width(text: String) -> float:
-	return UiTheme.regular().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
+func _on_lent_pressed(vessel_id: int) -> void:
+	if _find(vessel_id) == null:
+		set_query("", InventoryQuery.Category.ALL)
+	select_vessel(vessel_id)
 
 
-## およそ width ピクセル分の空白（全角スペースと半角スペースを組み合わせる）。
-func _pad(width: float) -> String:
-	var wide := _text_width("　")
-	var narrow := maxf(_text_width(" "), 1.0)
-	var count_wide := int(width / wide)
-	var count_narrow := int(roundf((width - count_wide * wide) / narrow))
-	return "　".repeat(count_wide) + " ".repeat(count_narrow)
-
-
-func _show_detail(index: int) -> void:
-	if index < 0 or index >= _entries.size():
+func _show_detail() -> void:
+	var id := _hover_id if _hover_id != -1 else _selected_id
+	var entry := _find(id)
+	if entry == null and id != -1:
+		entry = _describe_any(id)
+	if entry == null:
 		_detail_icon.texture = null
-		_detail_name.text = "—"
-		_detail_state.text = ""
+		_detail_state.visible = false
 		_detail_where.text = ""
-		_detail_text.text = "条件に合う持ち物がありません。検索語や種類を変えてください。"
+		var searching := not _search.text.strip_edges().is_empty()
+		_detail_name.text = "見つかりません" if searching else "からっぽ"
+		_detail_text.text = "ことばや絞り込みを変えてみてください。" if searching else ""
 		return
-	var entry := _entries[index]
 	_detail_icon.texture = ItemIcons.for_token(entry.token)
 	_detail_name.text = entry.label
-	_detail_state.text = entry.state_text
-	var state_color := UiTheme.TEXT
-	if entry.state == InventoryQuery.State.LENT:
-		state_color = UiTheme.ACCENT
-	elif entry.state == InventoryQuery.State.PROHIBITION_APPLIED:
-		state_color = UiTheme.ALERT
-	elif entry.state == InventoryQuery.State.STORED:
-		state_color = UiTheme.TEXT_DIM
-	_detail_state.add_theme_color_override("font_color", state_color)
-	_detail_where.text = InventoryQuery.location_text(entry)
+	_detail_state.visible = true
+	_detail_state.text = entry.state_text.replace("通常インベントリ", "かばん")
+	_style_state(entry.state)
+	_detail_where.text = InventoryQuery.location_text(entry).replace("通常インベントリ", "かばん")
 	_detail_text.text = _explain(entry)
 
 
-## 器ごとの説明: 行動の意味と、いまの状態で何が起きているか。
+func _describe_any(vessel_id: int) -> InventoryQuery.Entry:
+	var v := ledger.vessel(vessel_id)
+	return null if v == null else InventoryQuery.describe(ledger, v)
+
+
+func _style_state(state: InventoryQuery.State) -> void:
+	var fill := UiTheme.LEAF_SOFT
+	var edge := UiTheme.LEAF
+	match state:
+		InventoryQuery.State.STORED:
+			fill = UiTheme.CREAM_DEEP
+			edge = UiTheme.EDGE_DEEP
+		InventoryQuery.State.LENT:
+			fill = UiTheme.HONEY_SOFT
+			edge = UiTheme.HONEY
+		InventoryQuery.State.PROHIBITION_APPLIED:
+			fill = UiTheme.BAN_SOFT
+			edge = UiTheme.BAN
+	var box := UiTheme.pill_box(fill, edge)
+	box.shadow_size = 0
+	box.content_margin_top = 2
+	box.content_margin_bottom = 3
+	_detail_state.add_theme_stylebox_override("normal", box)
+
+
+## 器ごとの説明: 行動の意味と、いまの状態で何が起きているか（短く）。
 static func _explain(entry: InventoryQuery.Entry) -> String:
 	var t := entry.token
 	var action := ""
 	match t.action:
 		RuleAction.Kind.FORWARD:
-			action = "前へ進む。ブロックに渡すと、北へ1マス動く。"
+			action = "前へ進む力。ブロックに渡すと北へ1マス動く。"
 		RuleAction.Kind.LEFT:
-			action = "左へ進む。ブロックに渡すと、西へ1マス動く。"
+			action = "左へ進む力。ブロックに渡すと西へ1マス動く。"
 		RuleAction.Kind.BACK:
-			action = "後ろへ進む。ブロックに渡すと、南へ1マス動く。"
+			action = "後ろへ進む力。ブロックに渡すと南へ1マス動く。"
 		RuleAction.Kind.RIGHT:
-			action = "右へ進む。ブロックに渡すと、東へ1マス動く。"
+			action = "右へ進む力。ブロックに渡すと東へ1マス動く。"
 		RuleAction.Kind.JUMP:
-			action = "跳ぶ。ブロックに渡すと、そのブロックが跳ねる。"
+			action = "跳ぶ力。ブロックに渡すと、そのブロックが跳ねる。"
 	if t.is_prohibition:
+		var lent_note := "\n\nいまは貸し出し中なので、自分には効いていない。" if t.is_lent() else ""
 		return (
-			"「%s」を自分から始められなくする禁止。\n\n" % RuleAction.label(t.action)
-			+ "禁止は、ホットバーでも通常インベントリでも自分に効く。ブロックに渡すと、"
-			+ "そのブロックが禁止される。外から押されて動くことまでは止めない。"
+			("「%s」を自分から始められなくする禁止。ホットバーでも、かばんでも、持っている限り自分に効く。" % RuleAction.label(t.action))
+			+ lent_note
 		)
 	match entry.state:
 		InventoryQuery.State.ACTIVE:
-			return action + "\n\nホットバーにあるので自分に効いている。渡すと、回収するまで自分は使えない。"
+			return action + "\n\nホットバーにあるので、自分に効いている。"
 		InventoryQuery.State.STORED:
-			return action + "\n\n通常インベントリでは自分に効かない。1〜9 でホットバーに置くと効く。"
+			return action + "\n\nかばんの中では自分に効かない。ホットバーに置くと効く。"
 		InventoryQuery.State.LENT:
-			return action + "\n\n貸出中。回収するまで、自分は使えず、別の対象に渡すこともできない。" + "対象に近づいて F で回収する。"
+			return action + "\n\n貸し出し中。回収するまで自分は使えない。相手に近づいて F で回収できる。"
 	return action
 
 
-func _on_category(value: int) -> void:
-	category = value as InventoryQuery.Category
+func _on_grid_selected(vessel_id: int) -> void:
+	_selected_id = vessel_id
+	_update_slots()
+	_show_detail()
+
+
+func _on_hovered(vessel_id: int) -> void:
+	_hover_id = vessel_id
+	_show_detail()
+
+
+func _on_slot_clicked(slot: InventorySlot) -> void:
+	if slot.vessel_id != -1:
+		select_vessel(slot.vessel_id)
+
+
+func _on_slot_hovered(slot: InventorySlot) -> void:
+	_on_hovered(slot.vessel_id)
+
+
+func _on_slot_dropped(slot: InventorySlot, vessel_id: int) -> void:
+	drop_on_hotbar(vessel_id, slot.slot_index)
+
+
+func _on_dropped_into_bag(vessel_id: int) -> void:
+	drop_into_bag(vessel_id)
+
+
+func _on_chip(index: int) -> void:
+	category = CHIPS[index]
 	refresh()
 
 
 func _on_submit(_text: String) -> void:
-	_list.grab_focus()
-	if not _ids.is_empty() and _list.get_selected_items().is_empty():
-		_list.select(0)
-		_show_detail(0)
+	_grid.grab_focus()
 
 
 func _build() -> void:
-	add_child(ScreenBlur.new())
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 120)
-	margin.add_theme_constant_override("margin_right", 120)
-	margin.add_theme_constant_override("margin_top", 84)
-	margin.add_theme_constant_override("margin_bottom", 56)
-	add_child(margin)
+	var blur := ScreenBlur.new()
+	blur.soft = true
+	add_child(blur)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(center)
+	_book = PanelContainer.new()
+	_book.custom_minimum_size = Vector2(1640, 0)
+	_book.add_theme_stylebox_override("panel", UiTheme.panel_box(UiTheme.CREAM, 28, 32.0))
+	_book.resized.connect(func() -> void: _book.pivot_offset = _book.size * 0.5)
+	center.add_child(_book)
 	var page := VBoxContainer.new()
-	page.add_theme_constant_override("separation", 24)
-	margin.add_child(page)
+	page.add_theme_constant_override("separation", 22)
+	_book.add_child(page)
+	page.add_child(_build_header())
+	var body := HBoxContainer.new()
+	body.add_theme_constant_override("separation", 36)
+	body.custom_minimum_size = Vector2(0, 520)
+	page.add_child(body)
+	body.add_child(_build_character_column())
+	body.add_child(_build_bag_column())
+	body.add_child(_build_detail_column())
+	page.add_child(_build_hotbar_row())
 
-	var header := VBoxContainer.new()
-	header.add_theme_constant_override("separation", 2)
-	var kicker := Label.new()
-	kicker.text = "INVENTORY"
-	kicker.theme_type_variation = &"Kicker"
-	header.add_child(kicker)
+
+func _build_header() -> Control:
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 12)
 	var title := Label.new()
 	title.text = "持ち物"
-	title.theme_type_variation = &"HeaderLarge"
+	title.theme_type_variation = &"Title"
 	header.add_child(title)
-	page.add_child(header)
-
-	var body := HBoxContainer.new()
-	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	body.add_theme_constant_override("separation", 56)
-	page.add_child(body)
-	body.add_child(_build_list_column())
-	var divider := ColorRect.new()
-	divider.color = UiTheme.LINE
-	divider.custom_minimum_size = Vector2(1, 0)
-	body.add_child(divider)
-	body.add_child(_build_detail_column())
-
-	var footer := HBoxContainer.new()
-	footer.add_theme_constant_override("separation", 28)
-	for pair: Array in [
-		["文字", "検索"],
-		["Enter", "一覧へ"],
-		["1〜9", "ホットバーへ（入れ替え）"],
-		["X", "通常インベントリへ"],
-		["Esc", "閉じる"],
-	]:
-		footer.add_child(KeyPrompt.make(String(pair[0]), String(pair[1]), true))
-	var rule := ColorRect.new()
-	rule.color = UiTheme.LINE
-	rule.custom_minimum_size = Vector2(0, 1)
-	page.add_child(rule)
-	page.add_child(footer)
-
-
-func _build_list_column() -> Control:
-	var column := VBoxContainer.new()
-	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.size_flags_stretch_ratio = 1.5
-	column.add_theme_constant_override("separation", 14)
-
-	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 28)
-	var group := ButtonGroup.new()
-	for c: InventoryQuery.Category in [
-		InventoryQuery.Category.ALL,
-		InventoryQuery.Category.ABILITY,
-		InventoryQuery.Category.PROHIBITION,
-		InventoryQuery.Category.EQUIPMENT,
-	]:
-		var button := Button.new()
-		button.text = InventoryQuery.category_label(c)
-		button.toggle_mode = true
-		button.button_group = group
-		button.theme_type_variation = &"Tab"
-		button.focus_mode = Control.FOCUS_NONE
-		button.pressed.connect(_on_category.bind(int(c)))
-		tabs.add_child(button)
-		_category_buttons.append(button)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tabs.add_child(spacer)
-	_count = Label.new()
-	_count.theme_type_variation = &"Caption"
-	_count.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	tabs.add_child(_count)
-	column.add_child(tabs)
-
+	header.add_child(spacer)
+	for i in CHIPS.size():
+		var chip := Button.new()
+		chip.text = InventoryQuery.category_label(CHIPS[i])
+		chip.theme_type_variation = &"Chip"
+		chip.toggle_mode = true
+		chip.focus_mode = Control.FOCUS_NONE
+		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		chip.pressed.connect(_on_chip.bind(i))
+		header.add_child(chip)
+		_chips.append(chip)
 	_search = LineEdit.new()
-	_search.placeholder_text = "検索　名前・キー・状態（例: ジャンプ、W、禁止、貸出中、ホットバー）"
+	_search.placeholder_text = "さがす（ジャンプ、W、禁止 など）"
 	_search.clear_button_enabled = true
+	_search.custom_minimum_size = Vector2(380, 0)
+	_search.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_search.text_changed.connect(func(_t: String) -> void: refresh())
 	_search.text_submitted.connect(_on_submit)
-	column.add_child(_search)
+	header.add_child(_search)
+	return header
 
-	_list = ItemList.new()
-	_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_list.fixed_icon_size = Vector2i(48, 48)
-	_list.allow_search = false
-	_list.item_selected.connect(_show_detail)
-	column.add_child(_list)
+
+func _build_character_column() -> Control:
+	var column := VBoxContainer.new()
+	column.custom_minimum_size = Vector2(300, 0)
+	column.add_theme_constant_override("separation", 12)
+	var stage := PanelContainer.new()
+	var stage_box := UiTheme.panel_box(UiTheme.CREAM_DEEP, 20, 0.0)
+	stage_box.shadow_size = 0
+	stage.add_theme_stylebox_override("panel", stage_box)
+	stage.custom_minimum_size = Vector2(300, 300)
+	stage.add_child(CharacterPreview.new())
+	column.add_child(stage)
+	column.add_child(_section("そうび", ""))
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 16)
+	for i in EQUIP_SLOTS.size():
+		var slot := InventorySlot.new()
+		slot.kind = InventorySlot.Kind.EQUIP
+		slot.slot_index = i
+		slot.equip_label = EQUIP_SLOTS[i]
+		slot.custom_minimum_size = Vector2(62, 62)
+		slot.tooltip_text = "装備品は、つけているときだけ効く（まだ見つかっていない）"
+		grid.add_child(slot)
+		_equip_slots.append(slot)
+	column.add_child(grid)
+	var note := Label.new()
+	note.text = "つけているときだけ効く"
+	note.theme_type_variation = &"Note"
+	column.add_child(note)
+	return column
+
+
+func _build_bag_column() -> Control:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	var head := HBoxContainer.new()
+	head.add_child(_section("かばん", "ここの能力は自分に効かない"))
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(spacer)
+	_bag_count = Label.new()
+	_bag_count.theme_type_variation = &"Note"
+	head.add_child(_bag_count)
+	column.add_child(head)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.custom_minimum_size = Vector2(7 * (ItemGrid.CELL + ItemGrid.GAP) + 14, 0)
+	column.add_child(scroll)
+	_grid = ItemGrid.new()
+	_grid.columns = 7
+	_grid.item_selected.connect(_on_grid_selected)
+	_grid.item_hovered.connect(_on_hovered)
+	_grid.dropped_into_bag.connect(_on_dropped_into_bag)
+	scroll.add_child(_grid)
 	return column
 
 
 func _build_detail_column() -> Control:
+	var card := PanelContainer.new()
+	var box := UiTheme.panel_box(Color.WHITE, 20, 24.0)
+	box.shadow_size = 0
+	card.add_theme_stylebox_override("panel", box)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var column := VBoxContainer.new()
-	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	column.add_theme_constant_override("separation", 10)
+	card.add_child(column)
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 16)
 	_detail_icon = TextureRect.new()
-	_detail_icon.custom_minimum_size = Vector2(128, 128)
+	_detail_icon.custom_minimum_size = Vector2(96, 96)
 	_detail_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_detail_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT
-	_detail_icon.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-	column.add_child(_detail_icon)
+	_detail_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	top.add_child(_detail_icon)
+	var names := VBoxContainer.new()
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	names.add_theme_constant_override("separation", 6)
 	_detail_name = Label.new()
-	_detail_name.theme_type_variation = &"HeaderLarge"
-	column.add_child(_detail_name)
+	_detail_name.theme_type_variation = &"Heading"
+	names.add_child(_detail_name)
 	_detail_state = Label.new()
 	_detail_state.theme_type_variation = &"Strong"
-	column.add_child(_detail_state)
+	_detail_state.add_theme_font_size_override("font_size", UiTheme.SIZE_SMALL)
+	_detail_state.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	names.add_child(_detail_state)
 	_detail_where = Label.new()
-	_detail_where.theme_type_variation = &"Caption"
-	column.add_child(_detail_where)
-	var rule := ColorRect.new()
-	rule.color = UiTheme.LINE
-	rule.custom_minimum_size = Vector2(0, 1)
-	column.add_child(rule)
+	_detail_where.theme_type_variation = &"Note"
+	names.add_child(_detail_where)
+	top.add_child(names)
+	column.add_child(top)
 	_detail_text = Label.new()
-	_detail_text.theme_type_variation = &"Caption"
-	_detail_text.add_theme_font_size_override("font_size", 17)
+	_detail_text.theme_type_variation = &"Body"
 	_detail_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_detail_text.custom_minimum_size = Vector2(420, 0)
+	_detail_text.custom_minimum_size = Vector2(360, 140)
 	column.add_child(_detail_text)
+	column.add_child(_section("貸し出し中", ""))
+	_lent_list = VBoxContainer.new()
+	_lent_list.add_theme_constant_override("separation", 6)
+	column.add_child(_lent_list)
+	return card
+
+
+func _build_hotbar_row() -> Control:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	var head := HBoxContainer.new()
+	head.add_child(_section("ホットバー", "ここにある能力だけ自分に効く"))
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(spacer)
+	var how := Label.new()
+	how.text = "ドラッグで入れかえ　·　1〜9 でホットバーへ　·　X でかばんへ"
+	how.theme_type_variation = &"Note"
+	head.add_child(how)
+	column.add_child(head)
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	for i in RuleLedger.HOTBAR_SIZE:
+		var slot := InventorySlot.new()
+		slot.kind = InventorySlot.Kind.HOTBAR
+		slot.slot_index = i
+		slot.clicked.connect(_on_slot_clicked)
+		slot.hovered.connect(_on_slot_hovered)
+		slot.mouse_exited.connect(_on_hovered.bind(-1))
+		slot.dropped.connect(_on_slot_dropped)
+		row.add_child(slot)
+		_hotbar_slots.append(slot)
+	column.add_child(row)
 	return column
+
+
+func _section(title: String, note: String) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	var dot := ColorRect.new()
+	dot.color = UiTheme.LEAF
+	dot.custom_minimum_size = Vector2(6, 18)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(dot)
+	var label := Label.new()
+	label.text = title
+	label.theme_type_variation = &"Strong"
+	row.add_child(label)
+	if not note.is_empty():
+		var hint := Label.new()
+		hint.text = note
+		hint.theme_type_variation = &"Note"
+		row.add_child(hint)
+	return row
