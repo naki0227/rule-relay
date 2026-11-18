@@ -222,7 +222,9 @@ func _update_markers() -> void:
 	if _corner_markers == null:
 		return
 	_corner_markers.visible = _in_range or _previewed
-	_marker_material.albedo_color = Color(1.0, 0.35, 0.35) if _previewed else Color(0.5, 0.0, 0.05)
+	_marker_material.albedo_color = (
+		Color(0.94, 0.54, 0.47) if _previewed else Color(0.66, 0.22, 0.18)
+	)
 	_corner_markers.scale = Vector3(1.0, 1.6 if _previewed else 1.0, 1.0)
 
 
