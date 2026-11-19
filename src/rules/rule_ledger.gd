@@ -252,6 +252,15 @@ func repeat_actions(entity_id: int) -> Array[RuleAction.Kind]:
 	return result
 
 
+## ブロックが信号方式で持つ行動（付与された順）。音波が届いている間だけ発動する（企画書 5.2）。
+func signal_actions(entity_id: int) -> Array[RuleAction.Kind]:
+	var result: Array[RuleAction.Kind] = []
+	for t: RuleToken in tokens_on(entity_id):
+		if not t.is_prohibition and t.mode == TriggerMode.Kind.SIGNAL:
+			result.append(t.action)
+	return result
+
+
 ## 範囲付与されたトークンのうち、position（水平距離）がその円の中にあるもの。
 ## 縦方向は付与した層から上下 vertical_reach ブロック以内（仮値。範囲の上に立って回収するため）。
 func range_tokens_at(position: Vector3, vertical_reach: float = 3.0) -> Array[RuleToken]:

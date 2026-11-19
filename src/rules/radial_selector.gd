@@ -3,7 +3,7 @@ extends RefCounted
 ## 中央の円形 UI（ホイール押し込み＋ドラッグ）で、ドラッグした向きから選択肢を決める。
 ## 画面座標（y が下向き）で、最初の選択肢を真上に置き、時計回りに等間隔で並べる。
 
-## 円形 UI に並べる発動方式（企画書 5.2 の3方式）。信号は P1 まで選べない（表示はする）。
+## 円形 UI に並べる発動方式（企画書 5.2 の3方式）。
 const MODES: Array[TriggerMode.Kind] = [
 	TriggerMode.Kind.SINGLE_SHOT, TriggerMode.Kind.REPEAT, TriggerMode.Kind.SIGNAL
 ]

@@ -63,7 +63,9 @@ func test_block_lend_requires_supported_mode() -> void:
 	var signal_mode := ledger.lend(
 		jump_vessel.id, PackedInt32Array([BLOCK_A]), TriggerMode.Kind.SIGNAL
 	)
-	assert_eq(signal_mode, RuleLedger.LendResult.MODE_NOT_SUPPORTED, "signal comes in P1")
+	assert_eq(signal_mode, RuleLedger.LendResult.OK, "signal mode (with sound sources)")
+	assert_eq(ledger.signal_actions(BLOCK_A), [JUMP] as Array[RuleAction.Kind])
+	assert_true(ledger.repeat_actions(BLOCK_A).is_empty())
 
 
 func test_creature_receives_ability_without_mode() -> void:

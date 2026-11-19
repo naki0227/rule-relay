@@ -14,6 +14,8 @@ extends GameWorld
 ## 装備（企画書 7・10。解法を増やす道具で、唯一の通行証にはしない）:
 ##   - 小島にジャンプブーツ（高跳び、約2ブロック）→ 岩棚（高さ2）へ跳び、そこから高台へ
 ##   - 岩棚の東にクライミンググローブ（登る）→ 高台の壁を直接登る
+## 音源と信号（企画書 5.2・5.4）: 高台の西に音源のブロック（音波の届く距離 6）。3つ並びの西の2つは音波の中、
+## 東の1つと青緑のブロックは外にある。信号方式で渡した能力は、音波が届いている間だけ動く。音源も W などで動かせる。
 ## 生き物（企画書 6・10）: 「高いところへ行きたい」1匹が開始地点の東にいる。W/A/S/D は持っているが
 ## ジャンプが無いので、低い段しか上がれない。ジャンプを渡すと、自分で段を跳んで高い所へ向かう。
 
@@ -49,6 +51,7 @@ var row: Array[RuleBlock] = []
 var mover: RuleBlock
 var shuttle: RuleBlock
 var creature: Creature
+var sound_source: RuleBlock
 var _goal_crystal: Node3D
 var _time: float = 0.0
 
@@ -83,6 +86,7 @@ func _build_blocks() -> void:
 		row.append(add_block(Vector3i(x, 0, -5)))
 	ledger.place_on_entity(RuleAction.Kind.JUMP, true, row[1].entity_id)
 	mover = add_block(Vector3i(8, 0, -2), Color(0.45, 0.76, 0.72))
+	sound_source = add_sound_source(Vector3i(-1, 0, -6))
 	# 谷底を北と南に1マスずつ往復する足場（上面が地面と同じ高さ）
 	shuttle = add_block(Vector3i(-6, -1, 9), Color(0.96, 0.78, 0.5))
 	ledger.place_on_entity(RuleAction.Kind.BACK, false, shuttle.entity_id, TriggerMode.Kind.REPEAT)

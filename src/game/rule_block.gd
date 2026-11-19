@@ -28,6 +28,8 @@ var _assigned: bool = false
 var _in_range: bool = false
 var _previewed: bool = false
 var _marker_material: StandardMaterial3D
+var _signal_label: Label3D
+var _source_radius: float = 0.0
 
 
 func _ready() -> void:
@@ -292,3 +294,75 @@ func _build_visuals() -> void:
 	_label.outline_size = 14
 	_label.no_depth_test = true
 	add_child(_label)
+
+
+# --- 音波（企画書 5.2 信号・5.4 音源） ---------------------------------------
+
+
+## このブロックを音源にする（周りへ音波を出し続ける）。見た目に音符の札を付ける。
+func make_sound_source(radius: float) -> void:
+	_source_radius = radius
+	var note := Label3D.new()
+	note.text = "♪ 音源"
+	note.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	note.position = Vector3(0.0, SIZE * 0.5 + 0.35, 0.0)
+	note.pixel_size = 0.004
+	note.font = UiTheme.font(700, 2)
+	note.font_size = 40
+	note.modulate = UiTheme.INK
+	note.outline_modulate = Color(UiTheme.CREAM, 0.95)
+	note.outline_size = 12
+	add_child(note)
+
+
+func is_sound_source() -> bool:
+	return _source_radius > 0.0
+
+
+## 音波の輪を1つ出す（届く距離まで広がって消える）。
+func emit_pulse() -> void:
+	if not is_inside_tree():
+		return
+	var ring := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.96
+	torus.outer_radius = 1.0
+	torus.rings = 48
+	ring.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(0.45, 0.66, 0.9, 0.7)
+	ring.material_override = mat
+	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	ring.top_level = true
+	add_child(ring)
+	ring.global_position = global_position + Vector3(0.0, -0.4, 0.0)
+	ring.scale = Vector3.ONE * 0.6
+	var tween := ring.create_tween().set_parallel()
+	tween.tween_property(ring, "scale", Vector3(_source_radius, 1.0, _source_radius), 1.2)
+	tween.tween_property(mat, "albedo_color:a", 0.0, 1.2)
+	tween.chain().tween_callback(ring.queue_free)
+
+
+## 信号方式の能力を持つときの表示: 受信中（音波が届いて動く）／休止中（届かず止まっている）。
+func set_signal_state(has_signal: bool, receiving: bool) -> void:
+	if not has_signal:
+		if _signal_label != null:
+			_signal_label.visible = false
+		return
+	if _signal_label == null:
+		_signal_label = Label3D.new()
+		_signal_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_signal_label.position = Vector3(0.0, SIZE * 0.95 + 0.55, 0.0)
+		_signal_label.pixel_size = 0.0035
+		_signal_label.font = UiTheme.font(700, 2)
+		_signal_label.font_size = 36
+		_signal_label.outline_modulate = Color(UiTheme.CREAM, 0.95)
+		_signal_label.outline_size = 12
+		_signal_label.no_depth_test = true
+		_signal_label.render_priority = 2
+		add_child(_signal_label)
+	_signal_label.visible = true
+	_signal_label.text = "♪ 受信中" if receiving else "休止中（音が届かない）"
+	_signal_label.modulate = UiTheme.LEAF.darkened(0.25) if receiving else UiTheme.INK_FAINT

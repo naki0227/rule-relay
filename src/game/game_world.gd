@@ -32,6 +32,11 @@ var goal_box: AABB = AABB()
 var _next_block_id: int = FIRST_BLOCK_ID
 var _repeat_cursors: Dictionary[int, RepeatCursor] = {}
 var _repeat_timers: Dictionary[int, float] = {}
+var _signal_cursors: Dictionary[int, RepeatCursor] = {}
+var _signal_timers: Dictionary[int, float] = {}
+## 音波を出しているブロック（音源）の ID。
+var _sources: Dictionary[int, bool] = {}
+var _pulse_timer: float = 0.0
 var _history: CheckpointHistory = CheckpointHistory.new()
 var _home_cells: Dictionary[int, Vector3i] = {}
 var _spawn_point: Vector3 = Vector3.ZERO
@@ -86,7 +91,32 @@ func add_block(cell: Vector3i, color: Color = Color(0.85, 0.65, 0.35)) -> RuleBl
 	ledger.register_entity(id, EntityKind.Kind.BLOCK)
 	_repeat_cursors[id] = RepeatCursor.new()
 	_repeat_timers[id] = 0.0
+	_signal_cursors[id] = RepeatCursor.new()
+	_signal_timers[id] = 0.0
 	return block
+
+
+## 音源（企画書 5.4）: 周りへ音波を出し続けるブロック。ふつうのブロックと同じく能力を受け取って
+## 動けるので、W などを渡して「移動する音源」にもできる。
+func add_sound_source(cell: Vector3i) -> RuleBlock:
+	var block := add_block(cell, Color(0.62, 0.8, 0.95))
+	block.make_sound_source(Tuning.SIGNAL_RADIUS)
+	_sources[block.entity_id] = true
+	return block
+
+
+## その位置に音波が届いているか（音源からの距離が半径以内。自分自身の音は数えない）。
+## 伝わる距離・遮るもの・音の種類は要検証（企画書 5.4）で、P1 は距離だけで判定する（仮）。
+func is_receiving_signal(entity_id: int) -> bool:
+	if not blocks.has(entity_id):
+		return false
+	var at := blocks[entity_id].global_position
+	for source_id in _sources:
+		if source_id == entity_id:
+			continue
+		if blocks[source_id].global_position.distance_to(at) <= Tuning.SIGNAL_RADIUS:
+			return true
+	return false
 
 
 ## 願いを持つ生き物を置く（企画書 6）。
@@ -149,12 +179,15 @@ func set_lend_mode(mode: TriggerMode.Kind) -> bool:
 	return true
 
 
-## 単発 ↔ 繰り返し。円形 UI の代わりに使える代替キー（Q）。
+## 単発 → 繰り返し → 信号 → 単発。円形 UI の代わりに使える代替キー（Q）。
 func cycle_mode() -> void:
-	if lend_mode == TriggerMode.Kind.SINGLE_SHOT:
-		set_lend_mode(TriggerMode.Kind.REPEAT)
-	else:
-		set_lend_mode(TriggerMode.Kind.SINGLE_SHOT)
+	match lend_mode:
+		TriggerMode.Kind.SINGLE_SHOT:
+			set_lend_mode(TriggerMode.Kind.REPEAT)
+		TriggerMode.Kind.REPEAT:
+			set_lend_mode(TriggerMode.Kind.SIGNAL)
+		_:
+			set_lend_mode(TriggerMode.Kind.SINGLE_SHOT)
 
 
 ## C: 触る ↔ 投げる（企画書 5.1）。「投げる」は能力なので、ホットバーにあって貸出中・禁止で
@@ -234,6 +267,9 @@ func lend_to(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 		_sound(&"lend_range" if use_range else &"lend", target.global_position)
 	else:
 		_ui_sound(&"ui_error")
+	if result == RuleLedger.LendResult.OK and mode == TriggerMode.Kind.SIGNAL:
+		for holder in t.holder_ids:
+			_signal_timers[holder] = Tuning.REPEAT_PERIOD - 0.25
 	if result == RuleLedger.LendResult.OK and mode == TriggerMode.Kind.REPEAT:
 		for holder in t.holder_ids:
 			# 付与してすぐ動き出すように、最初の周期を短くする
@@ -482,6 +518,8 @@ func _capture() -> Dictionary:
 		var state := blocks[id].capture_state()
 		state["cursor"] = _repeat_cursors[id].get_index()
 		state["timer"] = _repeat_timers[id]
+		state["signal_cursor"] = _signal_cursors[id].get_index()
+		state["signal_timer"] = _signal_timers[id]
 		block_states[id] = state
 	var creature_states := {}
 	for id in creatures:
@@ -510,6 +548,8 @@ func _apply(snapshot: Dictionary) -> void:
 		blocks[id].restore_state(state)
 		_repeat_cursors[id].set_index(int(state["cursor"]))
 		_repeat_timers[id] = float(state["timer"])
+		_signal_cursors[id].set_index(int(state.get("signal_cursor", 0)))
+		_signal_timers[id] = float(state.get("signal_timer", 0.0))
 	var creature_states := snapshot.get("creatures", {}) as Dictionary
 	for id: int in creature_states:
 		creatures[id].restore_state(creature_states[id] as Dictionary)
@@ -558,6 +598,8 @@ func _rescue_lost_blocks() -> void:
 
 func _physics_process(delta: float) -> void:
 	_tick_repeats(delta)
+	_tick_signals(delta)
+	_tick_pulses(delta)
 	if player == null:
 		return
 	_rescue_lost_blocks()
@@ -585,6 +627,42 @@ func _tick_repeats(delta: float) -> void:
 		var result := BlockRules.attempt(ledger, id, action, block.is_ready_for(action))
 		if result == BlockRules.Attempt.SUCCESS:
 			block.perform(action, ledger.can_initiate(id, RuleAction.Kind.HIGH_JUMP))
+
+
+## 信号方式: 音波が届いている間だけ、繰り返しと同じ周期で行動を試みる。途絶えると次の動作は
+## 休止し（周期の途中で止まる）、再び届くと続きから再開する。トークンは自動では戻らない（企画書 5.2）。
+func _tick_signals(delta: float) -> void:
+	for id in blocks:
+		var actions := ledger.signal_actions(id)
+		var receiving := not actions.is_empty() and is_receiving_signal(id)
+		blocks[id].set_signal_state(not actions.is_empty(), receiving)
+		if actions.is_empty():
+			_signal_timers[id] = 0.0
+			continue
+		if not receiving:
+			continue
+		_signal_timers[id] += delta
+		if _signal_timers[id] < Tuning.REPEAT_PERIOD:
+			continue
+		_signal_timers[id] -= Tuning.REPEAT_PERIOD
+		var action := _signal_cursors[id].next_action(actions) as RuleAction.Kind
+		var block := blocks[id]
+		var result := BlockRules.attempt(ledger, id, action, block.is_ready_for(action))
+		if result == BlockRules.Attempt.SUCCESS:
+			block.perform(action, ledger.can_initiate(id, RuleAction.Kind.HIGH_JUMP))
+
+
+## 音源の音波の見た目と音（周期ごとに輪が広がる）。
+func _tick_pulses(delta: float) -> void:
+	if _sources.is_empty():
+		return
+	_pulse_timer += delta
+	if _pulse_timer < Tuning.SIGNAL_PULSE_PERIOD:
+		return
+	_pulse_timer = 0.0
+	for source_id in _sources:
+		blocks[source_id].emit_pulse()
+		_sound(&"radial_open", blocks[source_id].global_position)
 
 
 func _fire_single_shot(token_id: int) -> void:
