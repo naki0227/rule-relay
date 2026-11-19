@@ -149,8 +149,8 @@ func show_tokens(tokens: Array[RuleToken]) -> void:
 			note.pixel_size = 0.0035
 			note.font = UiTheme.font(600)
 			note.font_size = 36
-			note.modulate = UiTheme.TEXT
-			note.outline_modulate = Color(0, 0, 0, 0.6)
+			note.modulate = UiTheme.INK
+			note.outline_modulate = Color(UiTheme.CREAM, 0.95)
 			note.outline_size = 12
 			note.no_depth_test = true
 			note.render_priority = 2
@@ -221,7 +221,7 @@ func _update_outline() -> void:
 	if _outline == null:
 		return
 	_outline.visible = _aimed or _assigned
-	_outline_material.albedo_color = Color(0.9, 0.1, 0.1) if _assigned else Color(1.0, 0.9, 0.3)
+	_outline_material.albedo_color = Color("#d9483b") if _assigned else UiTheme.SUN
 	_outline.scale = Vector3.ONE * (1.0 if _assigned else 0.97)
 
 
@@ -274,8 +274,8 @@ func _build_visuals() -> void:
 	_label.pixel_size = 0.005
 	_label.font = UiTheme.medium()
 	_label.font_size = 40
-	_label.modulate = UiTheme.TEXT
-	_label.outline_modulate = Color(0, 0, 0, 0.6)
+	_label.modulate = UiTheme.INK
+	_label.outline_modulate = Color(UiTheme.CREAM, 0.95)
 	_label.outline_size = 14
 	_label.no_depth_test = true
 	add_child(_label)

@@ -1,29 +1,30 @@
 class_name HotbarSlot
 extends Control
-## ホットバーの1枠。暗い半透明の四角に細い線。選んでいる枠は金の縁と下線で、少し大きくなる。
-## 貸出中はアイコンを薄くして「貸出」と書く。禁止は赤い角の印と「禁止」の文字（色だけに頼らない）。
+## HUD のホットバーの1枠。見た目は ItemPainter で、持ち物の画面とそろえる。
+## 選んでいる枠は少し大きく浮き上がり、夕日色の縁になる。ほかの枠は控えめにする。
 
-const SIZE := Vector2(76, 76)
+const SIZE := Vector2(80, 80)
 
 var slot_index: int = 0
 var selected: bool = false
 var token: RuleToken
 
-var _grow: float = 0.0
-
 
 func _ready() -> void:
 	custom_minimum_size = SIZE
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pivot_offset = SIZE * 0.5
+	pivot_offset = Vector2(SIZE.x * 0.5, SIZE.y)
 
 
 func show_token(new_token: RuleToken, is_selected: bool) -> void:
 	token = new_token
 	if is_selected != selected:
 		selected = is_selected
-		var tween := create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
-		tween.tween_property(self, "scale", Vector2.ONE * (1.08 if selected else 1.0), UiTheme.FAST)
+		var tween := create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		tween.tween_property(
+			self, "scale", Vector2.ONE * (1.12 if selected else 1.0), UiTheme.NORMAL
+		)
+	modulate.a = 1.0 if selected else 0.86
 	queue_redraw()
 
 
@@ -46,49 +47,8 @@ func item_name() -> String:
 
 
 func _draw() -> void:
-	var rect := Rect2(Vector2.ZERO, SIZE)
-	var fill := Color(UiTheme.SURFACE, 0.86 if selected else 0.7)
-	var border := UiTheme.ACCENT if selected else UiTheme.LINE
-	var box := UiTheme.surface_box(fill, border, UiTheme.RADIUS, 0.0)
-	box.set_border_width_all(2 if selected else 1)
-	draw_style_box(box, rect)
-	if selected:
-		draw_rect(
-			Rect2(Vector2(SIZE.x * 0.3, SIZE.y + 6), Vector2(SIZE.x * 0.4, 2)), UiTheme.ACCENT
-		)
-	draw_string(
-		UiTheme.font(600),
-		Vector2(7, 16),
-		str(slot_index + 1),
-		HORIZONTAL_ALIGNMENT_LEFT,
-		-1,
-		12,
-		UiTheme.ACCENT if selected else UiTheme.TEXT_FAINT
-	)
-	if token == null:
-		return
-	var icon_rect := Rect2(Vector2((SIZE.x - 46) * 0.5, 12), Vector2(46, 46))
-	var lent := token.is_lent()
-	draw_texture_rect(
-		ItemIcons.for_token(token), icon_rect, false, Color(1, 1, 1, 0.35 if lent else 1.0)
-	)
-	if lent:
-		_draw_tag("貸出", UiTheme.ACCENT)
-	elif token.is_prohibition:
-		_draw_tag("禁止", UiTheme.ALERT)
-		var corner := PackedVector2Array(
-			[Vector2(SIZE.x - 14, 1), Vector2(SIZE.x - 1, 1), Vector2(SIZE.x - 1, 14)]
-		)
-		draw_colored_polygon(corner, UiTheme.ALERT)
-
-
-func _draw_tag(text: String, color: Color) -> void:
-	draw_string(
-		UiTheme.font(700, 1),
-		Vector2(0, SIZE.y - 6),
-		text,
-		HORIZONTAL_ALIGNMENT_CENTER,
-		SIZE.x,
-		11,
-		color
-	)
+	var style := ItemPainter.Style.new()
+	style.selected = selected
+	style.number = slot_index + 1
+	style.compact = true
+	ItemPainter.draw_slot(self, Rect2(Vector2.ZERO, SIZE), token, style)

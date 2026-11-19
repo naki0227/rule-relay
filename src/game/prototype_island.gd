@@ -177,7 +177,7 @@ func _add_label(at: Vector3, text: String) -> void:
 	label.pixel_size = 0.005
 	label.font = UiTheme.font(700, 2)
 	label.font_size = 40
-	label.modulate = UiTheme.TEXT
-	label.outline_modulate = Color(0, 0, 0, 0.6)
+	label.modulate = UiTheme.INK
+	label.outline_modulate = Color(UiTheme.CREAM, 0.95)
 	label.outline_size = 14
 	add_child(label)

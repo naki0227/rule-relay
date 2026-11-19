@@ -1,9 +1,9 @@
 class_name KeyPrompt
 extends HBoxContainer
-## 「[キー] 動作」の案内（例: [F] 回収）。画面下の操作の帯や、照準の下の文脈の案内に使う。
+## 「[キー] 動作」の案内（例: [F] 回収）。
 
 
-static func make(key: String, action: String, dim: bool = false) -> KeyPrompt:
+static func make(key: String, action: String, _dim: bool = false) -> KeyPrompt:
 	var prompt := KeyPrompt.new()
 	prompt.add_theme_constant_override("separation", 8)
 	prompt.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -17,7 +17,7 @@ static func make(key: String, action: String, dim: bool = false) -> KeyPrompt:
 	prompt.add_child(cap)
 	var label := Label.new()
 	label.text = action
-	label.theme_type_variation = &"Caption" if dim else &"Strong"
-	label.add_theme_font_size_override("font_size", 15)
+	label.theme_type_variation = &"Strong"
+	label.add_theme_font_size_override("font_size", UiTheme.SIZE_SMALL + 1)
 	prompt.add_child(label)
 	return prompt

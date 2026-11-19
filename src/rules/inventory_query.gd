@@ -3,7 +3,7 @@ extends RefCounted
 ## 持ち物（ホットバー＋通常インベントリ）の検索・絞り込み・状態表示（企画書 7 の UI 必須項目）。
 ## 通常インベントリは無制限なので、名前・種類・状態のどれでも引けるようにする。UI から分離した純粋な判定。
 
-enum Category { ALL, ABILITY, PROHIBITION, EQUIPMENT }
+enum Category { ALL, ABILITY, PROHIBITION, EQUIPMENT, LENT }
 
 enum State {
 	## ホットバーにあり、自分に効いている能力
@@ -130,6 +130,8 @@ static func category_label(category: Category) -> String:
 			return "禁止"
 		Category.EQUIPMENT:
 			return "装備"
+		Category.LENT:
+			return "貸出中"
 	return "すべて"
 
 
@@ -141,6 +143,8 @@ static func _in_category(entry: Entry, category: Category) -> bool:
 			return entry.token.is_prohibition
 		Category.EQUIPMENT:
 			return false  # 装備（ジャンプブーツなど）は P2 で実装する
+		Category.LENT:
+			return entry.state == State.LENT
 	return true
 
 
