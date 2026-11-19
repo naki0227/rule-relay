@@ -139,7 +139,7 @@ func add_bell(at: Vector3) -> Bell:
 ## 発射台（2026-11-19 本人の判断）: 「投げる」が来ないと撃たない仕掛け。持っている間、周期ごとに
 ## direction（世界の方角）へ玉を撃つ。玉が鐘に当たると鐘が鳴る。
 func add_launcher(cell: Vector3i, direction: Vector3i) -> RuleBlock:
-	var block := add_block(cell, Color(0.86, 0.6, 0.45))
+	var block := add_block(cell, Color.WHITE, "launcher")
 	block.make_launcher(direction)
 	_launchers[block.entity_id] = direction
 	_launch_timers[block.entity_id] = 0.0
