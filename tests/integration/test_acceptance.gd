@@ -142,6 +142,21 @@ func test_4_single_shot_returns_repeat_and_signal_do_not() -> void:
 	assert_true(t.is_lent(), "the sound stopped, the signal token stays")
 
 
+## 4 の補足（2026-11-19 本人の判断）: 発動できない単発（ジャンプ禁止のブロックに渡した）も、
+## 起動したら発動したのと同じ扱いで戻る。
+func test_4b_single_shot_that_cannot_fire_still_comes_back() -> void:
+	var middle := island.row[1]
+	await place_player(middle.global_position + Vector3(0.0, -0.5, 1.5))
+	island.select_slot(JUMP_SLOT)
+	island.set_lend_mode(TriggerMode.Kind.SINGLE_SHOT)
+	assert_eq(island.lend_to(middle, false), RuleLedger.LendResult.OK)
+	assert_false(island.ledger.player_can(JUMP))
+	island.press_action(JUMP)
+	await wait_physics_frames(30)
+	assert_lt(middle.global_position.y, 0.6, "prohibited: it did not jump")
+	assert_true(island.ledger.player_can(JUMP), "but the jump came back")
+
+
 ## 5. 通常インベントリの能力は本人に効かず、禁止はどこにあっても効く。ホットバーは9枠。
 func test_5_bag_abilities_do_nothing_and_prohibitions_bind_anywhere() -> void:
 	var jump_vessel := island.ledger.hotbar_vessel(JUMP_SLOT)

@@ -683,10 +683,11 @@ func _fire_single_shot(token_id: int) -> void:
 			block.perform(t.action, ledger.can_initiate(holder, RuleAction.Kind.HIGH_JUMP))
 		results.append(result)
 	var label := t.describe()
-	if ledger.complete_single_shot(token_id, results):
+	ledger.complete_single_shot(token_id, results)
+	if BlockRules.single_shot_succeeded(results):
 		_post("単発の %s が成功して戻りました" % label)
 	else:
-		_post("単発の %s は動けませんでした（付与されたまま）" % label)
+		_post("単発の %s は動けなかったので、そのまま戻りました" % label)
 		var blocked := results.has(BlockRules.Attempt.PROHIBITED)
 		_ui_sound(&"prohibit" if blocked else &"ui_error")
 

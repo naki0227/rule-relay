@@ -29,7 +29,7 @@
 | 5.3 | 水平の円・縦1層。範囲内の全ブロック。生き物・プレイヤーには作用しない | 実装＋テスト | `block_rules.gd` `select_in_range` | `test_acceptance` 3、`test_range_selection` |
 | 5.3 | 半径5（仮）。1回の範囲付与もトークンは1つ | 実装＋テスト | `BlockRules.DEFAULT_RANGE_RADIUS` | `test_range_selection` |
 | 5.3 | 範囲内のどこからでも F で一括回収。回収用の結晶はない | 実装＋テスト | `rule_ledger.gd` `range_tokens_at` | `test_range_selection`、`test_acceptance`（範囲の端から F） |
-| 5.3 | 範囲単発は一斉に1回。禁止は個別判定。一部失敗の返還は未決 | 実装（仮: 1つでも成功で返還） | `block_rules.gd` `single_shot_succeeded` | `test_island_mechanics` |
+| 5.3 | 範囲単発は一斉に1回。禁止は個別判定。一部失敗の返還は未決 | 実装（2026-11-19 本人の判断: 起動したら成否によらず、発動したのと同じ扱いで戻る） | `rule_ledger.gd` `complete_single_shot` | `test_trigger_modes`、`test_acceptance` 4b |
 | 5.3 | 単体と範囲で強さを変えない。倍率は不採用 | 実装（倍率の UI・値なし） | — | — |
 | 5.4 | 音波そのものを信号に。音源ブロック、移動する音源 | 実装（2026-11-19 本人の判断: 当面は距離だけ。遮る物体・音を識別するブロックは後で追加） | `game_world.gd` `add_sound_source` | `test_signal` |
 

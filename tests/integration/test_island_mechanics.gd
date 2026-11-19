@@ -137,7 +137,7 @@ func test_solution_push_block_to_ledge_and_climb() -> void:
 	assert_true(reached, "climbed mover -> ledge -> plateau")
 
 
-func test_blocked_single_shot_move_keeps_token() -> void:
+func test_blocked_single_shot_move_returns_like_a_firing() -> void:
 	await place_player(Vector3(9.5, 0.0, -3.5))
 	island.mover.teleport(RuleBlock.cell_center(Vector3i(8, 0, -5)), 0.0)
 	await wait_physics_frames(5)
@@ -146,7 +146,9 @@ func test_blocked_single_shot_move_keeps_token() -> void:
 	island.press_action(RuleAction.Kind.FORWARD)
 	await wait_physics_frames(30)
 	assert_eq(island.mover.cell(), Vector3i(8, 0, -5), "the ledge blocks the move")
-	assert_false(island.ledger.player_can(RuleAction.Kind.FORWARD), "failed try is not success")
+	assert_true(
+		island.ledger.player_can(RuleAction.Kind.FORWARD), "could not move, but came back anyway"
+	)
 
 
 func test_checkpoint_restores_the_whole_world() -> void:

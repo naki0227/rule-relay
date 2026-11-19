@@ -44,16 +44,19 @@ func test_repeat_is_not_triggered_by_key() -> void:
 	assert_eq(route.single_shot_token_ids.size(), 0)
 
 
-func test_single_shot_returns_only_after_success() -> void:
+func test_single_shot_returns_after_one_try_even_when_it_failed() -> void:
 	var token_id := jump_vessel.token_id
 	ledger.lend(jump_vessel.id, PackedInt32Array([BLOCK]), TriggerMode.Kind.SINGLE_SHOT)
-	var failed: Array[BlockRules.Attempt] = [NOT_READY]
-	assert_false(ledger.complete_single_shot(token_id, failed), "pressing alone is not success")
-	assert_true(ledger.can_initiate(BLOCK, JUMP), "still lent after a failed try")
 	var ok: Array[BlockRules.Attempt] = [SUCCESS]
 	assert_true(ledger.complete_single_shot(token_id, ok))
 	assert_true(ledger.player_can(JUMP), "auto-returned to the vessel")
 	assert_false(ledger.can_initiate(BLOCK, JUMP))
+	# 発動できなかったときも、発動したのと同じ扱いで戻る（2026-11-19 本人の判断）
+	for failure: BlockRules.Attempt in [NOT_READY, BlockRules.Attempt.PROHIBITED]:
+		ledger.lend(jump_vessel.id, PackedInt32Array([BLOCK]), TriggerMode.Kind.SINGLE_SHOT)
+		var failed: Array[BlockRules.Attempt] = [failure]
+		assert_true(ledger.complete_single_shot(token_id, failed), "returned like a firing")
+		assert_true(ledger.player_can(JUMP))
 
 
 func test_repeat_never_auto_returns() -> void:
@@ -63,7 +66,7 @@ func test_repeat_never_auto_returns() -> void:
 	assert_true(ledger.can_initiate(BLOCK, JUMP))
 
 
-func test_partial_range_success_returns_token() -> void:
+func test_success_check_for_messages() -> void:
 	var results: Array[BlockRules.Attempt] = [SUCCESS, PROHIBITED, SUCCESS]
 	assert_true(BlockRules.single_shot_succeeded(results))
 	var all_blocked: Array[BlockRules.Attempt] = [PROHIBITED, PROHIBITED]
