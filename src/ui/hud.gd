@@ -13,6 +13,8 @@ var pause_menu: PauseMenu
 var toasts: ToastStack
 var crosshair: Crosshair
 var hints: HintMemory = HintMemory.new()
+## 効果音（無くても動く。テストでは入れない）。
+var sounds: SoundBank
 
 var _root: Control
 var _hotbar: Control
@@ -50,8 +52,10 @@ func is_inventory_open() -> bool:
 func toggle_inventory() -> bool:
 	if inventory.visible:
 		inventory.close()
+		play_ui(&"ui_close")
 	else:
 		inventory.open()
+		play_ui(&"ui_open")
 	_set_world_hud_visible(not inventory.visible)
 	return inventory.visible
 
@@ -66,6 +70,8 @@ func refresh() -> void:
 		)
 	_badge.show_state(world.lend_mode, world.throw_mode)
 	if world.selected_slot != _last_selected:
+		if _last_selected != -1 and sounds != null:
+			sounds.play_slot_select(world.selected_slot)
 		_last_selected = world.selected_slot
 		_flash_item_name()
 	if int(world.lend_mode) != _last_mode or int(world.throw_mode) != _last_throw:
@@ -142,6 +148,11 @@ func context_actions() -> PackedStringArray:
 		if not prompt.is_queued_for_deletion():
 			out.append((prompt.get_child(1) as Label).text)
 	return out
+
+
+func play_ui(event: StringName) -> void:
+	if sounds != null:
+		sounds.play_ui(event)
 
 
 func _set_world_hud_visible(on: bool) -> void:
@@ -233,11 +244,13 @@ func _build() -> void:
 
 	inventory = InventoryPanel.new()
 	inventory.ledger = world.ledger if world != null else null
+	inventory.play_sound = play_ui
 	inventory.visible = false
 	_root.add_child(inventory)
 
 	pause_menu = PauseMenu.new()
 	pause_menu.world = world
+	pause_menu.play_sound = play_ui
 	_root.add_child(pause_menu)
 
 

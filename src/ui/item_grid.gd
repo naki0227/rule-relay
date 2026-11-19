@@ -9,6 +9,7 @@ signal item_selected(vessel_id: int)
 signal item_hovered(vessel_id: int)
 ## ホットバーなどからかばんへ落とされた。
 signal dropped_into_bag(vessel_id: int)
+signal drag_started
 
 const CELL: float = 88.0
 const GAP: float = 10.0
@@ -188,6 +189,7 @@ func _get_drag_data(at_position: Vector2) -> Variant:
 	if index < 0 or index >= entries.size():
 		return null
 	var entry := entries[index]
+	drag_started.emit()
 	set_drag_preview(drag_preview(entry.token))
 	return {"vessel_id": entry.vessel_id, "from": "bag"}
 

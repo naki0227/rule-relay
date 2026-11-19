@@ -6,6 +6,7 @@ extends Control
 signal clicked(slot: InventorySlot)
 signal hovered(slot: InventorySlot)
 signal dropped(slot: InventorySlot, vessel_id: int)
+signal drag_started
 
 enum Kind { HOTBAR, EQUIP }
 
@@ -73,6 +74,7 @@ func _gui_input(event: InputEvent) -> void:
 func _get_drag_data(_at_position: Vector2) -> Variant:
 	if kind != Kind.HOTBAR or token == null:
 		return null
+	drag_started.emit()
 	set_drag_preview(ItemGrid.drag_preview(token))
 	return {"vessel_id": vessel_id, "from": "hotbar", "slot": slot_index}
 

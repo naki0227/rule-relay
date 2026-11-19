@@ -18,6 +18,8 @@ const CHIPS: Array[InventoryQuery.Category] = [
 ]
 
 var ledger: RuleLedger
+## 効果音を鳴らす関数（Hud.play_ui）。無ければ鳴らさない。
+var play_sound: Callable
 var category: InventoryQuery.Category = InventoryQuery.Category.ALL
 
 var _search: LineEdit
@@ -102,23 +104,36 @@ func selected_vessel_id() -> int:
 
 ## 選んでいる器をホットバーの slot へ（入っていた器と入れ替え）。
 func move_selected_to_hotbar(slot: int) -> bool:
-	return _selected_id != -1 and ledger.move_to_hotbar(_selected_id, slot)
+	var ok := _selected_id != -1 and ledger.move_to_hotbar(_selected_id, slot)
+	_sound(&"ui_drop" if ok else &"ui_error")
+	return ok
 
 
 ## 選んでいる器をかばん（通常インベントリ）へ。能力はかばんでは自分に効かない（禁止は効いたまま）。
 func move_selected_to_inventory() -> bool:
-	return _selected_id != -1 and ledger.move_to_inventory(_selected_id)
+	var ok := _selected_id != -1 and ledger.move_to_inventory(_selected_id)
+	_sound(&"ui_drop" if ok else &"ui_error")
+	return ok
 
 
 ## ドラッグ＆ドロップと同じ処理（テストからも呼ぶ）。
 func drop_on_hotbar(vessel_id: int, slot: int) -> bool:
 	_selected_id = vessel_id
-	return ledger.move_to_hotbar(vessel_id, slot)
+	var ok := ledger.move_to_hotbar(vessel_id, slot)
+	_sound(&"ui_drop" if ok else &"ui_error")
+	return ok
 
 
 func drop_into_bag(vessel_id: int) -> bool:
 	_selected_id = vessel_id
-	return ledger.move_to_inventory(vessel_id)
+	var ok := ledger.move_to_inventory(vessel_id)
+	_sound(&"ui_drop" if ok else &"ui_error")
+	return ok
+
+
+func _sound(event: StringName) -> void:
+	if play_sound.is_valid():
+		play_sound.call(event)
 
 
 ## 右の詳しい説明に出ている名前（テスト用）。
@@ -279,12 +294,15 @@ static func _explain(entry: InventoryQuery.Entry) -> String:
 
 
 func _on_grid_selected(vessel_id: int) -> void:
+	_sound(&"ui_pick")
 	_selected_id = vessel_id
 	_update_slots()
 	_show_detail()
 
 
 func _on_hovered(vessel_id: int) -> void:
+	if vessel_id != -1 and vessel_id != _hover_id:
+		_sound(&"ui_hover")
 	_hover_id = vessel_id
 	_show_detail()
 
@@ -307,6 +325,7 @@ func _on_dropped_into_bag(vessel_id: int) -> void:
 
 
 func _on_chip(index: int) -> void:
+	_sound(&"ui_hover")
 	category = CHIPS[index]
 	refresh()
 
@@ -427,6 +446,7 @@ func _build_bag_column() -> Control:
 	_grid.item_selected.connect(_on_grid_selected)
 	_grid.item_hovered.connect(_on_hovered)
 	_grid.dropped_into_bag.connect(_on_dropped_into_bag)
+	_grid.drag_started.connect(func() -> void: _sound(&"ui_pick"))
 	scroll.add_child(_grid)
 	return column
 
@@ -499,6 +519,7 @@ func _build_hotbar_row() -> Control:
 		slot.hovered.connect(_on_slot_hovered)
 		slot.mouse_exited.connect(_on_hovered.bind(-1))
 		slot.dropped.connect(_on_slot_dropped)
+		slot.drag_started.connect(func() -> void: _sound(&"ui_pick"))
 		row.add_child(slot)
 		_hotbar_slots.append(slot)
 	column.add_child(row)

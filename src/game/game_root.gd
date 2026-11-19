@@ -8,9 +8,20 @@ func _ready() -> void:
 	var island := PrototypeIsland.new()
 	island.name = "Island"
 	add_child(island)
+	var sounds := SoundBank.new()
+	sounds.name = "Sounds"
+	add_child(sounds)
+	island.sound_requested.connect(
+		func(event: StringName, at: Vector3, positional: bool) -> void:
+			if positional:
+				sounds.play_at(event, at)
+			else:
+				sounds.play_ui(event)
+	)
 	var hud := Hud.new()
 	hud.name = "Hud"
 	hud.world = island
+	hud.sounds = sounds
 	add_child(hud)
 	var input := PlayerInput.new()
 	input.name = "PlayerInput"

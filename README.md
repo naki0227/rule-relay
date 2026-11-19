@@ -29,5 +29,6 @@ GODOT="$HOME/godot/godot" tools/check.sh --build   # + Windows exe を build/win
 | `scenes/` | シーン |
 | `tests/unit/` | ルールの単体テスト / `tests/integration/` 物理を進める結合テスト |
 | `tools/` | 品質ゲートと Godot の導入スクリプト |
+| `src/audio/` | 効果音を鳴らす SoundBank / `tools/sfx/` 効果音の合成・測定・基準のテスト（[docs/sound-design.md](docs/sound-design.md)） |
 | `art/` | 3Dモデルの原本と生成スクリプト（Godot からは除外） / `assets/models/` ゲーム用 `.glb` |
 | `docs/adr/` | 設計判断 / `docs/reports/` 作業報告 / `docs/TODO.md` |

@@ -1,2 +1,5 @@
 # GDScript formatter / linter. Godot 4 系の構文に対応するメジャー4を固定する。
 gdtoolkit==4.5.0
+# 効果音の合成と測定（tools/sfx）。ゲーム本体は使わない。
+numpy==2.5.3
+scipy==1.18.1

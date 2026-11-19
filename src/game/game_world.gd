@@ -8,6 +8,8 @@ signal message_posted(text: String)
 signal state_changed
 signal goal_reached
 signal checkpoint_changed
+## 効果音の依頼。positional なら at から鳴らし、そうでなければ画面の音として鳴らす。
+signal sound_requested(event: StringName, at: Vector3, positional: bool)
 
 const FIRST_BLOCK_ID: int = 100
 
@@ -51,6 +53,9 @@ func spawn_player(at: Vector3) -> PlayerAvatar:
 	player.position = at
 	_spawn_point = at
 	add_child(player)
+	player.jumped.connect(func() -> void: _sound(&"player_jump", player.global_position))
+	player.landed.connect(func(_s: float) -> void: _sound(&"player_land", player.global_position))
+	player.footstep.connect(func() -> void: _sound(&"footstep", player.global_position))
 	camera_rig = CameraRig.new()
 	camera_rig.name = "CameraRig"
 	camera_rig.target = player
@@ -65,6 +70,9 @@ func add_block(cell: Vector3i, color: Color = Color(0.85, 0.65, 0.35)) -> RuleBl
 	block.setup(id, cell, color)
 	add_child(block)
 	blocks[id] = block
+	block.jumped.connect(func() -> void: _sound(&"block_jump", block.global_position))
+	block.landed.connect(func(_s: float) -> void: _sound(&"block_land", block.global_position))
+	block.stepped.connect(func() -> void: _sound(&"block_step", block.global_position))
 	_home_cells[id] = cell
 	ledger.register_entity(id, EntityKind.Kind.BLOCK)
 	_repeat_cursors[id] = RepeatCursor.new()
@@ -127,9 +135,11 @@ func lend_to(target: RuleBlock, use_range: bool) -> RuleLedger.LendResult:
 	var v := selected_vessel()
 	if v == null:
 		_post("ホットバー %d は空です" % (selected_slot + 1))
+		_ui_sound(&"ui_error")
 		return RuleLedger.LendResult.NO_SUCH_VESSEL
 	if target == null or not _within_reach(target):
 		_post("届きません（%s: %.1fブロック）" % ["投げる" if throw_mode else "触る", reach()])
+		_ui_sound(&"ui_error")
 		return RuleLedger.LendResult.NO_TARGETS
 	var t := ledger.token(v.token_id)
 	var mode := TriggerMode.Kind.NONE if t.is_prohibition else lend_mode
@@ -140,6 +150,10 @@ func lend_to(target: RuleBlock, use_range: bool) -> RuleLedger.LendResult:
 	else:
 		result = ledger.lend(v.id, PackedInt32Array([target.entity_id]), mode)
 	_post(_describe_lend(t, result, use_range))
+	if result == RuleLedger.LendResult.OK:
+		_sound(&"lend_range" if use_range else &"lend", target.global_position)
+	else:
+		_ui_sound(&"ui_error")
 	if result == RuleLedger.LendResult.OK and mode == TriggerMode.Kind.REPEAT:
 		for holder in t.holder_ids:
 			# 付与してすぐ動き出すように、最初の周期を短くする
@@ -241,14 +255,17 @@ func interact(target: RuleBlock) -> void:
 		var picked := _recall_one(target.entity_id)
 		if picked != null:
 			_post("%s を回収しました" % picked.describe())
+			_sound(&"prohibit" if picked.is_prohibition else &"recall", target.global_position)
 			return
 	var zone := ledger.range_tokens_at(player.global_position)
 	if not zone.is_empty():
 		var t := zone[0]
 		ledger.recall(t.id)
 		_post("範囲の %s を回収しました" % t.describe())
+		_sound(&"recall", player.global_position)
 		return
 	_post("回収できるものがありません")
+	_ui_sound(&"ui_error")
 
 
 func is_on_checkpoint() -> bool:
@@ -305,9 +322,11 @@ func save_checkpoint() -> bool:
 		for b in blockers:
 			reasons.append(CheckpointPolicy.describe(b))
 		_post("保存できません: %s" % "／".join(reasons))
+		_ui_sound(&"ui_error")
 		return false
 	_history.push(_capture())
 	_post("チェックポイントを保存しました")
+	_ui_sound(&"save")
 	checkpoint_changed.emit()
 	return true
 
@@ -417,6 +436,7 @@ func _physics_process(delta: float) -> void:
 	if not goal_cleared and goal_box.has_volume() and goal_box.has_point(player.global_position):
 		goal_cleared = true
 		_post("高台に到達しました！")
+		_ui_sound(&"goal")
 		goal_reached.emit()
 
 
@@ -451,6 +471,8 @@ func _fire_single_shot(token_id: int) -> void:
 		_post("単発の %s が成功して戻りました" % label)
 	else:
 		_post("単発の %s は動けませんでした（付与されたまま）" % label)
+		var blocked := results.has(BlockRules.Attempt.PROHIBITED)
+		_ui_sound(&"prohibit" if blocked else &"ui_error")
 
 
 # --- 内部 -------------------------------------------------------------------
@@ -505,6 +527,14 @@ func _describe_lend(t: RuleToken, result: RuleLedger.LendResult, use_range: bool
 		RuleLedger.LendResult.NO_TARGETS:
 			return "範囲内にブロックがありません"
 	return "付与できません（%s）" % RuleLedger.LendResult.keys()[result]
+
+
+func _sound(event: StringName, at: Vector3) -> void:
+	sound_requested.emit(event, at, true)
+
+
+func _ui_sound(event: StringName) -> void:
+	sound_requested.emit(event, Vector3.ZERO, false)
 
 
 func _post(text: String) -> void:
