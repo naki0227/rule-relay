@@ -65,7 +65,7 @@ func _draw() -> void:
 		var supported := TriggerMode.is_supported(mode)
 		var ink := UiTheme.INK if supported else UiTheme.INK_FAINT
 		UiGlyphs.draw_mode(self, spot + Vector2(0, -14), 34.0, mode, ink)
-		var label := TriggerMode.label(mode) if supported else "信号（まだ）"
+		var label := TriggerMode.label(mode) if supported else "%s（まだ）" % TriggerMode.label(mode)
 		draw_string(
 			UiTheme.bold(),
 			spot + Vector2(-70, 28),

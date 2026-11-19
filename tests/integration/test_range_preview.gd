@@ -75,11 +75,15 @@ func test_preview_explains_why_it_cannot_lend() -> void:
 	assert_true(String(ban["reason"]).contains("禁止"), "prohibitions cannot be range-lent")
 
 
-func test_signal_mode_cannot_be_selected_yet() -> void:
-	assert_false(island.set_lend_mode(TriggerMode.Kind.SIGNAL))
-	assert_eq(island.lend_mode, TriggerMode.Kind.SINGLE_SHOT)
+func test_all_three_modes_can_be_selected() -> void:
+	assert_true(island.set_lend_mode(TriggerMode.Kind.SIGNAL))
+	assert_eq(island.lend_mode, TriggerMode.Kind.SIGNAL)
 	assert_true(island.set_lend_mode(TriggerMode.Kind.REPEAT))
 	assert_eq(island.lend_mode, TriggerMode.Kind.REPEAT)
+	island.cycle_mode()
+	assert_eq(island.lend_mode, TriggerMode.Kind.SIGNAL, "Q: repeat -> signal")
+	island.cycle_mode()
+	assert_eq(island.lend_mode, TriggerMode.Kind.SINGLE_SHOT, "Q: signal -> single shot")
 
 
 func test_radial_menu_drag_selects_mode() -> void:

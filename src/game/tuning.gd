@@ -27,6 +27,8 @@ const BLOCK_JUMP_HEIGHT: float = 2.5  # 乗ったプレイヤーが高さ3の高
 const BLOCK_HIGH_JUMP_HEIGHT: float = 4.0  # 高跳びを渡したブロック（固定の強化。倍率は選べない）
 const BLOCK_STEP_DURATION: float = 0.45  # W/A/S/D で1ブロック動く時間
 const REPEAT_PERIOD: float = 1.4  # 繰り返しの周期。ジャンプの滞空（約1.0秒）より長くする
+const SIGNAL_RADIUS: float = 6.0  # 音源の音波が届く距離（仮値。企画書 5.4 は要検証）
+const SIGNAL_PULSE_PERIOD: float = 1.4  # 音波の輪を出す間隔（見た目と音）
 
 # 付与（仮値）
 const TOUCH_REACH: float = 3.5

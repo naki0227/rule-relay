@@ -16,6 +16,6 @@ static func label(kind: Kind) -> String:
 	return "-"
 
 
-## P0 で使える方式。信号は音波と一緒に P1 で実装する。
+## ブロックに選べる方式（企画書 5.2 の3方式。信号は 2026-11-19 に音源と一緒に実装）。
 static func is_supported(kind: Kind) -> bool:
-	return kind == Kind.SINGLE_SHOT or kind == Kind.REPEAT
+	return kind == Kind.SINGLE_SHOT or kind == Kind.REPEAT or kind == Kind.SIGNAL
