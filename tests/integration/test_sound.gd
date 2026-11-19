@@ -59,9 +59,9 @@ func test_failures_use_soft_error_sounds() -> void:
 	await wait_physics_frames(3)
 	island.lend_to(island.row[0], false)  # 遠すぎる
 	assert_eq(heard[-1], &"ui_error")
-	island.player.global_position = Vector3(0.5, 0.0, -6.0)
+	island.player.global_position = island.row[1].global_position + Vector3(0.0, -0.5, 1.5)
 	await wait_physics_frames(3)
-	island.interact(island.bouncer)  # 置かれていた禁止を拾う
+	island.interact(island.row[1])  # 3つ並びの中央に置かれていた禁止だけを拾う
 	assert_eq(heard[-1], &"prohibit")
 
 

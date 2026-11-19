@@ -104,3 +104,13 @@ func test_repeat_cursor_empty() -> void:
 	var cursor := RepeatCursor.new()
 	var none: Array[RuleAction.Kind] = []
 	assert_eq(cursor.next_action(none), -1)
+
+
+func test_a_prohibition_also_stops_firing_lent_single_shots() -> void:
+	# 禁止は上位の規則（2026-11-19 本人の判断）: ジャンプ禁止を持っていると、貸した単発ジャンプも起動しない
+	ledger.lend(jump_vessel.id, PackedInt32Array([BLOCK]), TriggerMode.Kind.SINGLE_SHOT)
+	assert_eq(InputRouter.route_press(ledger, JUMP).single_shot_token_ids.size(), 1)
+	ledger.give_player_item(JUMP, true, 8)
+	var route := InputRouter.route_press(ledger, JUMP)
+	assert_false(route.player_acts)
+	assert_eq(route.single_shot_token_ids.size(), 0, "the prohibition wins")

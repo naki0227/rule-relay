@@ -92,8 +92,13 @@ func test_prohibition_blocks_player_jump() -> void:
 
 func test_solution_ride_the_bouncer_while_prohibited() -> void:
 	await place_player(Vector3(0.5, 0.0, -6.0))
-	island.interact(island.bouncer)
+	island.interact(island.bouncer)  # 置かれていた「ジャンプ（繰り返し）」と「ジャンプ禁止」を全部回収
+	# 跳ばなくなった足場へ、自分のジャンプを繰り返しで渡し直す（禁止中でも渡すことはできる）
+	island.select_slot(JUMP_SLOT)
+	island.set_lend_mode(TriggerMode.Kind.REPEAT)
+	assert_eq(island.lend_to(island.bouncer, false), RuleLedger.LendResult.OK)
 	assert_false(island.ledger.entity_prohibited(island.bouncer.entity_id, JUMP))
+	assert_true(island.ledger.can_initiate(island.bouncer.entity_id, JUMP))
 	assert_false(island.ledger.player_can(JUMP), "player now carries the prohibition")
 	await place_player(island.bouncer.global_position + Vector3(0.0, 0.5, 0.0))
 	var reached := false

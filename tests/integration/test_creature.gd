@@ -70,7 +70,7 @@ func test_range_lending_never_reaches_creatures() -> void:
 	assert_false((selection["ids"] as PackedInt32Array).has(creature.entity_id))
 
 
-func test_f_recalls_the_lent_jump_from_the_creature_first() -> void:
+func test_f_recalls_everything_on_the_creature() -> void:
 	await near_creature()
 	island.select_slot(JUMP_SLOT)
 	island.lend_to(creature, false)
@@ -78,7 +78,8 @@ func test_f_recalls_the_lent_jump_from_the_creature_first() -> void:
 	await near_creature()
 	island.interact(creature)
 	assert_true(island.ledger.player_can(RuleAction.Kind.JUMP), "the player's own jump came back")
-	assert_eq(island.ledger.tokens_on(creature.entity_id).size(), 4, "its own W/A/S/D stay")
+	assert_eq(island.ledger.tokens_on(creature.entity_id).size(), 0, "one F takes everything")
+	assert_eq(island.ledger.inventory_vessels().size(), 4, "its W/A/S/D went into the bag")
 
 
 func test_checkpoint_restores_the_creature() -> void:
