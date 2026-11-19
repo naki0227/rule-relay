@@ -15,12 +15,15 @@ const GRAVITY: float = 20.0
 const PLAYER_SPEED: float = 5.0
 const PLAYER_JUMP_HEIGHT: float = 1.3  # 1ブロックの段差を登れ、2ブロックは登れない
 const STEP_ASSIST_HEIGHT: float = 0.4  # 企画書 4-6: P0 の初期値 0.4 ブロック
+const BOOTS_JUMP_HEIGHT: float = 2.3  # ジャンプブーツ: 企画書 7「約2ブロック」。2段の段差に上がれる
+const CLIMB_SPEED: float = 2.5  # クライミンググローブで壁を登る速さ（m/秒）
 const FALL_LIMIT_Y: float = -12.0
 ## いちばん低い床（谷底）の上面。これより下にあるブロックは「落ちている途中」とみなす。
 const LOWEST_FLOOR_Y: float = -1.0
 
 # ブロック（仮値）
 const BLOCK_JUMP_HEIGHT: float = 2.5  # 乗ったプレイヤーが高さ3の高台へ移れる
+const BLOCK_HIGH_JUMP_HEIGHT: float = 4.0  # 高跳びを渡したブロック（固定の強化。倍率は選べない）
 const BLOCK_STEP_DURATION: float = 0.45  # W/A/S/D で1ブロック動く時間
 const REPEAT_PERIOD: float = 1.4  # 繰り返しの周期。ジャンプの滞空（約1.0秒）より長くする
 

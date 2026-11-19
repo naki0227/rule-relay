@@ -14,6 +14,8 @@ enum State {
 	LENT,
 	## 手元にあり、自分に効いている禁止（ホットバーでも通常インベントリでも）
 	PROHIBITION_APPLIED,
+	## 装備欄にあり、自分に効いている装備
+	EQUIPPED,
 }
 
 
@@ -27,9 +29,11 @@ class Entry:
 	var state: State
 	var label: String
 	var state_text: String
+	var is_equipment: bool
+	var part: RuleVessel.Part
 
 
-## ホットバー（スロット順）→ 通常インベントリ（入手順）の順に、条件に合う持ち物を返す。
+## ホットバー（スロット順）→ 装備欄（頭・体・手・足）→ 通常インベントリ（入手順）の順に、条件に合う持ち物を返す。
 ## text は空白区切りの全語を含むものだけを残す（AND）。大文字小文字・全角半角・カタカナとひらがなは区別しない。
 static func search(ledger: RuleLedger, text: String, category: Category) -> Array[Entry]:
 	var words := normalize(text).split(" ", false)
@@ -58,6 +62,10 @@ static func describe(ledger: RuleLedger, v: RuleVessel) -> Entry:
 	entry.location = v.location
 	entry.slot = v.slot
 	entry.label = ("%s禁止" if t.is_prohibition else "%s") % RuleAction.label(t.action)
+	entry.is_equipment = v.is_equipment()
+	entry.part = v.part
+	if v.is_equipment() and v.item_name != "":
+		entry.label = v.item_name
 	if t.is_lent():
 		entry.state = State.LENT
 		var target := "範囲%d個" % t.holder_ids.size() if t.is_range else "単体"
@@ -66,6 +74,12 @@ static func describe(ledger: RuleLedger, v: RuleVessel) -> Entry:
 	elif t.is_prohibition:
 		entry.state = State.PROHIBITION_APPLIED
 		entry.state_text = "禁止適用中"
+	elif v.location == RuleVessel.Location.EQUIPPED:
+		entry.state = State.EQUIPPED
+		entry.state_text = "装備中（%s）" % RuleVessel.part_label(v.part)
+	elif v.is_equipment():
+		entry.state = State.STORED
+		entry.state_text = "無効（装備していない）"
 	elif v.location == RuleVessel.Location.HOTBAR:
 		entry.state = State.ACTIVE
 		entry.state_text = "有効"
@@ -81,6 +95,8 @@ static func search_text(entry: Entry) -> String:
 	parts.append("禁止" if entry.token.is_prohibition else "能力")
 	parts.append(location_text(entry))
 	parts.append_array(action_words(entry.token.action))
+	if entry.is_equipment:
+		parts.append_array(["装備", "そうび", RuleVessel.part_label(entry.part), "equipment"])
 	return normalize(" ".join(parts))
 
 
@@ -110,6 +126,8 @@ static func action_words(action: RuleAction.Kind) -> PackedStringArray:
 static func location_text(entry: Entry) -> String:
 	if entry.location == RuleVessel.Location.HOTBAR:
 		return "ホットバー%d" % (entry.slot + 1)
+	if entry.location == RuleVessel.Location.EQUIPPED:
+		return "装備欄（%s）" % RuleVessel.part_label(entry.part)
 	return "通常インベントリ"
 
 
@@ -148,7 +166,7 @@ static func _in_category(entry: Entry, category: Category) -> bool:
 		Category.PROHIBITION:
 			return entry.token.is_prohibition
 		Category.EQUIPMENT:
-			return false  # 装備（ジャンプブーツなど）は P2 で実装する
+			return entry.is_equipment
 		Category.LENT:
 			return entry.state == State.LENT
 	return true
@@ -160,5 +178,11 @@ static func _all_vessels(ledger: RuleLedger) -> Array[RuleVessel]:
 		var v := ledger.hotbar_vessel(slot)
 		if v != null:
 			result.append(v)
+	for part: RuleVessel.Part in [
+		RuleVessel.Part.HEAD, RuleVessel.Part.BODY, RuleVessel.Part.HANDS, RuleVessel.Part.FEET
+	]:
+		var equipped := ledger.equipped_vessel(part)
+		if equipped != null:
+			result.append(equipped)
 	result.append_array(ledger.inventory_vessels())
 	return result

@@ -511,7 +511,7 @@ func _tick_repeats(delta: float) -> void:
 		var block := blocks[id]
 		var result := BlockRules.attempt(ledger, id, action, block.is_ready_for(action))
 		if result == BlockRules.Attempt.SUCCESS:
-			block.perform(action)
+			block.perform(action, ledger.can_initiate(id, RuleAction.Kind.HIGH_JUMP))
 
 
 func _fire_single_shot(token_id: int) -> void:
@@ -521,7 +521,7 @@ func _fire_single_shot(token_id: int) -> void:
 		var block := blocks[holder]
 		var result := BlockRules.attempt(ledger, holder, t.action, block.is_ready_for(t.action))
 		if result == BlockRules.Attempt.SUCCESS:
-			block.perform(t.action)
+			block.perform(t.action, ledger.can_initiate(holder, RuleAction.Kind.HIGH_JUMP))
 		results.append(result)
 	var label := t.describe()
 	if ledger.complete_single_shot(token_id, results):
@@ -589,6 +589,8 @@ func _describe_lend(t: RuleToken, result: RuleLedger.LendResult, use_range: bool
 			return "%s は貸出中です（F で回収）" % t.describe()
 		RuleLedger.LendResult.RANGE_PROHIBITION_UNSUPPORTED:
 			return "禁止の範囲付与は未実装です（P0）"
+		RuleLedger.LendResult.EQUIPPED_CANNOT_LEND:
+			return "装備しているものは渡せません（外してホットバーに置くと渡せます）"
 		RuleLedger.LendResult.NO_TARGETS:
 			return "範囲内にブロックがありません"
 	return "付与できません（%s）" % RuleLedger.LendResult.keys()[result]

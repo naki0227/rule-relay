@@ -195,7 +195,8 @@ func _get_drag_data(at_position: Vector2) -> Variant:
 
 
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
-	var ok: bool = data is Dictionary and (data as Dictionary).get("from", "") == "hotbar"
+	var from := String((data as Dictionary).get("from", "")) if data is Dictionary else ""
+	var ok: bool = from == "hotbar" or from == "equip"
 	if ok != _drop_hover:
 		_drop_hover = ok
 		queue_redraw()
