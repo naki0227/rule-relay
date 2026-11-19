@@ -31,7 +31,7 @@
 | 5.3 | 範囲内のどこからでも F で一括回収。回収用の結晶はない | 実装＋テスト | `rule_ledger.gd` `range_tokens_at` | `test_range_selection`、`test_acceptance`（範囲の端から F） |
 | 5.3 | 範囲単発は一斉に1回。禁止は個別判定。一部失敗の返還は未決 | 実装（仮: 1つでも成功で返還） | `block_rules.gd` `single_shot_succeeded` | `test_island_mechanics` |
 | 5.3 | 単体と範囲で強さを変えない。倍率は不採用 | 実装（倍率の UI・値なし） | — | — |
-| 5.4 | 音波そのものを信号に。音源ブロック、移動する音源 | 一部（仮: 距離だけで判定。遮蔽・種類・音を識別するブロックは未実装） | `game_world.gd` `add_sound_source` | `test_signal` |
+| 5.4 | 音波そのものを信号に。音源ブロック、移動する音源 | 実装（2026-11-19 本人の判断: 当面は距離だけ。遮る物体・音を識別するブロックは後で追加） | `game_world.gd` `add_sound_source` | `test_signal` |
 
 ## 6. 生き物の自律行動【確定】
 
@@ -42,6 +42,7 @@
 | 4段階: 願いへ向かう／別ルートを探す／待つ／環境変化で再挑戦 | 実装＋テスト | `CreatureMind.Stage`、`creature.gd` `notify_environment_changed` | `test_creature_mind`、`test_creature` |
 | 探索半径 5〜10（仮） | 実装（8） | `CreatureMind.SEARCH_RADIUS` | `test_creature_mind` |
 | 最初は「高いところへ行きたい生き物」1種。理由が見える有限状態機械 | 実装（頭の上に ↑／？／…） | `prototype_island.gd` `_build_creature` | `test_creature` |
+| 生き物の W/A/S/D（2026-11-19 本人の判断: 生き物が向いている向きが基準） | 実装＋テスト | `CreatureMind.choose_move` | `test_creature_mind` |
 | 回収は近づいて F | 実装＋テスト | `game_world.gd` `interact` | `test_creature` |
 
 ## 7. アイテム、装備、インベントリ【確定】
@@ -52,7 +53,8 @@
 | 装備中: 本人に有効、装備由来の能力は付与不可 | 実装＋テスト | `rule_ledger.gd` `_applies_to_player`／`EQUIPPED_CANNOT_LEND` | `test_equipment` |
 | 未装備・器に能力あり: 付与できる／貸出中: 回収まで再付与不可 | 実装＋テスト | `rule_ledger.gd` `lend` | `test_equipment` |
 | 装備部位は各部位1個。ジャンプブーツ（約2ブロック）、クライミンググローブ | 実装＋テスト | `rule_ledger.gd` `equip`、`player_avatar.gd` `jump_height`／`_should_climb` | `test_equipment`、`test_equipment_in_world` |
-| 貸出中の再装備禁止（企画書では実装前の確認事項） | 実装（仮に採用） | `EquipResult.LENT` | `test_equipment` |
+| ブロックに渡した登る（2026-11-19 本人の判断: 隣でいちばん高い上面まで登ってつかまる） | 実装＋テスト | `rule_block.gd` `_integrate_climb`、`game_world.gd` `_tick_climbers` | `test_block_climb` |
+| 貸出中の装備（企画書では実装前の確認事項） | 実装（2026-11-19 本人の判断: 装備はできるが、回収まで能力は効かない） | `rule_ledger.gd` `equip` | `test_equipment` |
 | ホットバー9枠: 能力が有効（付与中は無効）。禁止は有効 | 実装＋テスト | `rule_ledger.gd` `player_has_ability`／`player_prohibited` | `test_acceptance` 5 |
 | 通常インベントリ（無制限）: 能力は無効、禁止は有効 | 実装＋テスト | 同上 | `test_acceptance` 5、`test_inventory_panel`（大量の器） |
 | 他者へ付与中: 能力・禁止とも本人に無効 | 実装＋テスト | `is_lent()` の除外 | `test_rule_ledger` |
@@ -103,7 +105,6 @@
 
 - 他者による15分プレイテスト（P0-3 の判定）。人がいないとできない
 - Windows 11 実機での起動と操作感の確認（CI の Windows 起動確認は通っている）
-- 音波の遮蔽・種類・伝わる速さ、音を識別するブロック（5.4 の要検証）
 - 生き物の行動を使った高台への解法（生き物には乗れない。島に組み込むかは要相談）
 - キーの割り当て変更・明暗や点滅の調整（8 の検討項目）
 - 未決事項（`docs/TODO.md` の要確認）への本人の判断

@@ -10,6 +10,10 @@ extends RefCounted
 ## 3. WAIT: 待つ（道が無いので、見回し・休息をしながら待つ）
 ## 4. 環境が変わったら（足場の接近・能力の変化など）判断を更新して再挑戦する（呼び出し側が replan する）
 ## 禁止は願いより優先する（abilities には禁止を差し引いた「自分から始められる行動」を渡す）。
+##
+## W/A/S/D は、その生き物が向いている向きが基準（2026-11-19 本人の判断。ブロックの世界方角とは違う）。
+## 体の向きは自由に変えられる（プレイヤーが視点を回せるのと同じ扱い）ので、移動の能力が1つでもあれば
+## どの方角へも進める。そのとき、向きを変えずに済む能力 → 前（W）→ 左右 → 後ろ の順に選ぶ。
 
 enum Stage { SEEK, SEARCH, WAIT }
 
@@ -21,6 +25,13 @@ const STEP_HEIGHT: float = 0.45
 const SAFE_DROP: float = 2.5
 ## 跳んで上がるときの余裕（跳ぶ高さちょうどの段には届かない）
 const JUMP_MARGIN: float = 0.2
+## 世界の4方角（x = 東、y = 南。北 = -z）。
+const DIRECTIONS: Array[Vector2i] = [
+	Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)
+]
+const MOVES: Array[RuleAction.Kind] = [
+	RuleAction.Kind.FORWARD, RuleAction.Kind.LEFT, RuleAction.Kind.RIGHT, RuleAction.Kind.BACK
+]
 
 
 ## 判断の結果。
@@ -58,16 +69,10 @@ static func plan(
 	var best_height := here
 	while not queue.is_empty():
 		var cell: Vector2i = queue.pop_front()
-		for action: RuleAction.Kind in [
-			RuleAction.Kind.FORWARD,
-			RuleAction.Kind.BACK,
-			RuleAction.Kind.LEFT,
-			RuleAction.Kind.RIGHT
-		]:
-			if not bool(abilities.get(action, false)):
-				continue
-			var dir := RuleAction.world_direction(action)
-			var next := cell + Vector2i(dir.x, dir.z)
+		if not can_walk(abilities):
+			break
+		for dir: Vector2i in DIRECTIONS:
+			var next := cell + dir
 			if came_from.has(next) or not heights.has(next):
 				continue
 			if absi(next.x - start.x) > SEARCH_RADIUS or absi(next.y - start.y) > SEARCH_RADIUS:
@@ -123,16 +128,52 @@ static func step_key(from: Vector2i, to: Vector2i) -> String:
 	return "%d,%d>%d,%d" % [from.x, from.y, to.x, to.y]
 
 
-## 一歩の向きに対応する行動（世界の方角に固定。ブロックと同じく W = 北）。
-static func action_for_step(from: Vector2i, to: Vector2i) -> RuleAction.Kind:
-	var d := to - from
-	if d.y < 0:
-		return RuleAction.Kind.FORWARD
-	if d.y > 0:
-		return RuleAction.Kind.BACK
-	if d.x < 0:
-		return RuleAction.Kind.LEFT
-	return RuleAction.Kind.RIGHT
+## 移動の能力（W/A/S/D）が1つでもあるか。
+static func can_walk(abilities: Dictionary) -> bool:
+	for action in MOVES:
+		if bool(abilities.get(action, false)):
+			return true
+	return false
+
+
+## 向き facing のとき、行動 action で進む世界の方角。
+static func direction_of(action: RuleAction.Kind, facing: Vector2i) -> Vector2i:
+	match action:
+		RuleAction.Kind.BACK:
+			return -facing
+		RuleAction.Kind.RIGHT:
+			return turn_right(facing)
+		RuleAction.Kind.LEFT:
+			return turn_left(facing)
+	return facing
+
+
+static func turn_right(v: Vector2i) -> Vector2i:
+	return Vector2i(-v.y, v.x)
+
+
+static func turn_left(v: Vector2i) -> Vector2i:
+	return Vector2i(v.y, -v.x)
+
+
+## 世界の方角 step へ一歩進むときの {"action": 行動, "facing": 新しい向き}。進めなければ空。
+static func choose_move(facing: Vector2i, step: Vector2i, abilities: Dictionary) -> Dictionary:
+	for action in MOVES:
+		if bool(abilities.get(action, false)) and direction_of(action, facing) == step:
+			return {"action": action, "facing": facing}
+	for action in MOVES:
+		if not bool(abilities.get(action, false)):
+			continue
+		match action:
+			RuleAction.Kind.FORWARD:
+				return {"action": action, "facing": step}
+			RuleAction.Kind.LEFT:
+				return {"action": action, "facing": turn_right(step)}
+			RuleAction.Kind.RIGHT:
+				return {"action": action, "facing": turn_left(step)}
+			_:
+				return {"action": action, "facing": -step}
+	return {}
 
 
 static func stage_label(stage: Stage) -> String:

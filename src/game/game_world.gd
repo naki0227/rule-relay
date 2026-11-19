@@ -135,20 +135,9 @@ func add_creature(at: Vector3) -> Creature:
 	return creature
 
 
-## マスごとの立てる高さ（地形とブロックの上面）。生き物の判断に使う。穴のマスは入れない。
+## マスごとの立てる高さ（地形とブロックの上面）。生き物の判断とブロックの登るに使う。穴のマスは入れない。
 func survey_heights(center: Vector2i, radius: int) -> Dictionary:
-	var heights := {}
-	var space := get_world_3d().direct_space_state
-	for x in range(center.x - radius, center.x + radius + 1):
-		for z in range(center.y - radius, center.y + radius + 1):
-			var top := Vector3(x + 0.5, 12.0, z + 0.5)
-			var query := PhysicsRayQueryParameters3D.create(
-				top, top + Vector3.DOWN * 20.0, Tuning.LAYER_TERRAIN | Tuning.LAYER_BLOCKS
-			)
-			var hit := space.intersect_ray(query)
-			if not hit.is_empty():
-				heights[Vector2i(x, z)] = snappedf((hit["position"] as Vector3).y, 0.05)
-	return heights
+	return WorldQueries.survey(get_world_3d().direct_space_state, center, radius)
 
 
 func _notify_creatures() -> void:
@@ -262,7 +251,7 @@ func lend_to(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 		result = ledger.lend(v.id, selection["ids"] as PackedInt32Array, mode, selection)
 	else:
 		result = ledger.lend(v.id, PackedInt32Array([_entity_of(target)]), mode)
-	_post(_describe_lend(t, result, use_range))
+	_post(WorldQueries.describe(t, result, use_range))
 	if result == RuleLedger.LendResult.OK:
 		_sound(&"lend_range" if use_range else &"lend", target.global_position)
 	else:
@@ -597,6 +586,7 @@ func _rescue_lost_blocks() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	_tick_climbers()
 	_tick_repeats(delta)
 	_tick_signals(delta)
 	_tick_pulses(delta)
@@ -650,6 +640,24 @@ func _tick_signals(delta: float) -> void:
 		var result := BlockRules.attempt(ledger, id, action, block.is_ready_for(action))
 		if result == BlockRules.Attempt.SUCCESS:
 			block.perform(action, ledger.can_initiate(id, RuleAction.Kind.HIGH_JUMP))
+
+
+## 登るを持つブロック: 東西南北の隣でいちばん高い上面に、自分の上面がそろうまで登る（rule_block.gd）。
+## 禁止は優先（登る禁止を持てば登らない）。
+func _tick_climbers() -> void:
+	for id in blocks:
+		var block := blocks[id]
+		if not ledger.can_initiate(id, RuleAction.Kind.CLIMB):
+			block.set_climb_target(NAN)
+			continue
+		var c := block.cell()
+		var heights := survey_heights(Vector2i(c.x, c.z), 1)
+		var top := -INF
+		for dir: Vector2i in CreatureMind.DIRECTIONS:
+			var n := Vector2i(c.x, c.z) + dir
+			if heights.has(n):
+				top = maxf(top, float(heights[n]))
+		block.set_climb_target(NAN if top == -INF else top - RuleBlock.SIZE)
 
 
 ## 音源の音波の見た目と音（周期ごとに輪が広がる）。
@@ -733,23 +741,6 @@ func _block_cells() -> Dictionary:
 	for id in blocks:
 		cells[id] = blocks[id].cell()
 	return cells
-
-
-func _describe_lend(t: RuleToken, result: RuleLedger.LendResult, use_range: bool) -> String:
-	match result:
-		RuleLedger.LendResult.OK:
-			var how := "範囲（%d個）" % t.holder_ids.size() if use_range else "単体"
-			var mode := "" if t.mode == TriggerMode.Kind.NONE else "・%s" % TriggerMode.label(t.mode)
-			return "%s を%s%sで付与しました" % [t.describe(), how, mode]
-		RuleLedger.LendResult.ALREADY_LENT:
-			return "%s は貸出中です（F で回収）" % t.describe()
-		RuleLedger.LendResult.RANGE_PROHIBITION_UNSUPPORTED:
-			return "禁止の範囲付与は未実装です（P0）"
-		RuleLedger.LendResult.EQUIPPED_CANNOT_LEND:
-			return "装備しているものは渡せません（外してホットバーに置くと渡せます）"
-		RuleLedger.LendResult.NO_TARGETS:
-			return "範囲内にブロックがありません"
-	return "付与できません（%s）" % RuleLedger.LendResult.keys()[result]
 
 
 func _sound(event: StringName, at: Vector3) -> void:

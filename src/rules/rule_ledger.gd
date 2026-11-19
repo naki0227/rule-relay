@@ -28,8 +28,6 @@ enum EquipResult {
 	OK,
 	NO_SUCH_VESSEL,
 	NOT_EQUIPMENT,
-	## 能力を貸し出している装備は、回収するまで装備できない（矛盾防止の仮の方針。企画書 7 の確認事項）
-	LENT,
 	## 世界に落ちている（先に F で拾う）
 	NOT_CARRIED,
 }
@@ -360,6 +358,7 @@ func pickup(vessel_id: int) -> bool:
 
 
 ## 装備品を装備欄へ。同じ部位に別の装備があれば、入れ替えて元の場所（ホットバーの枠か通常インベントリ）へ移す。
+## 能力を貸している装備も装備できる。ただし回収するまで、その能力は自分に効かない（2026-11-19 本人の判断）。
 func equip(vessel_id: int) -> EquipResult:
 	var v := vessel(vessel_id)
 	if v == null:
@@ -368,8 +367,6 @@ func equip(vessel_id: int) -> EquipResult:
 		return EquipResult.NOT_EQUIPMENT
 	if v.location == RuleVessel.Location.WORLD:
 		return EquipResult.NOT_CARRIED
-	if token(v.token_id).is_lent():
-		return EquipResult.LENT
 	if v.location == RuleVessel.Location.EQUIPPED:
 		return EquipResult.OK
 	var occupant := equipped_vessel(v.part)
@@ -402,8 +399,8 @@ func move_to_hotbar(vessel_id: int, slot: int) -> bool:
 		return true
 	if occupant != null:
 		var into_equipment := v.location == RuleVessel.Location.EQUIPPED
-		if into_equipment and (occupant.part != v.part or token(occupant.token_id).is_lent()):
-			# 装備欄の部位に合わない（または貸出中の）器とは入れ替えず、押し出された器は通常インベントリへ
+		if into_equipment and occupant.part != v.part:
+			# 装備欄の部位に合わない器とは入れ替えず、押し出された器は通常インベントリへ
 			occupant.location = RuleVessel.Location.INVENTORY
 			occupant.slot = -1
 		else:
@@ -489,8 +486,6 @@ func validate() -> PackedStringArray:
 		elif used_parts.has(v.part):
 			errors.append("part %d equipped twice" % v.part)
 		used_parts[v.part] = true
-		if token(v.token_id) != null and token(v.token_id).is_lent():
-			errors.append("equipped vessel %d has its ability lent" % v.id)
 	for v: RuleVessel in _vessels.values():
 		if v.location == RuleVessel.Location.WORLD and token(v.token_id) != null:
 			if token(v.token_id).is_lent():
