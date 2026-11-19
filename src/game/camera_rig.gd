@@ -24,6 +24,8 @@ func _ready() -> void:
 	_camera = Camera3D.new()
 	_camera.current = true
 	_camera.fov = 70.0
+	# 肩越しにして、照準（画面中央）がキャラクターに重ならないようにする
+	_camera.h_offset = 0.6
 	_arm.add_child(_camera)
 
 

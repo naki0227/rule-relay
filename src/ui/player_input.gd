@@ -33,6 +33,13 @@ func _process(_delta: float) -> void:
 	world.player.view_yaw = world.camera_rig.yaw
 	var aimed := world.aimed_block()
 	world.update_highlight(aimed)
+	if hud != null:
+		var in_reach := world.is_within_reach(aimed)
+		var aim := Crosshair.Aim.NONE
+		if aimed != null:
+			aim = Crosshair.Aim.IN_REACH if in_reach else Crosshair.Aim.OUT_OF_REACH
+		hud.set_aim(aim)
+		hud.update_context(aimed, in_reach, world.is_on_checkpoint())
 	var preview := world.update_range_preview(aimed)
 	if hud != null:
 		hud.show_range_preview(world.is_range_preview_active(), preview)
