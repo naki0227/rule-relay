@@ -87,11 +87,11 @@ func _handle_gameplay(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"interact"):
 		world.interact(world.aimed_block())
 	elif event.is_action_pressed(&"restore_checkpoint"):
-		# プレビュー中の Esc は取り消しだけにする（うっかり世界を戻さない）
+		# プレビュー中の Esc は取り消しだけにする。それ以外はメニューを開く（戻る操作はメニューから）
 		if world.is_range_preview_active():
 			world.cancel_range_preview()
-		else:
-			world.restore_checkpoint()
+		elif hud != null:
+			hud.pause_menu.open()
 
 
 func _radial_open() -> bool:
