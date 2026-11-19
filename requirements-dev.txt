@@ -1,0 +1,2 @@
+# GDScript formatter / linter. Godot 4 系の構文に対応するメジャー4を固定する。
+gdtoolkit==4.5.0
