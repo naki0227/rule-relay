@@ -14,6 +14,8 @@ extends GameWorld
 ## 装備（企画書 7・10。解法を増やす道具で、唯一の通行証にはしない）:
 ##   - 小島にジャンプブーツ（高跳び、約2ブロック）→ 岩棚（高さ2）へ跳び、そこから高台へ
 ##   - 岩棚の東にクライミンググローブ（登る）→ 高台の壁を直接登る
+## 生き物（企画書 6・10）: 「高いところへ行きたい」1匹が開始地点の東にいる。W/A/S/D は持っているが
+## ジャンプが無いので、低い段しか上がれない。ジャンプを渡すと、自分で段を跳んで高い所へ向かう。
 
 const SPAWN := Vector3(0.5, 0.0, 4.5)
 const GRASS := Color(0.45, 0.68, 0.38)
@@ -46,6 +48,7 @@ var bouncer: RuleBlock
 var row: Array[RuleBlock] = []
 var mover: RuleBlock
 var shuttle: RuleBlock
+var creature: Creature
 var _goal_crystal: Node3D
 var _time: float = 0.0
 
@@ -60,6 +63,7 @@ func _ready() -> void:
 	TerrainBuilder.add_box(self, ISLET_MIN, ISLET_MAX, GRASS, "grass_cell")
 	_build_scenery()
 	_build_blocks()
+	_build_creature()
 	_give_starting_items()
 	spawn_player(SPAWN)
 	checkpoint_center = SPAWN
@@ -85,6 +89,12 @@ func _build_blocks() -> void:
 	ledger.place_on_entity(
 		RuleAction.Kind.FORWARD, false, shuttle.entity_id, TriggerMode.Kind.REPEAT
 	)
+
+
+func _build_creature() -> void:
+	creature = add_creature(Vector3(5.5, 0.0, 0.5))
+	for action: RuleAction.Kind in CheckpointPolicy.MOVE_ACTIONS:
+		ledger.place_on_entity(action, false, creature.entity_id)
 
 
 func _give_starting_items() -> void:

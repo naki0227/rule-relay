@@ -114,7 +114,7 @@ func set_aim(aim: Crosshair.Aim) -> void:
 
 
 ## 照準の下の案内。狙っているもの・いる場所に応じて、まだ慣れていない操作だけを出す。
-func update_context(target: RuleBlock, in_reach: bool, on_checkpoint: bool) -> void:
+func update_context(target: Node3D, in_reach: bool, on_checkpoint: bool) -> void:
 	var prompts: Array[Array] = []
 	if on_checkpoint and hints.should_show("save"):
 		prompts.append(["F", "ここで保存"])
@@ -125,7 +125,8 @@ func update_context(target: RuleBlock, in_reach: bool, on_checkpoint: bool) -> v
 			prompts.append(["左クリック", "渡す"])
 		if hints.should_show("range"):
 			prompts.append(["右クリック", "まとめて"])
-		var holds := world != null and not world.ledger.tokens_on(target.entity_id).is_empty()
+		var id := int(target.get("entity_id"))
+		var holds := world != null and not world.ledger.tokens_on(id).is_empty()
 		if holds and hints.should_show("recall"):
 			prompts.append(["F", "回収"])
 	elif target != null and hints.should_show("throw"):
