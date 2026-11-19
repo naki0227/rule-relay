@@ -1,0 +1,154 @@
+class_name InventoryQuery
+extends RefCounted
+## 持ち物（ホットバー＋通常インベントリ）の検索・絞り込み・状態表示（企画書 7 の UI 必須項目）。
+## 通常インベントリは無制限なので、名前・種類・状態のどれでも引けるようにする。UI から分離した純粋な判定。
+
+enum Category { ALL, ABILITY, PROHIBITION, EQUIPMENT }
+
+enum State {
+	## ホットバーにあり、自分に効いている能力
+	ACTIVE,
+	## 通常インベントリにあり、自分には効かない能力
+	STORED,
+	## 他者へ付与中（能力・禁止とも本人には効かない）
+	LENT,
+	## 手元にあり、自分に効いている禁止（ホットバーでも通常インベントリでも）
+	PROHIBITION_APPLIED,
+}
+
+
+## 検索結果の1行。
+class Entry:
+	extends RefCounted
+	var vessel_id: int
+	var token: RuleToken
+	var location: RuleVessel.Location
+	var slot: int
+	var state: State
+	var label: String
+	var state_text: String
+
+
+## ホットバー（スロット順）→ 通常インベントリ（入手順）の順に、条件に合う持ち物を返す。
+## text は空白区切りの全語を含むものだけを残す（AND）。大文字小文字・全角半角・カタカナとひらがなは区別しない。
+static func search(ledger: RuleLedger, text: String, category: Category) -> Array[Entry]:
+	var words := normalize(text).split(" ", false)
+	var result: Array[Entry] = []
+	for v in _all_vessels(ledger):
+		var entry := describe(ledger, v)
+		if not _in_category(entry, category):
+			continue
+		var haystack := search_text(entry)
+		var matched := true
+		for word in words:
+			if not haystack.contains(word):
+				matched = false
+				break
+		if matched:
+			result.append(entry)
+	return result
+
+
+## 1つの器の表示内容と状態。
+static func describe(ledger: RuleLedger, v: RuleVessel) -> Entry:
+	var t := ledger.token(v.token_id)
+	var entry := Entry.new()
+	entry.vessel_id = v.id
+	entry.token = t
+	entry.location = v.location
+	entry.slot = v.slot
+	entry.label = ("%s禁止" if t.is_prohibition else "%s") % RuleAction.label(t.action)
+	if t.is_lent():
+		entry.state = State.LENT
+		var target := "範囲%d個" % t.holder_ids.size() if t.is_range else "単体"
+		var mode := "" if t.mode == TriggerMode.Kind.NONE else "・" + TriggerMode.label(t.mode)
+		entry.state_text = "貸出中（%s%s）" % [target, mode]
+	elif t.is_prohibition:
+		entry.state = State.PROHIBITION_APPLIED
+		entry.state_text = "禁止適用中"
+	elif v.location == RuleVessel.Location.HOTBAR:
+		entry.state = State.ACTIVE
+		entry.state_text = "有効"
+	else:
+		entry.state = State.STORED
+		entry.state_text = "無効（通常インベントリでは効かない）"
+	return entry
+
+
+## 検索対象の文字列（正規化済み）。
+static func search_text(entry: Entry) -> String:
+	var parts := PackedStringArray([entry.label, entry.state_text])
+	parts.append("禁止" if entry.token.is_prohibition else "能力")
+	parts.append(location_text(entry))
+	parts.append_array(action_words(entry.token.action))
+	return normalize(" ".join(parts))
+
+
+## 行動ごとの検索語（表示名のほかに、キー名・読み・方角・英語でも引ける）。
+## 型付きの定数 Dictionary に配列リテラルを入れると Godot 4.6.3 で読み出し時にクラッシュしたため関数にした。
+static func action_words(action: RuleAction.Kind) -> PackedStringArray:
+	match action:
+		RuleAction.Kind.FORWARD:
+			return PackedStringArray(["w", "前", "前進", "まえ", "北", "forward"])
+		RuleAction.Kind.LEFT:
+			return PackedStringArray(["a", "左", "ひだり", "西", "left"])
+		RuleAction.Kind.BACK:
+			return PackedStringArray(["s", "後", "後退", "うしろ", "南", "back"])
+		RuleAction.Kind.RIGHT:
+			return PackedStringArray(["d", "右", "みぎ", "東", "right"])
+		RuleAction.Kind.JUMP:
+			return PackedStringArray(["じゃんぷ", "跳", "space", "スペース", "jump"])
+	return PackedStringArray()
+
+
+static func location_text(entry: Entry) -> String:
+	if entry.location == RuleVessel.Location.HOTBAR:
+		return "ホットバー%d" % (entry.slot + 1)
+	return "通常インベントリ"
+
+
+## 小文字化、全角英数字・記号を半角に、カタカナをひらがなに、空白を1つにそろえる。
+static func normalize(text: String) -> String:
+	var out := ""
+	for i in text.length():
+		var code := text.unicode_at(i)
+		if code >= 0xFF01 and code <= 0xFF5E:
+			code -= 0xFEE0  # 全角英数字・記号 → 半角
+		elif code == 0x3000:
+			code = 0x20  # 全角スペース
+		elif code >= 0x30A1 and code <= 0x30F6:
+			code -= 0x60  # カタカナ → ひらがな
+		out += String.chr(code)
+	return " ".join(out.to_lower().split(" ", false))
+
+
+static func category_label(category: Category) -> String:
+	match category:
+		Category.ABILITY:
+			return "能力"
+		Category.PROHIBITION:
+			return "禁止"
+		Category.EQUIPMENT:
+			return "装備"
+	return "すべて"
+
+
+static func _in_category(entry: Entry, category: Category) -> bool:
+	match category:
+		Category.ABILITY:
+			return not entry.token.is_prohibition
+		Category.PROHIBITION:
+			return entry.token.is_prohibition
+		Category.EQUIPMENT:
+			return false  # 装備（ジャンプブーツなど）は P2 で実装する
+	return true
+
+
+static func _all_vessels(ledger: RuleLedger) -> Array[RuleVessel]:
+	var result: Array[RuleVessel] = []
+	for slot in RuleLedger.HOTBAR_SIZE:
+		var v := ledger.hotbar_vessel(slot)
+		if v != null:
+			result.append(v)
+	result.append_array(ledger.inventory_vessels())
+	return result

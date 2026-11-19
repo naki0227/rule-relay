@@ -8,13 +8,14 @@ const MESSAGE_LINES: int = 5
 var world: GameWorld
 var radial_menu: RadialMenu
 
+var inventory: InventoryPanel
+
 var _slots: Array[Label] = []
+var _slot_icons: Array[TextureRect] = []
+var _slot_numbers: Array[Label] = []
 var _status: Label
 var _messages: Label
 var _message_log: PackedStringArray = PackedStringArray()
-var _inventory_panel: PanelContainer
-var _inventory_list: ItemList
-var _inventory_ids: PackedInt32Array = PackedInt32Array()
 var _goal_banner: Label
 var _preview_label: Label
 
@@ -29,20 +30,15 @@ func _ready() -> void:
 
 
 func is_inventory_open() -> bool:
-	return _inventory_panel != null and _inventory_panel.visible
+	return inventory != null and inventory.visible
 
 
 func toggle_inventory() -> bool:
-	_inventory_panel.visible = not _inventory_panel.visible
-	refresh()
-	return _inventory_panel.visible
-
-
-func move_selected_inventory_item_to(slot: int) -> void:
-	var selected := _inventory_list.get_selected_items()
-	if selected.is_empty():
-		return
-	world.ledger.move_to_hotbar(_inventory_ids[selected[0]], slot)
+	if inventory.visible:
+		inventory.close()
+	else:
+		inventory.open()
+	return inventory.visible
 
 
 func refresh() -> void:
@@ -51,17 +47,23 @@ func refresh() -> void:
 	var ledger := world.ledger
 	for i in RuleLedger.HOTBAR_SIZE:
 		var v := ledger.hotbar_vessel(i)
-		var text := "%d\n" % (i + 1)
+		var text := ""
+		_slot_icons[i].texture = null
 		if v != null:
-			text += _vessel_text(ledger.token(v.token_id))
-		var marker := "▶ " if i == world.selected_slot else ""
-		_slots[i].text = marker + text
+			var t := ledger.token(v.token_id)
+			text += _vessel_text(t)
+			_slot_icons[i].texture = ItemIcons.for_token(t)
+			_slot_icons[i].modulate = Color(1, 1, 1, 0.45) if t.is_lent() else Color.WHITE
+		var marker := "▶" if i == world.selected_slot else ""
+		_slot_numbers[i].text = marker + str(i + 1)
+		_slots[i].text = text
 		_slots[i].modulate = Color(1, 1, 0.6) if i == world.selected_slot else Color.WHITE
 	_status.text = (
 		"付与方式: %s（ホイール押し込み＋ドラッグ／Q）   届き方: %s（C）   左クリック=単体  右クリック長押し=範囲  F=回収/保存  E=持ち物  Esc=戻る"
 		% [TriggerMode.label(world.lend_mode), "投げる" if world.throw_mode else "触る"]
 	)
-	_refresh_inventory()
+	if inventory != null:
+		inventory.refresh()
 
 
 ## 右クリックを押している間の範囲プレビューの説明。
@@ -89,17 +91,6 @@ func _vessel_text(t: RuleToken) -> String:
 	elif t.is_prohibition:
 		text += "\n[適用中]"
 	return text
-
-
-func _refresh_inventory() -> void:
-	if _inventory_list == null or not _inventory_panel.visible:
-		return
-	_inventory_list.clear()
-	_inventory_ids = PackedInt32Array()
-	for v in world.ledger.inventory_vessels():
-		var t := world.ledger.token(v.token_id)
-		_inventory_list.add_item(_vessel_text(t).replace("\n", " "))
-		_inventory_ids.append(v.id)
 
 
 func _on_message(text: String) -> void:
@@ -132,11 +123,27 @@ func _build() -> void:
 	root.add_child(bar)
 	for i in RuleLedger.HOTBAR_SIZE:
 		var panel := PanelContainer.new()
-		panel.custom_minimum_size = Vector2(94, 90)
+		panel.custom_minimum_size = Vector2(94, 100)
+		var column := VBoxContainer.new()
+		column.add_theme_constant_override("separation", 0)
+		column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		panel.add_child(column)
+		var number := Label.new()
+		number.add_theme_font_size_override("font_size", 12)
+		column.add_child(number)
+		_slot_numbers.append(number)
+		var icon := TextureRect.new()
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.custom_minimum_size = Vector2(44, 44)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		column.add_child(icon)
+		_slot_icons.append(icon)
 		var label := Label.new()
 		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		panel.add_child(label)
+		label.add_theme_font_size_override("font_size", 12)
+		column.add_child(label)
 		bar.add_child(panel)
 		_slots.append(label)
 
@@ -174,17 +181,9 @@ func _build() -> void:
 	radial_menu.visible = false
 	root.add_child(radial_menu)
 
-	_inventory_panel = PanelContainer.new()
-	_inventory_panel.set_anchors_preset(Control.PRESET_CENTER)
-	_inventory_panel.position = Vector2(-220, -160)
-	_inventory_panel.custom_minimum_size = Vector2(440, 300)
-	_inventory_panel.visible = false
-	var box := VBoxContainer.new()
-	var title := Label.new()
-	title.text = "通常インベントリ（選んで 1〜9 でホットバーへ。E で閉じる）"
-	box.add_child(title)
-	_inventory_list = ItemList.new()
-	_inventory_list.custom_minimum_size = Vector2(420, 240)
-	box.add_child(_inventory_list)
-	_inventory_panel.add_child(box)
-	root.add_child(_inventory_panel)
+	inventory = InventoryPanel.new()
+	inventory.ledger = world.ledger if world != null else null
+	inventory.set_anchors_preset(Control.PRESET_CENTER)
+	inventory.position = Vector2(-280, -230)
+	inventory.visible = false
+	root.add_child(inventory)

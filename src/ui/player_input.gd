@@ -113,7 +113,20 @@ func _handle_radial(event: InputEvent) -> void:
 		hud.radial_menu.close()
 
 
+## 持ち物画面を開いている間（検索欄に入力中のキーは検索欄が受け取るので、ここには来ない）。
 func _handle_inventory(event: InputEvent) -> void:
 	for i in RuleLedger.HOTBAR_SIZE:
 		if event.is_action_pressed(StringName("slot_%d" % (i + 1))):
-			hud.move_selected_inventory_item_to(i)
+			hud.inventory.move_selected_to_hotbar(i)
+	if event.is_action_pressed(&"store_item"):
+		hud.inventory.move_selected_to_inventory()
+
+
+## Esc は検索欄に入力中でも持ち物画面を閉じる（世界は戻さない）。GUI より先に受け取る。
+func _input(event: InputEvent) -> void:
+	if hud == null or not hud.is_inventory_open():
+		return
+	if event.is_action_pressed(&"restore_checkpoint"):
+		hud.toggle_inventory()
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		get_viewport().set_input_as_handled()
