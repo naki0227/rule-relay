@@ -10,6 +10,9 @@ extends Control
 ## 何を出すかの判定は InventoryQuery、所有の変更は RuleLedger が受け持つ（企画書 7）。
 
 const EQUIP_SLOTS: PackedStringArray = ["頭", "体", "手", "足"]
+const EQUIP_PARTS: Array[RuleVessel.Part] = [
+	RuleVessel.Part.HEAD, RuleVessel.Part.BODY, RuleVessel.Part.HANDS, RuleVessel.Part.FEET
+]
 const CHIPS: Array[InventoryQuery.Category] = [
 	InventoryQuery.Category.ALL,
 	InventoryQuery.Category.ABILITY,
@@ -37,6 +40,7 @@ var _detail_state: Label
 var _detail_where: Label
 var _detail_text: Label
 var _lent_list: VBoxContainer
+var _equip_button: Button
 var _book: PanelContainer
 
 
@@ -131,6 +135,35 @@ func drop_into_bag(vessel_id: int) -> bool:
 	return ok
 
 
+## 装備の枠へ落とす（ドラッグ＆ドロップと同じ処理。テストからも呼ぶ）。部位が合う装備品だけ。
+func drop_on_equip(vessel_id: int, part: RuleVessel.Part) -> bool:
+	_selected_id = vessel_id
+	var v := ledger.vessel(vessel_id)
+	var ok := v != null and v.part == part and ledger.equip(vessel_id) == RuleLedger.EquipResult.OK
+	_sound(&"ui_confirm" if ok else &"ui_error")
+	return ok
+
+
+## 選んでいる装備品をつける／外す（詳しい説明のボタンと同じ）。
+func toggle_equip_selected() -> bool:
+	var v := ledger.vessel(_selected_id)
+	if v == null or not v.is_equipment():
+		_sound(&"ui_error")
+		return false
+	var ok := false
+	if v.location == RuleVessel.Location.EQUIPPED:
+		ok = ledger.unequip(v.id)
+	else:
+		ok = ledger.equip(v.id) == RuleLedger.EquipResult.OK
+	_sound(&"ui_confirm" if ok else &"ui_error")
+	return ok
+
+
+func _accepts_for_equip(vessel_id: int, part: RuleVessel.Part) -> bool:
+	var v := ledger.vessel(vessel_id)
+	return v != null and v.part == part and not ledger.token(v.token_id).is_lent()
+
+
 func _sound(event: StringName) -> void:
 	if play_sound.is_valid():
 		play_sound.call(event)
@@ -181,6 +214,12 @@ func _update_slots() -> void:
 		var t: RuleToken = null if v == null else ledger.token(v.token_id)
 		var dim := filtering and t != null and _find(id) == null
 		slot.show_vessel(id, t, id != -1 and id == _selected_id, dim)
+	for i in _equip_slots.size():
+		var ev := ledger.equipped_vessel(EQUIP_PARTS[i])
+		var eid := -1 if ev == null else ev.id
+		var et: RuleToken = null if ev == null else ledger.token(ev.token_id)
+		var edim := filtering and et != null and _find(eid) == null
+		_equip_slots[i].show_vessel(eid, et, eid != -1 and eid == _selected_id, edim)
 
 
 ## 貸し出し中の一覧。器はホットバーかかばんに残ったままで、ここは同じ器への参照。
@@ -224,6 +263,7 @@ func _show_detail() -> void:
 		_detail_icon.texture = null
 		_detail_state.visible = false
 		_detail_where.text = ""
+		_equip_button.visible = false
 		var searching := not _search.text.strip_edges().is_empty()
 		_detail_name.text = "見つかりません" if searching else "からっぽ"
 		_detail_text.text = "ことばや絞り込みを変えてみてください。" if searching else ""
@@ -235,6 +275,9 @@ func _show_detail() -> void:
 	_style_state(entry.state)
 	_detail_where.text = InventoryQuery.location_text(entry).replace("通常インベントリ", "かばん")
 	_detail_text.text = _explain(entry)
+	_equip_button.visible = entry.is_equipment and entry.vessel_id == _selected_id
+	_equip_button.text = "はずす" if entry.state == InventoryQuery.State.EQUIPPED else "そうびする"
+	_equip_button.disabled = entry.state == InventoryQuery.State.LENT
 
 
 func _describe_any(vessel_id: int) -> InventoryQuery.Entry:
@@ -419,7 +462,15 @@ func _build_character_column() -> Control:
 		slot.slot_index = i
 		slot.equip_label = EQUIP_SLOTS[i]
 		slot.custom_minimum_size = Vector2(62, 62)
-		slot.tooltip_text = "装備品は、つけているときだけ効く（まだ見つかっていない）"
+		slot.tooltip_text = "装備品は、つけているときだけ効く。部位が合うものをここへ"
+		slot.accepts = _accepts_for_equip.bind(EQUIP_PARTS[i])
+		slot.clicked.connect(_on_slot_clicked)
+		slot.hovered.connect(_on_slot_hovered)
+		slot.dropped.connect(
+			func(_s: InventorySlot, vessel_id: int) -> void:
+				drop_on_equip(vessel_id, EQUIP_PARTS[i])
+				refresh()
+		)
 		grid.add_child(slot)
 		_equip_slots.append(slot)
 	column.add_child(grid)
@@ -494,6 +545,17 @@ func _build_detail_column() -> Control:
 	_detail_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail_text.custom_minimum_size = Vector2(360, 140)
 	column.add_child(_detail_text)
+	_equip_button = Button.new()
+	_equip_button.text = "そうびする"
+	_equip_button.custom_minimum_size = Vector2(0, 48)
+	_equip_button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	_equip_button.visible = false
+	_equip_button.pressed.connect(
+		func() -> void:
+			toggle_equip_selected()
+			refresh()
+	)
+	column.add_child(_equip_button)
 	column.add_child(_section("貸し出し中", ""))
 	_lent_list = VBoxContainer.new()
 	_lent_list.add_theme_constant_override("separation", 6)

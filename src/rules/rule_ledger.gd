@@ -24,6 +24,16 @@ enum LendResult {
 	EQUIPPED_CANNOT_LEND,
 }
 
+enum EquipResult {
+	OK,
+	NO_SUCH_VESSEL,
+	NOT_EQUIPMENT,
+	## 能力を貸し出している装備は、回収するまで装備できない（矛盾防止の仮の方針。企画書 7 の確認事項）
+	LENT,
+	## 世界に落ちている（先に F で拾う）
+	NOT_CARRIED,
+}
+
 const PLAYER_ID: int = 1
 const HOTBAR_SIZE: int = 9
 
@@ -150,14 +160,30 @@ func player_can(action: RuleAction.Kind) -> bool:
 	return player_has_ability(action) and not player_prohibited(action)
 
 
+## 能力が自分に効くのは、ホットバーの普通の器と、装備欄の装備だけ（企画書 7）。
+## ホットバーに置いた装備品は、装備していないので効かない（付与の元にはできる）。
 func player_has_ability(action: RuleAction.Kind) -> bool:
 	for v: RuleVessel in _vessels.values():
-		if v.location != RuleVessel.Location.HOTBAR:
+		if not _applies_to_player(v):
 			continue
 		var t := token(v.token_id)
 		if t.action == action and not t.is_prohibition and not t.is_lent():
 			return true
 	return false
+
+
+func _applies_to_player(v: RuleVessel) -> bool:
+	if v.location == RuleVessel.Location.EQUIPPED:
+		return true
+	return v.location == RuleVessel.Location.HOTBAR and not v.is_equipment()
+
+
+## 部位に装備している器（無ければ null）。
+func equipped_vessel(part: RuleVessel.Part) -> RuleVessel:
+	for v: RuleVessel in _vessels.values():
+		if v.location == RuleVessel.Location.EQUIPPED and v.part == part:
+			return v
+	return null
 
 
 func player_prohibited(action: RuleAction.Kind) -> bool:
@@ -254,6 +280,8 @@ func lend(
 	var v := vessel(vessel_id)
 	if v == null:
 		return LendResult.NO_SUCH_VESSEL
+	if v.location == RuleVessel.Location.EQUIPPED:
+		return LendResult.EQUIPPED_CANNOT_LEND
 	if v.location != RuleVessel.Location.HOTBAR:
 		return LendResult.NOT_IN_HOTBAR
 	var t := token(v.token_id)
@@ -322,6 +350,37 @@ func pickup(vessel_id: int) -> bool:
 	return true
 
 
+## 装備品を装備欄へ。同じ部位に別の装備があれば、入れ替えて元の場所（ホットバーの枠か通常インベントリ）へ移す。
+func equip(vessel_id: int) -> EquipResult:
+	var v := vessel(vessel_id)
+	if v == null:
+		return EquipResult.NO_SUCH_VESSEL
+	if not v.is_equipment():
+		return EquipResult.NOT_EQUIPMENT
+	if v.location == RuleVessel.Location.WORLD:
+		return EquipResult.NOT_CARRIED
+	if token(v.token_id).is_lent():
+		return EquipResult.LENT
+	if v.location == RuleVessel.Location.EQUIPPED:
+		return EquipResult.OK
+	var occupant := equipped_vessel(v.part)
+	if occupant != null:
+		occupant.location = v.location
+		occupant.slot = v.slot
+	v.location = RuleVessel.Location.EQUIPPED
+	v.slot = -1
+	changed.emit()
+	return EquipResult.OK
+
+
+## 装備を外して通常インベントリへ。
+func unequip(vessel_id: int) -> bool:
+	var v := vessel(vessel_id)
+	if v == null or v.location != RuleVessel.Location.EQUIPPED:
+		return false
+	return move_to_inventory(vessel_id)
+
+
 ## 通常インベントリの器をホットバーの slot へ移す。slot に器があれば入れ替える。
 func move_to_hotbar(vessel_id: int, slot: int) -> bool:
 	var v := vessel(vessel_id)
@@ -333,8 +392,14 @@ func move_to_hotbar(vessel_id: int, slot: int) -> bool:
 	if occupant == v:
 		return true
 	if occupant != null:
-		occupant.location = v.location
-		occupant.slot = v.slot
+		var into_equipment := v.location == RuleVessel.Location.EQUIPPED
+		if into_equipment and (occupant.part != v.part or token(occupant.token_id).is_lent()):
+			# 装備欄の部位に合わない（または貸出中の）器とは入れ替えず、押し出された器は通常インベントリへ
+			occupant.location = RuleVessel.Location.INVENTORY
+			occupant.slot = -1
+		else:
+			occupant.location = v.location
+			occupant.slot = v.slot
 	v.location = RuleVessel.Location.HOTBAR
 	v.slot = slot
 	changed.emit()
@@ -406,6 +471,17 @@ func validate() -> PackedStringArray:
 			elif used_slots.has(v.slot):
 				errors.append("hotbar slot %d used twice" % v.slot)
 			used_slots[v.slot] = true
+	var used_parts := {}
+	for v: RuleVessel in _vessels.values():
+		if v.location != RuleVessel.Location.EQUIPPED:
+			continue
+		if not v.is_equipment():
+			errors.append("vessel %d is equipped but is not equipment" % v.id)
+		elif used_parts.has(v.part):
+			errors.append("part %d equipped twice" % v.part)
+		used_parts[v.part] = true
+		if token(v.token_id) != null and token(v.token_id).is_lent():
+			errors.append("equipped vessel %d has its ability lent" % v.id)
 	for v: RuleVessel in _vessels.values():
 		if v.location == RuleVessel.Location.WORLD and token(v.token_id) != null:
 			if token(v.token_id).is_lent():

@@ -8,7 +8,7 @@ func before_each() -> void:
 	world = GameWorld.new()
 	tree.root.add_child(world)
 	TerrainBuilder.add_box(world, Vector3i(-5, -1, -5), Vector3i(5, -1, 5), Color.GRAY)
-	for action: RuleAction.Kind in RuleAction.ALL:
+	for action: RuleAction.Kind in RuleAction.BASIC:
 		world.ledger.give_player_item(action, false, int(action))
 	world.spawn_player(Vector3(0.5, 0.0, 2.5))
 	await wait_physics_frames(5)

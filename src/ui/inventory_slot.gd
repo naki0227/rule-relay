@@ -1,7 +1,7 @@
 class_name InventorySlot
 extends Control
 ## 持ち物の画面の1枠（ホットバー・装備）。見た目は ItemPainter で、かばんのグリッドとそろえる。
-## ホットバーの枠は、ドラッグの元にも先にもなる。装備の枠は、装備品（P2 で実装）だけを受け付ける。
+## ホットバーの枠は、ドラッグの元にも先にもなる。装備の枠は、その部位の装備品だけを受け付ける（accepts で判定）。
 
 signal clicked(slot: InventorySlot)
 signal hovered(slot: InventorySlot)
@@ -20,6 +20,8 @@ var selected: bool = false
 var dimmed: bool = false
 ## 装備の枠の名前（頭・体・手・足）。
 var equip_label: String = ""
+## 装備の枠: 落とされた器を受け付けるか（vessel_id → bool）。持ち物の画面が台帳で判定する。
+var accepts: Callable
 
 var _hover: bool = false
 var _drop_hover: bool = false
@@ -72,19 +74,20 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _get_drag_data(_at_position: Vector2) -> Variant:
-	if kind != Kind.HOTBAR or token == null:
+	if token == null:
 		return null
 	drag_started.emit()
 	set_drag_preview(ItemGrid.drag_preview(token))
-	return {"vessel_id": vessel_id, "from": "hotbar", "slot": slot_index}
+	var from := "hotbar" if kind == Kind.HOTBAR else "equip"
+	return {"vessel_id": vessel_id, "from": from, "slot": slot_index}
 
 
 func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
-	var ok: bool = (
-		kind == Kind.HOTBAR and data is Dictionary and (data as Dictionary).has("vessel_id")
-	)
+	var ok: bool = data is Dictionary and (data as Dictionary).has("vessel_id")
 	if ok and int((data as Dictionary)["vessel_id"]) == vessel_id:
 		ok = false
+	if ok and kind == Kind.EQUIP:
+		ok = accepts.is_valid() and bool(accepts.call(int((data as Dictionary)["vessel_id"])))
 	_set_drop_hover(ok)
 	return ok
 

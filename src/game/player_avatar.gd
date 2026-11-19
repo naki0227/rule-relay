@@ -21,6 +21,9 @@ var move_intent: Vector2 = Vector2.ZERO
 var view_yaw: float = 0.0
 var ledger: RuleLedger
 
+## 壁を登っている最中（クライミンググローブを装備して壁へ向かって進んでいる）。
+var climbing: bool = false
+
 var _jump_requested: bool = false
 var _walked: float = 0.0
 var _visual: Node3D
@@ -49,6 +52,24 @@ func feet_position() -> Vector3:
 	return global_position
 
 
+## いまのジャンプの高さ。ジャンプブーツ（高跳び）を装備していれば固定で高くなる（企画書 7）。
+## 高跳びはジャンプの強化なので、ジャンプ自体が使えない（貸出中・禁止）なら跳べない。
+func jump_height() -> float:
+	if ledger != null and ledger.player_can(RuleAction.Kind.HIGH_JUMP):
+		return Tuning.BOOTS_JUMP_HEIGHT
+	return Tuning.PLAYER_JUMP_HEIGHT
+
+
+## クライミンググローブ（登る）: 壁に触れていて、その壁へ向かって進もうとしているあいだ登る。
+## 進めない方向（能力が無い・禁止）へは押せないので、移動の能力・禁止も守る。
+func _should_climb(direction: Vector3) -> bool:
+	if ledger == null or not ledger.player_can(RuleAction.Kind.CLIMB):
+		return false
+	if not is_on_wall() or direction.length() < 0.1:
+		return false
+	return get_wall_normal().dot(direction.normalized()) < -0.5
+
+
 func _physics_process(delta: float) -> void:
 	var direction := _allowed_direction()
 	velocity.x = direction.x * Tuning.PLAYER_SPEED
@@ -58,8 +79,11 @@ func _physics_process(delta: float) -> void:
 	if _jump_requested:
 		_jump_requested = false
 		if is_on_floor() and ledger != null and ledger.player_can(RuleAction.Kind.JUMP):
-			velocity.y = Tuning.jump_velocity(Tuning.PLAYER_JUMP_HEIGHT)
+			velocity.y = Tuning.jump_velocity(jump_height())
 			jumped.emit()
+	climbing = _should_climb(direction)
+	if climbing:
+		velocity.y = Tuning.CLIMB_SPEED
 	_animate(delta, direction)
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z) * delta
 	# 段差補助は「床に立って歩いている」ときだけ。空中で壁に触れても登らせない

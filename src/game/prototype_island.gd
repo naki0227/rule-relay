@@ -11,6 +11,9 @@ extends GameWorld
 ##   3. 南の青緑ブロックに W を渡して北へ動かし、岩棚の前まで運ぶ → 階段にして登る
 ## 南西の小さな谷（深さ1、幅2）には、W と S を交互に繰り返す往復の足場がある（企画書 4-5・10）。
 ## 谷の向こうは小島。ジャンプを渡して跳べないときも、往復の足場に乗れば渡れる。
+## 装備（企画書 7・10。解法を増やす道具で、唯一の通行証にはしない）:
+##   - 小島にジャンプブーツ（高跳び、約2ブロック）→ 岩棚（高さ2）へ跳び、そこから高台へ
+##   - 岩棚の東にクライミンググローブ（登る）→ 高台の壁を直接登る
 
 const SPAWN := Vector3(0.5, 0.0, 4.5)
 const GRASS := Color(0.45, 0.68, 0.38)
@@ -36,6 +39,8 @@ const VALLEY_MIN := Vector3i(-7, -2, 9)
 const VALLEY_MAX := Vector3i(-4, -2, 10)
 const ISLET_MIN := Vector3i(-7, -1, 11)
 const ISLET_MAX := Vector3i(-4, -1, 13)
+const BOOTS_AT := Vector3(-5.5, 0.0, 12.5)
+const GLOVES_AT := Vector3(11.5, 0.0, -8.5)
 
 var bouncer: RuleBlock
 var row: Array[RuleBlock] = []
@@ -90,6 +95,12 @@ func _give_starting_items() -> void:
 	ledger.give_player_item(RuleAction.Kind.JUMP, false, 4)
 	ledger.give_player_item(RuleAction.Kind.THROW, false, 5)
 	select_slot(4)
+	ledger.place_in_world(
+		RuleAction.Kind.HIGH_JUMP, false, BOOTS_AT, RuleVessel.Part.FEET, "ジャンプブーツ"
+	)
+	ledger.place_in_world(
+		RuleAction.Kind.CLIMB, false, GLOVES_AT, RuleVessel.Part.HANDS, "クライミンググローブ"
+	)
 
 
 func _build_environment() -> void:

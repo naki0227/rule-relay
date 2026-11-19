@@ -7,6 +7,8 @@ extends RefCounted
 ## HIGH_JUMP / CLIMB: 装備（ジャンプブーツ / クライミンググローブ）に宿る強化（企画書 7）。
 enum Kind { FORWARD, LEFT, BACK, RIGHT, JUMP, THROW, HIGH_JUMP, CLIMB }
 
+## 開始時からの基本の行動（W/A/S/D・ジャンプ）。
+const BASIC: Array[Kind] = [Kind.FORWARD, Kind.LEFT, Kind.BACK, Kind.RIGHT, Kind.JUMP]
 const ALL: Array[Kind] = [
 	Kind.FORWARD,
 	Kind.LEFT,

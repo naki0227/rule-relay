@@ -73,9 +73,11 @@ func is_ready_for(action: RuleAction.Kind) -> bool:
 
 
 ## 行動を実行する。呼ぶ前に is_ready_for と BlockRules.attempt で成功を確かめること。
-func perform(action: RuleAction.Kind) -> void:
+## high_jump: 高跳び（ジャンプブーツの能力）を持っていれば、跳ぶ高さが固定で上がる。
+func perform(action: RuleAction.Kind, high_jump: bool = false) -> void:
 	if action == RuleAction.Kind.JUMP:
-		velocity_y = Tuning.jump_velocity(Tuning.BLOCK_JUMP_HEIGHT)
+		var height := Tuning.BLOCK_HIGH_JUMP_HEIGHT if high_jump else Tuning.BLOCK_JUMP_HEIGHT
+		velocity_y = Tuning.jump_velocity(height)
 		jumped.emit()
 		return
 	stepped.emit()
