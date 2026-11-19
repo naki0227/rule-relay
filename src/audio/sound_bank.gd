@@ -31,6 +31,7 @@ const EVENTS: Dictionary[StringName, Dictionary] = {
 	&"block_jump": {"pitch": 0.06, "volume": 1.5},
 	&"block_land": {"pitch": 0.06, "volume": 1.5},
 	&"block_step": {"pitch": 0.05, "volume": 1.5},
+	&"bell": {"pitch": 0.02, "volume": 0.5},
 	&"player_jump": {"pitch": 0.05, "volume": 1.5},
 	&"player_land": {"pitch": 0.05, "volume": 1.5},
 	&"footstep": {"pitch": 0.08, "volume": 2.0, "variants": 3},
