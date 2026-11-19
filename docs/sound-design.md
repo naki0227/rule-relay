@@ -16,6 +16,34 @@
 
 数値は出典によって幅がある（特に音量）。下の基準は、それらの共通部分をとった仮の値。
 
+## 2026-11-19 合成をやめ、CC0 の実録音から作る
+
+本人の感想: 「あなたが作る効果音は毎回似ている。フリーの音源の波形や音程を見て、本当の音源のようにしてほしい」。
+合成（モーダル合成・色付き雑音）は、同じ仕組みから作るので音の性格が似通う。そこで **CC0 の実録音を選んで使う** 形に変えた。
+
+- 素材: OpenGameArt の CC0 の素材集6つ（rubberduck・Kenney・qubodup・artisticdude・pyranostudios）。一覧と出典は `art/audio/CREDITS.md`
+- 選び方: 候補 257 個を全部同じ方法で測り（長さ・いちばん強い周波数・重心・叩いた瞬間のはっきりさ・余韻）、意味が合うもの
+  （木を叩く・本を開く・錠が掛かる・ばね・石がこする・足音・銅鑼）の中から、音程が低め（C6 未満）で輪郭がはっきりしたものを選んだ
+- 加工: 頭の無音を切る、必要な長さに切る、音程を少しだけ変える（0.85〜1.12 倍）、重ねる、シャリつく帯域だけ弱める、音量をそろえる。
+  `tools/sfx/build_sfx.py` で決定的に作り直せる（素材の WAV は `art/audio/`）
+- 草の上の足音は CC0 で見つからなかったので、柔らかい地面（砂）の足音を少し低く・暗くして使う
+- 数値の基準（下）はそのまま使う。石がこする音・紙をはじく音は音程の無い雑音なので、音程の判定から外した
+
+| 出来事 | 素材 |
+|---|---|
+| ホバー | rubberduck switch_01（小さなスイッチ） |
+| 選ぶ / 決定 / 取り消し | rubberduck RPG wood_02 / wooden_02 / RPG wood_03（木を叩く音） |
+| 開く / 閉じる / 置く / つまむ | Kenney bookOpen / bookPlace3 / bookPlace1 / handleSmallLeather |
+| できない | rubberduck hit_03（こもった「ドッ」） |
+| 円形 UI | rubberduck paper_02（紙をはじく） |
+| 渡す / 範囲 / 回収 | swish（artisticdude）＋plop（rubberduck） / air whoosh（pyranostudios）＋plop×3 / plop＋逆回しの swish |
+| 禁止 | rubberduck RPG lock_02（錠が掛かる） |
+| ブロックが跳ぶ / 着地 / 動く | rubberduck spring_05 / slam_04 / RPG stones_02 |
+| 自分の跳躍 / 着地 / 足音 | Kenney cloth2 / qubodup Fantozzi Sand＋Kenney footstep08 / Fantozzi Sand×3 |
+| 保存 / 到達 / 鐘 | rubberduck RPG spell_01 / gong_01＋RPG item_gem_03 / gong_01 を 0.85 倍 |
+
+以下は合成していたころ（2026-11-18）の記録。
+
 ## 音の系統（`tools/sfx/build_sfx.py`）
 
 - **木**: モーダル合成のマリンバ・木片。上のモードは強めに入れるが、実物と同じく上ほど早く消す（`tau / 比率^0.45`）。
