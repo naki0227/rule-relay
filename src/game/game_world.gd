@@ -13,6 +13,8 @@ signal sound_requested(event: StringName, at: Vector3, positional: bool)
 
 const FIRST_BLOCK_ID: int = 100
 const FIRST_CREATURE_ID: int = 500
+## 地形のセルを動くブロックにしたときの ID（セルの並び順で決まるので、復元しても同じ ID になる）
+const FIRST_TERRAIN_ID: int = 2000
 
 var ledger: RuleLedger = RuleLedger.new()
 var player: PlayerAvatar
@@ -21,6 +23,10 @@ var blocks: Dictionary[int, RuleBlock] = {}
 var creatures: Dictionary[int, Creature] = {}
 ## 鐘（音源）。F で鳴らすと、しばらく音波を出す。
 var bells: Array[Bell] = []
+## 動かない地形（どのセルも、能力を渡すと動くブロックになる）
+var terrain: TerrainGrid
+## 地形から動くブロックにしたセル → ブロックの ID
+var promoted: Dictionary[Vector3i, int] = {}
 var selected_slot: int = 0
 var lend_mode: TriggerMode.Kind = TriggerMode.Kind.SINGLE_SHOT
 var throw_mode: bool = false
@@ -51,6 +57,9 @@ var _previewed: Array[RuleBlock] = []
 var _range_preview_visual: RangePreview
 ## 世界に落ちている器の見た目（vessel_id → ノード）。台帳が変わるたびに合わせる。
 var _world_items: Dictionary[int, WorldItem] = {}
+var _terrain_ids: Dictionary[Vector3i, int] = {}
+var _terrain_kinds: Dictionary[Vector3i, String] = {}
+var _terrain_target: TerrainCell
 
 
 func _ready() -> void:
@@ -77,11 +86,18 @@ func spawn_player(at: Vector3) -> PlayerAvatar:
 	return player
 
 
-func add_block(cell: Vector3i, color: Color = Color(0.85, 0.65, 0.35)) -> RuleBlock:
+func add_block(
+	cell: Vector3i,
+	color: Color = Color(0.85, 0.65, 0.35),
+	model_name: String = "ability_block",
+	fixed_id: int = -1
+) -> RuleBlock:
 	var block := RuleBlock.new()
-	var id := _next_block_id
-	_next_block_id += 1
-	block.setup(id, cell, color)
+	var id := fixed_id
+	if id < 0:
+		id = _next_block_id
+		_next_block_id += 1
+	block.setup(id, cell, color, model_name)
 	add_child(block)
 	blocks[id] = block
 	block.jumped.connect(func() -> void: _sound(&"block_jump", block.global_position))
@@ -96,6 +112,18 @@ func add_block(cell: Vector3i, color: Color = Color(0.85, 0.65, 0.35)) -> RuleBl
 	_signal_cursors[id] = RepeatCursor.new()
 	_signal_timers[id] = 0.0
 	return block
+
+
+## 地形のセルを狙ったことにする（照準の代わり。テストや別の入力から使う）。
+func terrain_target(cell: Vector3i) -> TerrainCell:
+	_terrain_target.point_at(cell)
+	return _terrain_target
+
+
+## 動かない地形を作る。boxes: [[最小のセル, 最大のセル, 種類], ...]（種類は grass / rock / sand）。
+## どのセルも、能力を渡すと動くブロックになる（TerrainPromotion）。
+func build_terrain(boxes: Array) -> void:
+	TerrainPromotion.build(self, boxes)
 
 
 ## 鐘を置く（企画書 5.4 の音源。2026-11-19 本人の判断: 音源は基本、鐘で、F で鳴らす）。
@@ -209,7 +237,7 @@ func cycle_mode() -> void:
 ## ないときだけ選べる。渡したあとも「触る」と F の回収は残る。
 func toggle_reach() -> void:
 	if not throw_mode and not can_throw():
-		_post("「投げる」が使えません（%s）" % _throw_unavailable_reason())
+		_post("「投げる」が使えません（%s）" % WorldQueries.throw_unavailable_reason(ledger))
 		_ui_sound(&"ui_error")
 		return
 	throw_mode = not throw_mode
@@ -223,26 +251,6 @@ func can_throw() -> bool:
 
 func reach() -> float:
 	return Tuning.THROW_REACH if throw_mode and can_throw() else Tuning.TOUCH_REACH
-
-
-func _throw_unavailable_reason() -> String:
-	if ledger.player_prohibited(RuleAction.Kind.THROW):
-		return "投げる禁止を持っています"
-	for t: RuleToken in _player_tokens(RuleAction.Kind.THROW):
-		if t.is_lent():
-			return "貸出中です（F で回収）"
-	return "ホットバーにありません"
-
-
-func _player_tokens(action: RuleAction.Kind) -> Array[RuleToken]:
-	var result: Array[RuleToken] = []
-	for v: RuleVessel in ledger.inventory_vessels():
-		result.append(ledger.token(v.token_id))
-	for slot in RuleLedger.HOTBAR_SIZE:
-		var hv := ledger.hotbar_vessel(slot)
-		if hv != null:
-			result.append(ledger.token(hv.token_id))
-	return result.filter(func(t: RuleToken) -> bool: return t.action == action)
 
 
 ## W/A/S/D/Space を押した瞬間。自分の行動と、貸し出した単発の起動に振り分ける。
@@ -272,13 +280,20 @@ func lend_to(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 		_post("鐘には渡せません（F で鳴らす）")
 		_ui_sound(&"ui_error")
 		return RuleLedger.LendResult.UNKNOWN_TARGET
-	if use_range and not target is RuleBlock:
+	if target is TerrainCell:
+		target = TerrainPromotion.promote(self, (target as TerrainCell).cell)
+	if use_range and not (target is RuleBlock or target is TerrainCell):
 		_post("生き物には範囲で渡せません（左クリックで1匹に渡す）")
 		_ui_sound(&"ui_error")
 		return RuleLedger.LendResult.RANGE_ONLY_FOR_BLOCKS
 	if use_range:
-		var selection := range_selection(target as RuleBlock)
-		result = ledger.lend(v.id, selection["ids"] as PackedInt32Array, mode, selection)
+		var selection := range_selection(target)
+		var ids := selection["ids"] as PackedInt32Array
+		for cell: Vector3i in selection["cells"] as Array:
+			# 範囲内の地形のセルも、全部ブロックとして受け取る
+			ids.append(TerrainPromotion.promote(self, cell).entity_id)
+		selection["ids"] = ids
+		result = ledger.lend(v.id, ids, mode, selection)
 	else:
 		result = ledger.lend(v.id, PackedInt32Array([_entity_of(target)]), mode)
 	_post(WorldQueries.describe(t, result, use_range))
@@ -296,15 +311,19 @@ func lend_to(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 	return result
 
 
-## 範囲付与で選ばれるブロック。プレビューと実際の付与で同じ計算を使う。
-## 戻り値は RuleLedger.lend の range_spec としてもそのまま使える
-## {"center": Vector3, "radius": float, "layer": int, "ids": PackedInt32Array}。
-func range_selection(target: RuleBlock) -> Dictionary:
-	var layer := target.cell().y
+## 範囲付与で選ばれるブロック（プレビューと付与で同じ計算）。動くブロックの ID と、地形のままのセル
+## （渡すときに動くブロックになる）を分けて返す。range_spec にも使える {center, radius, layer, ids, cells}。
+func range_selection(target: Node3D) -> Dictionary:
 	var center := target.global_position
+	var layer := floori(center.y - 0.5 + 0.001)
 	var radius := BlockRules.DEFAULT_RANGE_RADIUS
 	var ids := BlockRules.select_in_range(center, radius, layer, _block_cells())
-	return {"center": center, "radius": radius, "layer": layer, "ids": ids}
+	var cells: Array[Vector3i] = []
+	for cell: Vector3i in terrain.cells if terrain != null else {}:
+		var flat := Vector2(cell.x + 0.5 - center.x, cell.z + 0.5 - center.z)
+		if cell.y == layer and flat.length() <= radius + 0.0001:
+			cells.append(cell)
+	return {"center": center, "radius": radius, "layer": layer, "ids": ids, "cells": cells}
 
 
 ## 右クリックを押している間の範囲プレビュー（企画書 8 の要検証項目）。離すと付与、Esc で取り消し。
@@ -323,7 +342,7 @@ func preview_range(target: Node3D) -> Dictionary:
 	var reason := _range_refusal(target)
 	if reason != "":
 		return {"ids": PackedInt32Array(), "reason": reason}
-	var selection := range_selection(target as RuleBlock)
+	var selection := range_selection(target)
 	selection["reason"] = ""
 	return selection
 
@@ -342,7 +361,7 @@ func _range_refusal(target: Node3D) -> String:
 func _range_target_refusal(target: Node3D) -> String:
 	if target == null:
 		return "ブロックを狙ってください"
-	if not target is RuleBlock:
+	if not (target is RuleBlock or target is TerrainCell):
 		return "生き物には範囲で渡せません"
 	if not _within_reach(target):
 		return "届きません（%.1fブロック）" % reach()
@@ -353,6 +372,7 @@ func _range_target_refusal(target: Node3D) -> String:
 func update_range_preview(target: Node3D) -> Dictionary:
 	var preview := preview_range(target) if _range_preview_active else {}
 	var ids := preview.get("ids", PackedInt32Array()) as PackedInt32Array
+	var cell_count := (preview.get("cells", []) as Array).size()
 	for block in _previewed:
 		block.set_preview(false)
 	_previewed.clear()
@@ -363,7 +383,7 @@ func update_range_preview(target: Node3D) -> Dictionary:
 		_range_preview_visual = RangePreview.new()
 		_range_preview_visual.name = "RangePreview"
 		add_child(_range_preview_visual)
-	if ids.is_empty():
+	if ids.is_empty() and cell_count == 0:
 		_range_preview_visual.visible = false
 	else:
 		_range_preview_visual.show_at(
@@ -419,14 +439,7 @@ func interact(target: Node3D) -> void:
 
 ## 拾える距離にある、いちばん近い器（無ければ null）。
 func nearest_world_item() -> RuleVessel:
-	var best: RuleVessel = null
-	var best_distance := Tuning.PICKUP_REACH
-	for v in ledger.world_vessels():
-		var d := player.global_position.distance_to(v.world_position)
-		if d <= best_distance:
-			best = v
-			best_distance = d
-	return best
+	return WorldItem.nearest(ledger, player.global_position)
 
 
 func _pick_up(v: RuleVessel) -> void:
@@ -463,6 +476,11 @@ func aimed_block() -> Node3D:
 	var collider := hit["collider"] as Node3D
 	if collider is RuleBlock or collider is Creature or collider is Bell:
 		return collider
+	if terrain != null and terrain.is_terrain_body(collider):
+		var cell := TerrainGrid.cell_at_hit(hit["position"] as Vector3, hit["normal"] as Vector3)
+		if terrain.has_cell(cell):
+			_terrain_target.point_at(cell)
+			return _terrain_target
 	return null
 
 
@@ -769,16 +787,4 @@ func _on_ledger_changed() -> void:
 
 
 func _sync_world_items() -> void:
-	var present := {}
-	for v in ledger.world_vessels():
-		present[v.id] = true
-		if not _world_items.has(v.id):
-			var node := WorldItem.new()
-			node.setup(v, ledger.token(v.token_id))
-			add_child(node)
-			_world_items[v.id] = node
-		_world_items[v.id].position = v.world_position
-	for id: int in _world_items.keys():
-		if not present.has(id):
-			_world_items[id].queue_free()
-			_world_items.erase(id)
+	WorldItem.sync(self, _world_items)

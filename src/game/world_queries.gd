@@ -31,3 +31,18 @@ static func survey(space: PhysicsDirectSpaceState3D, center: Vector2i, radius: i
 			if not hit.is_empty():
 				heights[Vector2i(x, z)] = snappedf((hit["position"] as Vector3).y, 0.05)
 	return heights
+
+
+## 「投げる」を選べない理由。
+static func throw_unavailable_reason(ledger: RuleLedger) -> String:
+	if ledger.player_prohibited(RuleAction.Kind.THROW):
+		return "投げる禁止を持っています"
+	var vessels := ledger.inventory_vessels()
+	for slot in RuleLedger.HOTBAR_SIZE:
+		if ledger.hotbar_vessel(slot) != null:
+			vessels.append(ledger.hotbar_vessel(slot))
+	for v in vessels:
+		var t := ledger.token(v.token_id)
+		if t.action == RuleAction.Kind.THROW and t.is_lent():
+			return "貸出中です（F で回収）"
+	return "ホットバーにありません"

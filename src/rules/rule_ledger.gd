@@ -53,6 +53,12 @@ func register_entity(entity_id: int, kind: EntityKind.Kind) -> void:
 	_entities[entity_id] = kind
 
 
+## 付与先を取り除く（地形から動くブロックにしたセルを、地形へ戻すとき）。付いていたトークンは戻らないので、
+## 呼ぶ側で先に回収するか、台帳ごと restore すること。
+func unregister_entity(entity_id: int) -> void:
+	_entities.erase(entity_id)
+
+
 func entity_kind(entity_id: int) -> EntityKind.Kind:
 	return _entities[entity_id]
 
