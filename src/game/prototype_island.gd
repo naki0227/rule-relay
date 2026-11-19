@@ -20,9 +20,6 @@ extends GameWorld
 ## ジャンプが無いので、低い段しか上がれない。ジャンプを渡すと、自分で段を跳んで高い所へ向かう。
 
 const SPAWN := Vector3(0.5, 0.0, 4.5)
-const GRASS := Color(0.45, 0.68, 0.38)
-const ROCK := Color(0.55, 0.52, 0.48)
-const LEDGE := Color(0.62, 0.58, 0.5)
 const GROUND_MIN := Vector3i(-10, -1, -13)
 const GROUND_MAX := Vector3i(13, -1, 8)
 ## 木（当たり判定あり）は解法に関わらない島の外周だけに置く。
@@ -59,11 +56,11 @@ var _time: float = 0.0
 func _ready() -> void:
 	super._ready()
 	_build_environment()
-	TerrainBuilder.add_box(self, GROUND_MIN, GROUND_MAX, GRASS, "grass_cell")
-	TerrainBuilder.add_box(self, Vector3i(2, 0, -11), Vector3i(7, 2, -6), ROCK, "rock_cell")
-	TerrainBuilder.add_box(self, Vector3i(8, 0, -11), Vector3i(9, 1, -6), LEDGE, "sandstone_cell")
-	TerrainBuilder.add_box(self, VALLEY_MIN, VALLEY_MAX, ROCK, "rock_cell")
-	TerrainBuilder.add_box(self, ISLET_MIN, ISLET_MAX, GRASS, "grass_cell")
+	# 当たり判定は直方体ごとの箱。見た目は、全部のセルをつないで外に出た角を丸めた1つのモデル
+	# （art/scripts/build_terrain.py。地形を変えたら tools/export_terrain.gd → Blender で作り直す）
+	for box: Array in terrain_boxes():
+		TerrainBuilder.add_box(self, box[0] as Vector3i, box[1] as Vector3i, Color.WHITE, "", false)
+	_add_model("island_terrain", Vector3.ZERO)
 	_build_scenery()
 	_build_blocks()
 	_build_creature()
@@ -76,6 +73,17 @@ func _ready() -> void:
 	_goal_crystal = _add_model("goal_beacon", Vector3(6.6, 3.0, -10.4)).find_child("Crystal")
 	_add_label(Vector3(5.0, 4.9, -8.5), "目標: 高台")
 	set_initial_checkpoint()
+
+
+## 動かない地形: [最小のセル, 最大のセル（両端を含む）, 種類]。種類は grass / rock / sand。
+static func terrain_boxes() -> Array:
+	return [
+		[GROUND_MIN, GROUND_MAX, "grass"],
+		[Vector3i(2, 0, -11), Vector3i(7, 2, -6), "rock"],
+		[Vector3i(8, 0, -11), Vector3i(9, 1, -6), "sand"],
+		[VALLEY_MIN, VALLEY_MAX, "rock"],
+		[ISLET_MIN, ISLET_MAX, "grass"],
+	]
 
 
 func _build_blocks() -> void:
