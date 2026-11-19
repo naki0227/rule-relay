@@ -6,6 +6,7 @@ extends CanvasLayer
 const MESSAGE_LINES: int = 5
 
 var world: GameWorld
+var radial_menu: RadialMenu
 
 var _slots: Array[Label] = []
 var _status: Label
@@ -15,6 +16,7 @@ var _inventory_panel: PanelContainer
 var _inventory_list: ItemList
 var _inventory_ids: PackedInt32Array = PackedInt32Array()
 var _goal_banner: Label
+var _preview_label: Label
 
 
 func _ready() -> void:
@@ -56,10 +58,28 @@ func refresh() -> void:
 		_slots[i].text = marker + text
 		_slots[i].modulate = Color(1, 1, 0.6) if i == world.selected_slot else Color.WHITE
 	_status.text = (
-		"付与方式: %s（Q／ホイール押し込み）   届き方: %s（C）   左クリック=単体  右クリック=範囲  F=回収/保存  E=持ち物  Esc=チェックポイントへ戻る"
+		"付与方式: %s（ホイール押し込み＋ドラッグ／Q）   届き方: %s（C）   左クリック=単体  右クリック長押し=範囲  F=回収/保存  E=持ち物  Esc=戻る"
 		% [TriggerMode.label(world.lend_mode), "投げる" if world.throw_mode else "触る"]
 	)
 	_refresh_inventory()
+
+
+## 右クリックを押している間の範囲プレビューの説明。
+func show_range_preview(active: bool, preview: Dictionary) -> void:
+	if _preview_label == null:
+		return
+	_preview_label.visible = active
+	if not active:
+		return
+	var ids := preview.get("ids", PackedInt32Array()) as PackedInt32Array
+	var reason := String(preview.get("reason", ""))
+	if not reason.is_empty():
+		_preview_label.text = "範囲付与: %s（Esc で取り消し）" % reason
+	else:
+		_preview_label.text = (
+			"範囲付与: 対象 %d 個・半径 %.0f・1層（右クリックを離すと付与／Esc で取り消し）"
+			% [ids.size(), float(preview.get("radius", 0.0))]
+		)
 
 
 func _vessel_text(t: RuleToken) -> String:
@@ -135,6 +155,24 @@ func _build() -> void:
 	_goal_banner.position = Vector2(-220, 80)
 	_goal_banner.visible = false
 	root.add_child(_goal_banner)
+
+	_preview_label = Label.new()
+	_preview_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_preview_label.position = Vector2(-330, -150)
+	_preview_label.add_theme_font_size_override("font_size", 20)
+	_preview_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	_preview_label.add_theme_constant_override("outline_size", 6)
+	_preview_label.visible = false
+	root.add_child(_preview_label)
+
+	radial_menu = RadialMenu.new()
+	radial_menu.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	radial_menu.custom_minimum_size = Vector2(320, 320)
+	radial_menu.size = Vector2(320, 320)
+	radial_menu.position = Vector2(-360, -160)
+	radial_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	radial_menu.visible = false
+	root.add_child(radial_menu)
 
 	_inventory_panel = PanelContainer.new()
 	_inventory_panel.set_anchors_preset(Control.PRESET_CENTER)
