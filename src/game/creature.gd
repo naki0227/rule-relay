@@ -193,13 +193,22 @@ func set_highlight(on: bool) -> void:
 
 
 func show_tokens(tokens: Array[RuleToken]) -> void:
-	var names := PackedStringArray()
 	var lent_by_player := false
 	for t in tokens:
-		names.append(t.describe())
 		lent_by_player = lent_by_player or t.vessel_id != -1
 	if _tokens_label != null:
-		_tokens_label.text = " ".join(names)
+		# ブロックと同じく、持っている能力・禁止を器のアイコンで並べる（禁止は赤い輪と斜線）
+		for child in _tokens_label.get_children():
+			child.queue_free()
+		for i in tokens.size():
+			var icon := Sprite3D.new()
+			icon.texture = ItemIcons.for_token(tokens[i])
+			icon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			icon.pixel_size = 0.0026
+			icon.no_depth_test = true
+			icon.render_priority = 1
+			icon.position.x = (float(i) - float(tokens.size() - 1) * 0.5) * 0.36
+			_tokens_label.add_child(icon)
 	_outline.set_meta("assigned", lent_by_player)
 	_update_outline()
 	notify_environment_changed()
