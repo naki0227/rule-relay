@@ -14,25 +14,45 @@ const SPAWN := Vector3(0.5, 0.0, 4.5)
 const GRASS := Color(0.45, 0.68, 0.38)
 const ROCK := Color(0.55, 0.52, 0.48)
 const LEDGE := Color(0.62, 0.58, 0.5)
+const GROUND_MIN := Vector3i(-10, -1, -13)
+const GROUND_MAX := Vector3i(13, -1, 8)
+## 木（当たり判定あり）は解法に関わらない島の外周だけに置く。
+const TREES: Array[Vector3] = [
+	Vector3(-8.5, 0, -11.0),
+	Vector3(-6.0, 0, 6.5),
+	Vector3(11.5, 0, 5.5),
+	Vector3(12.5, 0, -11.5),
+	Vector3(-9.0, 0, -2.5),
+	Vector3(-3.5, 0, -12.0),
+	Vector3(12.0, 0, 0.5),
+	Vector3(5.0, 0, 7.0),
+]
+## 草や花を置かない範囲（パズルの通り道と、開始地点）。見た目だけで当たり判定はない。
+const CLEAR_AREA := AABB(Vector3(-1.0, -1.0, -12.0), Vector3(12.0, 4.0, 11.0))
 
 var bouncer: RuleBlock
 var row: Array[RuleBlock] = []
 var mover: RuleBlock
+var _goal_crystal: Node3D
+var _time: float = 0.0
 
 
 func _ready() -> void:
 	super._ready()
 	_build_environment()
-	TerrainBuilder.add_box(self, Vector3i(-10, -1, -13), Vector3i(13, -1, 8), GRASS)
-	TerrainBuilder.add_box(self, Vector3i(2, 0, -11), Vector3i(7, 2, -6), ROCK)
-	TerrainBuilder.add_box(self, Vector3i(8, 0, -11), Vector3i(9, 1, -6), LEDGE)
+	TerrainBuilder.add_box(self, GROUND_MIN, GROUND_MAX, GRASS, "grass_cell")
+	TerrainBuilder.add_box(self, Vector3i(2, 0, -11), Vector3i(7, 2, -6), ROCK, "rock_cell")
+	TerrainBuilder.add_box(self, Vector3i(8, 0, -11), Vector3i(9, 1, -6), LEDGE, "sandstone_cell")
+	_build_scenery()
 	_build_blocks()
 	_give_starting_items()
 	spawn_player(SPAWN)
 	checkpoint_center = SPAWN
 	goal_box = AABB(Vector3(2.0, 2.9, -11.0), Vector3(6.0, 3.0, 6.0))
-	_add_marker(checkpoint_center, Color(0.3, 0.6, 1.0), "チェックポイント（F で保存）")
-	_add_marker(Vector3(5.0, 3.0, -8.5), Color(1.0, 0.85, 0.2), "目標: 高台")
+	_add_model("checkpoint_pad", checkpoint_center)
+	_add_label(checkpoint_center + Vector3(0.0, 1.9, 0.0), "チェックポイント（F で保存）")
+	_goal_crystal = _add_model("goal_beacon", Vector3(6.6, 3.0, -10.4)).find_child("Crystal")
+	_add_label(Vector3(5.0, 4.9, -8.5), "目標: 高台")
 	save_checkpoint()
 
 
@@ -57,37 +77,103 @@ func _give_starting_items() -> void:
 
 func _build_environment() -> void:
 	var sun := DirectionalLight3D.new()
-	sun.rotation = Vector3(deg_to_rad(-50.0), deg_to_rad(-30.0), 0.0)
+	sun.rotation = Vector3(deg_to_rad(-48.0), deg_to_rad(-35.0), 0.0)
+	sun.light_color = Color(1.0, 0.95, 0.86)
+	sun.light_energy = 1.3
 	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 60.0
 	add_child(sun)
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color(0.3, 0.5, 0.85)
+	sky_material.sky_horizon_color = Color(0.74, 0.84, 0.93)
+	sky_material.ground_horizon_color = Color(0.74, 0.84, 0.93)
+	sky_material.ground_bottom_color = Color(0.42, 0.52, 0.66)
+	var sky := Sky.new()
+	sky.sky_material = sky_material
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
-	var sky := Sky.new()
-	sky.sky_material = ProceduralSkyMaterial.new()
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	env.ambient_light_energy = 0.6
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.ssao_enabled = true
+	env.glow_enabled = true
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	env.glow_hdr_threshold = 1.2
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.15
+	env.fog_enabled = true
+	env.fog_light_color = Color(0.74, 0.84, 0.93)
+	env.fog_density = 0.004
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
 
 
-func _add_marker(at: Vector3, color: Color, text: String) -> void:
-	var disc := MeshInstance3D.new()
-	var mesh := CylinderMesh.new()
-	mesh.top_radius = 0.9
-	mesh.bottom_radius = 0.9
-	mesh.height = 0.04
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mesh.material = material
-	disc.mesh = mesh
-	disc.position = at + Vector3(0.0, 0.03, 0.0)
-	add_child(disc)
+## 島の見た目: 浮かぶ岩の底、外周の木、草・花・小石（固定シードで毎回同じ配置）。
+func _build_scenery() -> void:
+	var size := Vector3(GROUND_MAX - GROUND_MIN + Vector3i.ONE)
+	var base := _add_model(
+		"island_base", Vector3(GROUND_MIN) + Vector3(size.x * 0.5, 0.0, size.z * 0.5)
+	)
+	base.position.y = -0.98
+	base.scale = Vector3(size.x * 1.02, 9.0, size.z * 1.02)
+	for i in TREES.size():
+		var at := TREES[i]
+		var tree := _add_model("tree_round" if i % 2 == 0 else "tree_tall", at)
+		tree.rotation.y = float(i) * 1.7
+		_add_trunk_collision(at)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20261118
+	var kinds: Array[String] = ["grass_tuft", "grass_tuft", "grass_tuft", "flower", "pebbles"]
+	for i in 70:
+		var at := Vector3(
+			rng.randf_range(GROUND_MIN.x + 0.5, GROUND_MAX.x + 0.5),
+			0.0,
+			rng.randf_range(GROUND_MIN.z + 0.5, GROUND_MAX.z + 0.5)
+		)
+		if CLEAR_AREA.has_point(at + Vector3(0.0, 0.5, 0.0)):
+			continue
+		var prop := _add_model(kinds[rng.randi() % kinds.size()], at)
+		prop.rotation.y = rng.randf() * TAU
+		prop.scale = Vector3.ONE * rng.randf_range(0.8, 1.3)
+
+
+func _add_model(model_name: String, at: Vector3) -> Node3D:
+	var model := ModelLibrary.instantiate(model_name)
+	model.position = at
+	add_child(model)
+	return model
+
+
+func _add_trunk_collision(at: Vector3) -> void:
+	var body := StaticBody3D.new()
+	body.collision_layer = Tuning.LAYER_TERRAIN
+	body.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	var cylinder := CylinderShape3D.new()
+	cylinder.radius = 0.25
+	cylinder.height = 2.0
+	shape.shape = cylinder
+	shape.position = Vector3(0.0, 1.0, 0.0)
+	body.add_child(shape)
+	body.position = at
+	add_child(body)
+
+
+func _process(delta: float) -> void:
+	_time += delta
+	if _goal_crystal != null:
+		_goal_crystal.rotation.y = _time * 1.2
+		_goal_crystal.position.y = 1.55 + sin(_time * 2.0) * 0.08
+
+
+func _add_label(at: Vector3, text: String) -> void:
 	var label := Label3D.new()
 	label.text = text
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.position = at + Vector3(0.0, 1.9, 0.0)
+	label.position = at
 	label.pixel_size = 0.006
 	label.font_size = 36
 	label.outline_size = 8

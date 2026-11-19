@@ -88,3 +88,29 @@ func test_no_step_assist_in_mid_air() -> void:
 		highest = maxf(highest, world.player.global_position.y)
 	assert_lt(highest, 1.45, "only the jump height itself, no climbing")
 	assert_lt(world.player.global_position.y, 1.5, "did not end up on top of the wall")
+
+
+func test_model_limbs_swing_while_walking_and_face_movement() -> void:
+	var model := world.player.find_child("LegL", true, false) as Node3D
+	assert_ne(model, null, "traveler model with joint nodes is loaded")
+	world.player.view_yaw = 0.0
+	world.player.move_intent = Vector2(1.0, 0.0)  # 東へ
+	var max_swing := 0.0
+	for i in 30:
+		await tree.physics_frame
+		max_swing = maxf(max_swing, absf(model.rotation.x))
+	assert_gt(max_swing, 0.3, "legs swing while walking")
+	var visual := world.player.get_node("Visual") as Node3D
+	assert_almost(visual.rotation.y, -PI * 0.5, 0.15, "model turns to face east (-90deg)")
+
+
+func test_blocks_use_model_with_tinted_panel() -> void:
+	var block := world.add_block(Vector3i(3, 0, 0), Color(0.2, 0.4, 0.9))
+	var mesh_instance := block.find_child("AbilityBlock", true, false) as MeshInstance3D
+	assert_ne(mesh_instance, null)
+	var tinted := false
+	for i in mesh_instance.mesh.get_surface_count():
+		var m := mesh_instance.get_surface_override_material(i) as StandardMaterial3D
+		if m != null and m.resource_name == "Panel":
+			tinted = m.albedo_color.is_equal_approx(Color(0.2, 0.4, 0.9))
+	assert_true(tinted, "panel material carries the block colour")

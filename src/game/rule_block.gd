@@ -193,14 +193,11 @@ func _update_outline() -> void:
 
 func _build_visuals() -> void:
 	var color: Color = get_meta("color", Color(0.85, 0.65, 0.35))
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = Vector3.ONE * (SIZE * 0.98)
-	var material := StandardMaterial3D.new()
-	material.albedo_color = color
-	box.material = material
-	mesh.mesh = box
-	add_child(mesh)
+	# 見た目は Blender のモデル（art/source/ability_block.blend）。各面のパネルをブロックの色にする
+	var model := ModelLibrary.instantiate("ability_block")
+	model.name = "Model"
+	ModelLibrary.tint_material(model, "Panel", color)
+	add_child(model)
 
 	var shape := CollisionShape3D.new()
 	var box_shape := BoxShape3D.new()

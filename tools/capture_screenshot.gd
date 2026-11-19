@@ -1,6 +1,11 @@
 extends SceneTree
 ## メインシーンを描画して、範囲・繰り返しを付与した状態のスクリーンショットを保存する。
-## GPU のない Linux ではソフトウェア描画（Mesa）で撮れる:
+## GPU のない Linux ではソフトウェア描画で撮れる。ゲームと同じ Forward+ で撮るには
+## Vulkan のソフトウェア実装（mesa-vulkan-drivers の lavapipe）を使う:
+##   VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json xvfb-run -a -s "-screen 0 1600x900x24" \
+##     godot --rendering-driver vulkan --resolution 1600x900 \
+##     --script res://tools/capture_screenshot.gd -- out.png
+## opengl3 でも撮れるが、互換レンダラーなので色が白っぽく出る（実際の見た目ではない）:
 ##   xvfb-run -a -s "-screen 0 1600x900x24" godot --rendering-driver opengl3 \
 ##     --resolution 1600x900 --script res://tools/capture_screenshot.gd -- out.png
 ## 提出用の画面写真は Windows 実機で撮り直す（ソフトウェア描画は見た目が異なる場合がある）。
