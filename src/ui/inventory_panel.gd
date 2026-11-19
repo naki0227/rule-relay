@@ -161,7 +161,7 @@ func toggle_equip_selected() -> bool:
 
 func _accepts_for_equip(vessel_id: int, part: RuleVessel.Part) -> bool:
 	var v := ledger.vessel(vessel_id)
-	return v != null and v.part == part and not ledger.token(v.token_id).is_lent()
+	return v != null and v.part == part
 
 
 func _sound(event: StringName) -> void:
@@ -276,8 +276,8 @@ func _show_detail() -> void:
 	_detail_where.text = InventoryQuery.location_text(entry).replace("通常インベントリ", "かばん")
 	_detail_text.text = _explain(entry)
 	_equip_button.visible = entry.is_equipment and entry.vessel_id == _selected_id
-	_equip_button.text = "はずす" if entry.state == InventoryQuery.State.EQUIPPED else "そうびする"
-	_equip_button.disabled = entry.state == InventoryQuery.State.LENT
+	var worn := entry.location == RuleVessel.Location.EQUIPPED
+	_equip_button.text = "はずす" if worn else "そうびする"
 
 
 func _describe_any(vessel_id: int) -> InventoryQuery.Entry:
@@ -325,7 +325,7 @@ static func _explain(entry: InventoryQuery.Entry) -> String:
 		RuleAction.Kind.HIGH_JUMP:
 			action = "いつもより高く跳ぶ力（約2ブロック）。装備しているときだけ自分に効く。"
 		RuleAction.Kind.CLIMB:
-			action = "壁を登る力。装備しているときだけ自分に効く。"
+			action = "壁を登る力。装備しているときだけ自分に効く。ブロックに渡すと、隣でいちばん高い所の高さまで登ってつかまる。"
 	if t.is_prohibition:
 		var lent_note := "\n\nいまは貸し出し中なので、自分には効いていない。" if t.is_lent() else ""
 		return (

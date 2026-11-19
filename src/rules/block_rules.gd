@@ -30,8 +30,8 @@ static func attempt(
 	return Attempt.SUCCESS
 
 
-## 単発の成功判定。対象のうち1つでも行動に成功すれば成功（範囲で一部が禁止でも返還する）。
-## 全対象が失敗したら返還せず、付与されたまま（手動回収できる）。企画書の未決事項に対する仮の方針。
+## 単発で、対象のうち1つでも行動に成功したか（表示と音の出し分けに使う）。
+## 返還は成否によらず起動したら戻る（RuleLedger.complete_single_shot）。
 static func single_shot_succeeded(results: Array[Attempt]) -> bool:
 	return results.has(Attempt.SUCCESS)
 

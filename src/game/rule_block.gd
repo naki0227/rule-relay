@@ -29,6 +29,8 @@ var _in_range: bool = false
 var _previewed: bool = false
 var _marker_material: StandardMaterial3D
 var _signal_label: Label3D
+## 登る（クライミンググローブの能力）を持っているとき、底面をこの高さまで上げてつかまる。NAN なら登らない。
+var _climb_bottom: float = NAN
 var _source_radius: float = 0.0
 
 
@@ -174,7 +176,20 @@ func _physics_process(delta: float) -> void:
 	_integrate_horizontal(delta)
 
 
+## 登る: 隣のマス（東西南北）でいちばん高い上面まで、自分の上面がそろう高さへ登ってつかまる
+## （2026-11-19 本人の判断。例: 高さ 1・3・[1]・2 の [1] に渡すと、左の 3 の高さまで登る。両側の高さにはならない）。
+## target_bottom は底面の高さ。NAN を渡すと登るのをやめ、重力で落ちる。
+func set_climb_target(target_bottom: float) -> void:
+	_climb_bottom = target_bottom
+
+
+func is_climbing() -> bool:
+	return not is_nan(_climb_bottom) and global_position.y - SIZE * 0.5 < _climb_bottom + 0.01
+
+
 func _integrate_vertical(delta: float) -> void:
+	if _integrate_climb(delta):
+		return
 	velocity_y -= Tuning.GRAVITY * delta
 	var motion := Vector3(0.0, velocity_y * delta, 0.0)
 	var hit := KinematicCollision3D.new()
@@ -191,6 +206,26 @@ func _integrate_vertical(delta: float) -> void:
 	if velocity_y < -3.0:
 		landed.emit(-velocity_y)
 	velocity_y = 0.0
+
+
+## 登っている・つかまっているなら重力の代わりに上へ動かし、true を返す。
+func _integrate_climb(delta: float) -> bool:
+	if is_nan(_climb_bottom) or velocity_y > 0.0:
+		return false  # 跳んでいる最中は登らない
+	var bottom := global_position.y - SIZE * 0.5
+	if bottom > _climb_bottom + 0.01:
+		return false  # つかまる高さより上にいる（重力で降りてくる）
+	velocity_y = 0.0
+	var rise := minf(Tuning.CLIMB_SPEED * delta, _climb_bottom - bottom)
+	if rise <= 0.0:
+		return true  # つかまっている
+	var motion := Vector3(0.0, rise, 0.0)
+	var hit := KinematicCollision3D.new()
+	if test_move(global_transform, motion, hit):
+		global_position += hit.get_travel()  # 頭上が塞がれたらそこで止まる
+	else:
+		global_position += motion
+	return true
 
 
 func _integrate_horizontal(delta: float) -> void:

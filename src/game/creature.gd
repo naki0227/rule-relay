@@ -3,7 +3,7 @@ extends CharacterBody3D
 ## 願いを持つ生き物（企画書 6）。願いは「高いところへ行きたい」。
 ## 何をするかは CreatureMind が決め、ここでは決めた道を物理で進む。プレイヤーは命令できない。
 ## 能力は単体でだけ受け取り（範囲は不可）、発動方式は持たない。自分で使うかを願いに沿って選ぶ。
-## W/A/S/D は世界の方角に固定（ブロックと同じ。生き物にはカメラがない）。
+## W/A/S/D は、その生き物が向いている向きが基準（前・左・右・後ろ）。体の向きは自由に変えられる。
 
 signal jumped
 signal stage_changed(stage: CreatureMind.Stage)
@@ -23,6 +23,8 @@ var ledger: RuleLedger
 var survey: Callable
 var stage: CreatureMind.Stage = CreatureMind.Stage.WAIT
 var path: Array[Vector2i] = []
+## 向いている世界の方角（x = 東、y = 南）。W はこの向き、A はその左、D は右、S は後ろ。
+var facing: Vector2i = Vector2i(0, -1)
 
 var _blocked: Dictionary = {}
 var _stuck: float = 0.0
@@ -119,12 +121,17 @@ func _follow(delta: float) -> Vector3:
 		if path.is_empty():
 			_needs_plan = true
 		return Vector3.ZERO
-	var action := CreatureMind.action_for_step(cell(), next)
-	if cell() != next and not can(action):
-		# 歩いている途中で能力を失った・禁止を受けた（禁止は願いより優先）
-		path.clear()
-		_needs_plan = true
-		return Vector3.ZERO
+	if cell() != next:
+		var abilities := {}
+		for move in CreatureMind.MOVES:
+			abilities[move] = can(move)
+		var choice := CreatureMind.choose_move(facing, next - cell(), abilities)
+		if choice.is_empty():
+			# 歩いている途中で能力を失った・禁止を受けた（禁止は願いより優先）
+			path.clear()
+			_needs_plan = true
+			return Vector3.ZERO
+		facing = choice["facing"] as Vector2i
 	var rise := _rise_to(next)
 	if rise > CreatureMind.STEP_HEIGHT and is_on_floor():
 		if can(RuleAction.Kind.CLIMB) and is_on_wall():
@@ -174,12 +181,13 @@ func _set_stage(new_stage: CreatureMind.Stage) -> void:
 
 
 func capture_state() -> Dictionary:
-	return {"position": global_position, "velocity": velocity}
+	return {"position": global_position, "velocity": velocity, "facing": facing}
 
 
 func restore_state(state: Dictionary) -> void:
 	global_position = state["position"] as Vector3
 	velocity = state["velocity"] as Vector3
+	facing = state.get("facing", Vector2i(0, -1)) as Vector2i
 	path.clear()
 	notify_environment_changed()
 
@@ -226,8 +234,8 @@ func _update_outline() -> void:
 func _animate(direction: Vector3) -> void:
 	if _body == null:
 		return
-	if direction.length() > 0.05:
-		_body.rotation.y = lerp_angle(_body.rotation.y, atan2(-direction.x, -direction.z), 0.2)
+	# 体は「向いている向き」を向く（A だけなら横歩き、S だけなら後ろ歩きに見える）
+	_body.rotation.y = lerp_angle(_body.rotation.y, atan2(-float(facing.x), -float(facing.y)), 0.2)
 	var bob := (
 		absf(sin(_time * 9.0)) * 0.05 if direction.length() > 0.05 else sin(_time * 2.0) * 0.015
 	)

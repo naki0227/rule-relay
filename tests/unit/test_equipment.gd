@@ -1,6 +1,6 @@
 extends TestCase
 ## 装備（企画書 7）: 部位ごとに1個、装備中だけ本人に効く、装備中は付与できない、
-## 未装備なら付与できる、貸出中は回収まで装備できない（仮）。
+## 未装備なら付与できる、貸している装備も装備はできるが回収まで能力は効かない（2026-11-19 本人の判断）。
 
 const BOOTS := RuleAction.Kind.HIGH_JUMP
 const CLIMB := RuleAction.Kind.CLIMB
@@ -38,16 +38,19 @@ func test_equipped_ability_cannot_be_lent() -> void:
 	assert_eq(result, RuleLedger.LendResult.EQUIPPED_CANNOT_LEND)
 
 
-func test_unequipped_equipment_can_be_lent_and_then_not_worn() -> void:
+func test_lent_equipment_can_be_worn_but_does_not_work_until_recalled() -> void:
 	ledger.move_to_hotbar(boots.id, 2)
 	var result := ledger.lend(boots.id, PackedInt32Array([BLOCK]), TriggerMode.Kind.SINGLE_SHOT)
 	assert_eq(result, RuleLedger.LendResult.OK)
 	assert_eq(ledger.token(boots.token_id).mode, TriggerMode.Kind.NONE, "a held ability")
 	assert_true(ledger.entity_has_ability(BLOCK, BOOTS))
-	assert_eq(ledger.equip(boots.id), RuleLedger.EquipResult.LENT, "recall first")
-	assert_eq(ledger.vessel(boots.id).slot, 2, "the vessel stays where it was")
+	assert_eq(ledger.equip(boots.id), RuleLedger.EquipResult.OK, "wearing it is allowed")
+	assert_eq(ledger.equipped_vessel(FEET), boots)
+	assert_false(ledger.player_can(BOOTS), "but the lent ability does not work on the wearer")
+	assert_true(ledger.entity_has_ability(BLOCK, BOOTS), "the block keeps it")
+	assert_true(ledger.validate().is_empty())
 	ledger.recall(boots.token_id)
-	assert_eq(ledger.equip(boots.id), RuleLedger.EquipResult.OK)
+	assert_true(ledger.player_can(BOOTS), "works once recalled")
 
 
 func test_one_item_per_part_swaps_back_to_where_it_came_from() -> void:

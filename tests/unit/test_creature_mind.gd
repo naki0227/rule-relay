@@ -44,11 +44,38 @@ func test_prohibition_wins_over_the_wish() -> void:
 	assert_eq(plan.stage, CreatureMind.Stage.WAIT)
 
 
-func test_only_moves_in_directions_it_can_start() -> void:
-	var east_only := {D: true}
-	var west_high := line([2, 0, 0.3])
-	var plan := CreatureMind.plan(Vector2i(1, 0), west_high, east_only, 1.3, false)
-	assert_eq(plan.path, [Vector2i(2, 0)] as Array[Vector2i], "the higher west is not allowed")
+func test_cannot_walk_without_any_move_ability() -> void:
+	var only_jump := {JUMP: true}
+	var plan := CreatureMind.plan(Vector2i(0, 0), line([0, 0.3]), only_jump, 1.3, false)
+	assert_eq(plan.stage, CreatureMind.Stage.WAIT)
+
+
+func test_moves_are_relative_to_where_it_faces() -> void:
+	var north := Vector2i(0, -1)
+	var east := Vector2i(1, 0)
+	assert_eq(CreatureMind.direction_of(W, north), north)
+	assert_eq(CreatureMind.direction_of(D, north), east, "right of north is east")
+	assert_eq(CreatureMind.direction_of(A, east), north, "left of east is north")
+	assert_eq(CreatureMind.direction_of(S, east), Vector2i(-1, 0))
+
+
+func test_only_a_means_walking_sideways() -> void:
+	var only_a := {A: true}
+	var plan := CreatureMind.plan(Vector2i(0, 0), line([0, 0.3]), only_a, 1.3, false)
+	assert_eq(plan.path, [Vector2i(1, 0)] as Array[Vector2i], "still reaches the east")
+	var move := CreatureMind.choose_move(Vector2i(0, -1), Vector2i(1, 0), only_a)
+	assert_eq(move["action"], A)
+	assert_eq(move["facing"], Vector2i(0, 1), "faces south so that its left is east")
+
+
+func test_prefers_not_turning_then_forward() -> void:
+	var move := CreatureMind.choose_move(Vector2i(0, -1), Vector2i(1, 0), walk)
+	assert_eq(move["action"], D, "already facing north: step right without turning")
+	var no_right := {W: true, S: true}
+	move = CreatureMind.choose_move(Vector2i(0, -1), Vector2i(1, 0), no_right)
+	assert_eq(move["action"], W)
+	assert_eq(move["facing"], Vector2i(1, 0), "turns to face east, then forward")
+	assert_true(CreatureMind.choose_move(Vector2i(0, -1), Vector2i(1, 0), {}).is_empty())
 
 
 func test_finds_another_route_when_a_step_was_blocked() -> void:

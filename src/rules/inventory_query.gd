@@ -71,6 +71,8 @@ static func describe(ledger: RuleLedger, v: RuleVessel) -> Entry:
 		var target := "範囲%d個" % t.holder_ids.size() if t.is_range else "単体"
 		var mode := "" if t.mode == TriggerMode.Kind.NONE else "・" + TriggerMode.label(t.mode)
 		entry.state_text = "貸出中（%s%s）" % [target, mode]
+		if v.location == RuleVessel.Location.EQUIPPED:
+			entry.state_text += "・装備しているが効かない"
 	elif t.is_prohibition:
 		entry.state = State.PROHIBITION_APPLIED
 		entry.state_text = "禁止適用中"
