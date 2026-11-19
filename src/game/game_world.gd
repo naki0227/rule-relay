@@ -12,11 +12,13 @@ signal checkpoint_changed
 signal sound_requested(event: StringName, at: Vector3, positional: bool)
 
 const FIRST_BLOCK_ID: int = 100
+const FIRST_CREATURE_ID: int = 500
 
 var ledger: RuleLedger = RuleLedger.new()
 var player: PlayerAvatar
 var camera_rig: CameraRig
 var blocks: Dictionary[int, RuleBlock] = {}
+var creatures: Dictionary[int, Creature] = {}
 var selected_slot: int = 0
 var lend_mode: TriggerMode.Kind = TriggerMode.Kind.SINGLE_SHOT
 var throw_mode: bool = false
@@ -33,7 +35,10 @@ var _repeat_timers: Dictionary[int, float] = {}
 var _history: CheckpointHistory = CheckpointHistory.new()
 var _home_cells: Dictionary[int, Vector3i] = {}
 var _spawn_point: Vector3 = Vector3.ZERO
-var _highlighted: RuleBlock
+## 狙っている付与先（ブロックか生き物。どちらも entity_id・set_highlight を持つ）。
+var _highlighted: Node3D
+var _next_creature_id: int = FIRST_CREATURE_ID
+var _creature_homes: Dictionary[int, Vector3] = {}
 var _range_preview_active: bool = false
 var _previewed: Array[RuleBlock] = []
 var _range_preview_visual: RangePreview
@@ -75,11 +80,50 @@ func add_block(cell: Vector3i, color: Color = Color(0.85, 0.65, 0.35)) -> RuleBl
 	block.jumped.connect(func() -> void: _sound(&"block_jump", block.global_position))
 	block.landed.connect(func(_s: float) -> void: _sound(&"block_land", block.global_position))
 	block.stepped.connect(func() -> void: _sound(&"block_step", block.global_position))
+	block.stepped.connect(_notify_creatures)
+	block.landed.connect(func(_s: float) -> void: _notify_creatures())
 	_home_cells[id] = cell
 	ledger.register_entity(id, EntityKind.Kind.BLOCK)
 	_repeat_cursors[id] = RepeatCursor.new()
 	_repeat_timers[id] = 0.0
 	return block
+
+
+## 願いを持つ生き物を置く（企画書 6）。
+func add_creature(at: Vector3) -> Creature:
+	var creature := Creature.new()
+	var id := _next_creature_id
+	_next_creature_id += 1
+	creature.setup(id, at)
+	creature.ledger = ledger
+	creature.survey = survey_heights
+	add_child(creature)
+	creatures[id] = creature
+	_creature_homes[id] = at
+	ledger.register_entity(id, EntityKind.Kind.CREATURE)
+	creature.jumped.connect(func() -> void: _sound(&"player_jump", creature.global_position))
+	return creature
+
+
+## マスごとの立てる高さ（地形とブロックの上面）。生き物の判断に使う。穴のマスは入れない。
+func survey_heights(center: Vector2i, radius: int) -> Dictionary:
+	var heights := {}
+	var space := get_world_3d().direct_space_state
+	for x in range(center.x - radius, center.x + radius + 1):
+		for z in range(center.y - radius, center.y + radius + 1):
+			var top := Vector3(x + 0.5, 12.0, z + 0.5)
+			var query := PhysicsRayQueryParameters3D.create(
+				top, top + Vector3.DOWN * 20.0, Tuning.LAYER_TERRAIN | Tuning.LAYER_BLOCKS
+			)
+			var hit := space.intersect_ray(query)
+			if not hit.is_empty():
+				heights[Vector2i(x, z)] = snappedf((hit["position"] as Vector3).y, 0.05)
+	return heights
+
+
+func _notify_creatures() -> void:
+	for creature: Creature in creatures.values():
+		creature.notify_environment_changed()
 
 
 # --- プレイヤーの操作 -------------------------------------------------------
@@ -163,7 +207,7 @@ func press_action(action: RuleAction.Kind) -> void:
 
 
 ## 選択中のホットバーの器から、target へ付与する。use_range なら target の層の円内の全ブロックへ。
-func lend_to(target: RuleBlock, use_range: bool) -> RuleLedger.LendResult:
+func lend_to(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 	var v := selected_vessel()
 	if v == null:
 		_post("ホットバー %d は空です" % (selected_slot + 1))
@@ -176,11 +220,15 @@ func lend_to(target: RuleBlock, use_range: bool) -> RuleLedger.LendResult:
 	var t := ledger.token(v.token_id)
 	var mode := TriggerMode.Kind.NONE if t.is_prohibition else lend_mode
 	var result: RuleLedger.LendResult
+	if use_range and not target is RuleBlock:
+		_post("生き物には範囲で渡せません（左クリックで1匹に渡す）")
+		_ui_sound(&"ui_error")
+		return RuleLedger.LendResult.RANGE_ONLY_FOR_BLOCKS
 	if use_range:
-		var selection := range_selection(target)
+		var selection := range_selection(target as RuleBlock)
 		result = ledger.lend(v.id, selection["ids"] as PackedInt32Array, mode, selection)
 	else:
-		result = ledger.lend(v.id, PackedInt32Array([target.entity_id]), mode)
+		result = ledger.lend(v.id, PackedInt32Array([_entity_of(target)]), mode)
 	_post(_describe_lend(t, result, use_range))
 	if result == RuleLedger.LendResult.OK:
 		_sound(&"lend_range" if use_range else &"lend", target.global_position)
@@ -216,32 +264,40 @@ func is_range_preview_active() -> bool:
 
 ## プレビューの内容。付与できない理由があれば "reason" に入れ、"ids" は空にする。
 ## ledger は変更しない。
-func preview_range(target: RuleBlock) -> Dictionary:
-	var empty := {"ids": PackedInt32Array(), "reason": ""}
-	var v := selected_vessel()
-	if v == null:
-		empty["reason"] = "ホットバー %d は空です" % (selected_slot + 1)
-		return empty
-	var t := ledger.token(v.token_id)
-	if t.is_lent():
-		empty["reason"] = "%s は貸出中です" % t.describe()
-		return empty
-	if t.is_prohibition:
-		empty["reason"] = "禁止の範囲付与は未実装です（P0）"
-		return empty
-	if target == null:
-		empty["reason"] = "ブロックを狙ってください"
-		return empty
-	if not _within_reach(target):
-		empty["reason"] = "届きません（%.1fブロック）" % reach()
-		return empty
-	var selection := range_selection(target)
+func preview_range(target: Node3D) -> Dictionary:
+	var reason := _range_refusal(target)
+	if reason != "":
+		return {"ids": PackedInt32Array(), "reason": reason}
+	var selection := range_selection(target as RuleBlock)
 	selection["reason"] = ""
 	return selection
 
 
+## 範囲に渡せない理由（渡せるなら空）。
+func _range_refusal(target: Node3D) -> String:
+	var v := selected_vessel()
+	if v == null:
+		return "ホットバー %d は空です" % (selected_slot + 1)
+	var t := ledger.token(v.token_id)
+	if t.is_lent():
+		return "%s は貸出中です" % t.describe()
+	if t.is_prohibition:
+		return "禁止の範囲付与は未実装です（P0）"
+	return _range_target_refusal(target)
+
+
+func _range_target_refusal(target: Node3D) -> String:
+	if target == null:
+		return "ブロックを狙ってください"
+	if not target is RuleBlock:
+		return "生き物には範囲で渡せません"
+	if not _within_reach(target):
+		return "届きません（%.1fブロック）" % reach()
+	return ""
+
+
 ## 毎フレーム、狙っているブロックでプレビューの表示を更新する。
-func update_range_preview(target: RuleBlock) -> Dictionary:
+func update_range_preview(target: Node3D) -> Dictionary:
 	var preview := preview_range(target) if _range_preview_active else {}
 	var ids := preview.get("ids", PackedInt32Array()) as PackedInt32Array
 	for block in _previewed:
@@ -263,7 +319,7 @@ func update_range_preview(target: RuleBlock) -> Dictionary:
 	return preview
 
 
-func commit_range_preview(target: RuleBlock) -> RuleLedger.LendResult:
+func commit_range_preview(target: Node3D) -> RuleLedger.LendResult:
 	_range_preview_active = false
 	update_range_preview(null)
 	return lend_to(target, true)
@@ -279,7 +335,7 @@ func cancel_range_preview() -> void:
 
 ## F: 足もとに器が落ちていれば拾う。チェックポイント上なら保存。そうでなければ狙ったブロックから
 ## 1つ回収し、無ければ立っている範囲付与を一括回収する。回収は「投げる」の有無によらず触る距離。
-func interact(target: RuleBlock) -> void:
+func interact(target: Node3D) -> void:
 	var item := nearest_world_item()
 	if item != null:
 		_pick_up(item)
@@ -288,7 +344,7 @@ func interact(target: RuleBlock) -> void:
 		save_checkpoint()
 		return
 	if target != null and _within_touch(target):
-		var picked := _recall_one(target.entity_id)
+		var picked := _recall_one(_entity_of(target))
 		if picked != null:
 			_post("%s を回収しました" % picked.describe())
 			_sound(&"prohibit" if picked.is_prohibition else &"recall", target.global_position)
@@ -334,30 +390,31 @@ func is_on_checkpoint() -> bool:
 	)
 
 
-## 画面中央の先にあるブロック（カメラからの光線）。
-func aimed_block() -> RuleBlock:
+## 画面中央の先にある付与先（ブロックか生き物。カメラからの光線）。
+func aimed_block() -> Node3D:
 	if camera_rig == null or camera_rig.camera() == null:
 		return null
 	var cam := camera_rig.camera()
 	var from := cam.global_position
 	var to := from + -cam.global_basis.z * (Tuning.THROW_REACH + CameraRig.DISTANCE)
 	var query := PhysicsRayQueryParameters3D.create(
-		from, to, Tuning.LAYER_TERRAIN | Tuning.LAYER_BLOCKS
+		from, to, Tuning.LAYER_TERRAIN | Tuning.LAYER_BLOCKS | Tuning.LAYER_CREATURES
 	)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return null
-	return hit["collider"] as RuleBlock
+	var collider := hit["collider"] as Node3D
+	return collider if collider is RuleBlock or collider is Creature else null
 
 
-func update_highlight(target: RuleBlock) -> void:
+func update_highlight(target: Node3D) -> void:
 	if _highlighted == target:
 		return
-	if _highlighted != null:
-		_highlighted.set_highlight(false)
+	if is_instance_valid(_highlighted):
+		_highlighted.call(&"set_highlight", false)
 	_highlighted = target
 	if target != null:
-		target.set_highlight(true)
+		target.call(&"set_highlight", true)
 
 
 # --- チェックポイント（企画書 9） ------------------------------------------
@@ -426,8 +483,12 @@ func _capture() -> Dictionary:
 		state["cursor"] = _repeat_cursors[id].get_index()
 		state["timer"] = _repeat_timers[id]
 		block_states[id] = state
+	var creature_states := {}
+	for id in creatures:
+		creature_states[id] = creatures[id].capture_state()
 	return {
 		"ledger": ledger.snapshot(),
+		"creatures": creature_states,
 		"player_position": player.global_position,
 		"blocks": block_states,
 		"selected_slot": selected_slot,
@@ -449,6 +510,9 @@ func _apply(snapshot: Dictionary) -> void:
 		blocks[id].restore_state(state)
 		_repeat_cursors[id].set_index(int(state["cursor"]))
 		_repeat_timers[id] = float(state["timer"])
+	var creature_states := snapshot.get("creatures", {}) as Dictionary
+	for id: int in creature_states:
+		creatures[id].restore_state(creature_states[id] as Dictionary)
 	selected_slot = int(snapshot["selected_slot"])
 	lend_mode = int(snapshot["lend_mode"]) as TriggerMode.Kind
 	goal_cleared = bool(snapshot["goal_cleared"])
@@ -478,6 +542,15 @@ func _rescue_lost_blocks() -> void:
 		block.teleport(RuleBlock.cell_center(_home_cells[id]), 0.0)
 		var note := "（貸していた %d 個は手元に戻りました）" % returned if returned > 0 else ""
 		_post("島から落ちたブロックを元の位置に戻しました%s" % note)
+	for id in creatures:
+		var creature := creatures[id]
+		if creature.global_position.y >= Tuning.FALL_LIMIT_Y:
+			continue
+		for t in ledger.tokens_on(id):
+			if t.vessel_id != -1:
+				ledger.recall(t.id)
+		creature.restore_state({"position": _creature_homes[id], "velocity": Vector3.ZERO})
+		_post("島から落ちた生き物を元の場所に戻しました")
 
 
 # --- 毎フレーム -------------------------------------------------------------
@@ -555,15 +628,20 @@ func _recall_one(entity_id: int) -> RuleToken:
 
 
 ## いまの届き方（触る／投げる）で target に届くか。照準の色分けにも使う。
-func is_within_reach(target: RuleBlock) -> bool:
+func is_within_reach(target: Node3D) -> bool:
 	return target != null and _within_reach(target)
 
 
-func _within_reach(target: RuleBlock) -> bool:
+## 付与先の ID（ブロック・生き物）。
+func _entity_of(target: Node3D) -> int:
+	return int(target.get("entity_id"))
+
+
+func _within_reach(target: Node3D) -> bool:
 	return _distance_from_chest(target) <= reach() + RuleBlock.SIZE * 0.5
 
 
-func _within_touch(target: RuleBlock) -> bool:
+func _within_touch(target: Node3D) -> bool:
 	return _distance_from_chest(target) <= Tuning.TOUCH_REACH + RuleBlock.SIZE * 0.5
 
 
@@ -611,6 +689,8 @@ func _post(text: String) -> void:
 func _on_ledger_changed() -> void:
 	for id in blocks:
 		blocks[id].show_tokens(ledger.tokens_on(id))
+	for id in creatures:
+		creatures[id].show_tokens(ledger.tokens_on(id))
 	_sync_world_items()
 	if throw_mode and not can_throw():
 		# 「投げる」を渡した・禁止を拾ったら、その場で「触る」に戻る（最後の1回は投げられる）

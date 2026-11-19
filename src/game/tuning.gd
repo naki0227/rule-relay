@@ -7,6 +7,7 @@ const LAYER_TERRAIN: int = 1
 const LAYER_BLOCKS: int = 2
 const LAYER_PLAYER: int = 4
 const LAYER_TRIGGERS: int = 8
+const LAYER_CREATURES: int = 16
 
 # 重力はプレイヤーとブロックで同じにする。乗っている間に足場から離れないため。
 const GRAVITY: float = 20.0
