@@ -19,3 +19,7 @@ Thumbs.db
 # Secrets (never commit)
 .env
 .env.*
+
+# Blender の自動バックアップ（履歴は Git で持つ）
+*.blend1
+*.blend2

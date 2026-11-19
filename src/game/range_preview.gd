@@ -13,14 +13,14 @@ func _ready() -> void:
 	band_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	band_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	band_material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	band_material.albedo_color = Color(0.9, 0.15, 0.15, 0.18)
+	band_material.albedo_color = Color(0.88, 0.39, 0.31, 0.2)
 	_band = MeshInstance3D.new()
 	_band.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_band.material_override = band_material
 	add_child(_band)
 	var rim_material := StandardMaterial3D.new()
 	rim_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	rim_material.albedo_color = Color(0.75, 0.05, 0.05)
+	rim_material.albedo_color = Color(0.72, 0.27, 0.23)
 	for y: float in [0.02, 0.98]:
 		var rim := MeshInstance3D.new()
 		rim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

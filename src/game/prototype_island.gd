@@ -57,13 +57,13 @@ func _ready() -> void:
 
 
 func _build_blocks() -> void:
-	bouncer = add_block(Vector3i(1, 0, -8), Color(0.62, 0.42, 0.8))
+	bouncer = add_block(Vector3i(1, 0, -8), Color(0.7, 0.58, 0.86))
 	ledger.place_on_entity(RuleAction.Kind.JUMP, false, bouncer.entity_id, TriggerMode.Kind.REPEAT)
 	ledger.place_on_entity(RuleAction.Kind.JUMP, true, bouncer.entity_id)
 	for x: int in [3, 4, 5]:
 		row.append(add_block(Vector3i(x, 0, -5)))
 	ledger.place_on_entity(RuleAction.Kind.JUMP, true, row[1].entity_id)
-	mover = add_block(Vector3i(8, 0, -2), Color(0.3, 0.7, 0.7))
+	mover = add_block(Vector3i(8, 0, -2), Color(0.45, 0.76, 0.72))
 
 
 func _give_starting_items() -> void:
@@ -78,33 +78,33 @@ func _give_starting_items() -> void:
 func _build_environment() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation = Vector3(deg_to_rad(-48.0), deg_to_rad(-35.0), 0.0)
-	sun.light_color = Color(1.0, 0.95, 0.86)
-	sun.light_energy = 1.3
+	sun.light_color = Color(1.0, 0.93, 0.8)
+	sun.light_energy = 1.15
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 60.0
 	add_child(sun)
 	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color(0.3, 0.5, 0.85)
-	sky_material.sky_horizon_color = Color(0.74, 0.84, 0.93)
-	sky_material.ground_horizon_color = Color(0.74, 0.84, 0.93)
-	sky_material.ground_bottom_color = Color(0.42, 0.52, 0.66)
+	sky_material.sky_top_color = Color(0.4, 0.64, 0.9)
+	sky_material.sky_horizon_color = Color(0.86, 0.92, 0.93)
+	sky_material.ground_horizon_color = Color(0.86, 0.92, 0.93)
+	sky_material.ground_bottom_color = Color(0.78, 0.84, 0.88)
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.6
+	env.ambient_light_energy = 0.5
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.ssao_enabled = true
 	env.glow_enabled = true
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	env.glow_hdr_threshold = 1.2
 	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.08
-	env.adjustment_saturation = 1.15
+	env.adjustment_contrast = 1.0
+	env.adjustment_saturation = 1.1
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.74, 0.84, 0.93)
+	env.fog_light_color = Color(0.9, 0.92, 0.9)
 	env.fog_density = 0.004
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
