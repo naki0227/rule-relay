@@ -16,6 +16,8 @@ const PLAYER_SPEED: float = 5.0
 const PLAYER_JUMP_HEIGHT: float = 1.3  # 1ブロックの段差を登れ、2ブロックは登れない
 const STEP_ASSIST_HEIGHT: float = 0.4  # 企画書 4-6: P0 の初期値 0.4 ブロック
 const FALL_LIMIT_Y: float = -12.0
+## いちばん低い床（谷底）の上面。これより下にあるブロックは「落ちている途中」とみなす。
+const LOWEST_FLOOR_Y: float = -1.0
 
 # ブロック（仮値）
 const BLOCK_JUMP_HEIGHT: float = 2.5  # 乗ったプレイヤーが高さ3の高台へ移れる
@@ -25,6 +27,8 @@ const REPEAT_PERIOD: float = 1.4  # 繰り返しの周期。ジャンプの滞�
 # 付与（仮値）
 const TOUCH_REACH: float = 3.5
 const THROW_REACH: float = 20.0
+## 落ちている器を F で拾える距離（足もとからの距離）
+const PICKUP_REACH: float = 1.8
 
 
 static func jump_velocity(height: float) -> float:

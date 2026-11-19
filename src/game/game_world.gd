@@ -37,6 +37,8 @@ var _highlighted: RuleBlock
 var _range_preview_active: bool = false
 var _previewed: Array[RuleBlock] = []
 var _range_preview_visual: RangePreview
+## 世界に落ちている器の見た目（vessel_id → ノード）。台帳が変わるたびに合わせる。
+var _world_items: Dictionary[int, WorldItem] = {}
 
 
 func _ready() -> void:
@@ -111,14 +113,44 @@ func cycle_mode() -> void:
 		set_lend_mode(TriggerMode.Kind.SINGLE_SHOT)
 
 
+## C: 触る ↔ 投げる（企画書 5.1）。「投げる」は能力なので、ホットバーにあって貸出中・禁止で
+## ないときだけ選べる。渡したあとも「触る」と F の回収は残る。
 func toggle_reach() -> void:
+	if not throw_mode and not can_throw():
+		_post("「投げる」が使えません（%s）" % _throw_unavailable_reason())
+		_ui_sound(&"ui_error")
+		return
 	throw_mode = not throw_mode
 	_post("付与の届き方: %s" % ("投げる" if throw_mode else "触る"))
 	state_changed.emit()
 
 
+func can_throw() -> bool:
+	return ledger.player_can(RuleAction.Kind.THROW)
+
+
 func reach() -> float:
-	return Tuning.THROW_REACH if throw_mode else Tuning.TOUCH_REACH
+	return Tuning.THROW_REACH if throw_mode and can_throw() else Tuning.TOUCH_REACH
+
+
+func _throw_unavailable_reason() -> String:
+	if ledger.player_prohibited(RuleAction.Kind.THROW):
+		return "投げる禁止を持っています"
+	for t: RuleToken in _player_tokens(RuleAction.Kind.THROW):
+		if t.is_lent():
+			return "貸出中です（F で回収）"
+	return "ホットバーにありません"
+
+
+func _player_tokens(action: RuleAction.Kind) -> Array[RuleToken]:
+	var result: Array[RuleToken] = []
+	for v: RuleVessel in ledger.inventory_vessels():
+		result.append(ledger.token(v.token_id))
+	for slot in RuleLedger.HOTBAR_SIZE:
+		var hv := ledger.hotbar_vessel(slot)
+		if hv != null:
+			result.append(ledger.token(hv.token_id))
+	return result.filter(func(t: RuleToken) -> bool: return t.action == action)
 
 
 ## W/A/S/D/Space を押した瞬間。自分の行動と、貸し出した単発の起動に振り分ける。
@@ -245,13 +277,17 @@ func cancel_range_preview() -> void:
 	_post("範囲付与を取り消しました")
 
 
-## F: チェックポイント上なら保存。そうでなければ狙ったブロックから1つ回収し、
-## 無ければ立っている範囲付与を一括回収する。
+## F: 足もとに器が落ちていれば拾う。チェックポイント上なら保存。そうでなければ狙ったブロックから
+## 1つ回収し、無ければ立っている範囲付与を一括回収する。回収は「投げる」の有無によらず触る距離。
 func interact(target: RuleBlock) -> void:
+	var item := nearest_world_item()
+	if item != null:
+		_pick_up(item)
+		return
 	if is_on_checkpoint():
 		save_checkpoint()
 		return
-	if target != null and _within_reach(target):
+	if target != null and _within_touch(target):
 		var picked := _recall_one(target.entity_id)
 		if picked != null:
 			_post("%s を回収しました" % picked.describe())
@@ -266,6 +302,27 @@ func interact(target: RuleBlock) -> void:
 		return
 	_post("回収できるものがありません")
 	_ui_sound(&"ui_error")
+
+
+## 拾える距離にある、いちばん近い器（無ければ null）。
+func nearest_world_item() -> RuleVessel:
+	var best: RuleVessel = null
+	var best_distance := Tuning.PICKUP_REACH
+	for v in ledger.world_vessels():
+		var d := player.global_position.distance_to(v.world_position)
+		if d <= best_distance:
+			best = v
+			best_distance = d
+	return best
+
+
+func _pick_up(v: RuleVessel) -> void:
+	var at := v.world_position
+	ledger.pickup(v.id)
+	var t := ledger.token(v.token_id)
+	var item_label := v.item_name if v.item_name != "" else t.describe()
+	_post("%s を拾いました（通常インベントリ。E で開いて使う）" % item_label)
+	_sound(&"ui_pick", at)
 
 
 func is_on_checkpoint() -> bool:
@@ -398,11 +455,11 @@ func _apply(snapshot: Dictionary) -> void:
 	state_changed.emit()
 
 
-## 島から落ちていく途中（地面の高さより下）のブロック。
+## 島から落ちていく途中のブロック（いちばん低い床＝谷底より下）。
 func _falling_blocks() -> Array[RuleBlock]:
 	var result: Array[RuleBlock] = []
 	for block: RuleBlock in blocks.values():
-		if block.global_position.y < -0.5:
+		if block.global_position.y < Tuning.LOWEST_FLOOR_Y - 0.6:
 			result.append(block)
 	return result
 
@@ -503,8 +560,16 @@ func is_within_reach(target: RuleBlock) -> bool:
 
 
 func _within_reach(target: RuleBlock) -> bool:
+	return _distance_from_chest(target) <= reach() + RuleBlock.SIZE * 0.5
+
+
+func _within_touch(target: RuleBlock) -> bool:
+	return _distance_from_chest(target) <= Tuning.TOUCH_REACH + RuleBlock.SIZE * 0.5
+
+
+func _distance_from_chest(target: Node3D) -> float:
 	var chest := player.global_position + Vector3(0.0, 1.0, 0.0)
-	return chest.distance_to(target.global_position) <= reach() + RuleBlock.SIZE * 0.5
+	return chest.distance_to(target.global_position)
 
 
 func _block_cells() -> Dictionary:
@@ -544,4 +609,25 @@ func _post(text: String) -> void:
 func _on_ledger_changed() -> void:
 	for id in blocks:
 		blocks[id].show_tokens(ledger.tokens_on(id))
+	_sync_world_items()
+	if throw_mode and not can_throw():
+		# 「投げる」を渡した・禁止を拾ったら、その場で「触る」に戻る（最後の1回は投げられる）
+		throw_mode = false
+		_post("「投げる」を手放したので、届き方は「触る」になりました")
 	state_changed.emit()
+
+
+func _sync_world_items() -> void:
+	var present := {}
+	for v in ledger.world_vessels():
+		present[v.id] = true
+		if not _world_items.has(v.id):
+			var node := WorldItem.new()
+			node.setup(v, ledger.token(v.token_id))
+			add_child(node)
+			_world_items[v.id] = node
+		_world_items[v.id].position = v.world_position
+	for id: int in _world_items.keys():
+		if not present.has(id):
+			_world_items[id].queue_free()
+			_world_items.erase(id)

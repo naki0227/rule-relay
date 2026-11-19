@@ -118,6 +118,8 @@ func update_context(target: RuleBlock, in_reach: bool, on_checkpoint: bool) -> v
 	var prompts: Array[Array] = []
 	if on_checkpoint and hints.should_show("save"):
 		prompts.append(["F", "ここで保存"])
+	if world != null and world.player != null and world.nearest_world_item() != null:
+		prompts.append(["F", "拾う"])
 	if target != null and in_reach:
 		if hints.should_show("lend"):
 			prompts.append(["左クリック", "渡す"])
@@ -127,7 +129,10 @@ func update_context(target: RuleBlock, in_reach: bool, on_checkpoint: bool) -> v
 		if holds and hints.should_show("recall"):
 			prompts.append(["F", "回収"])
 	elif target != null and hints.should_show("throw"):
-		prompts.append(["C", "投げるで届く" if not world.throw_mode else "遠すぎる"])
+		if world.throw_mode:
+			prompts.append(["C", "遠すぎる"])
+		elif world.can_throw():
+			prompts.append(["C", "投げるで届く"])
 	var key := str(prompts)
 	if _context.get_meta("key", "") == key:
 		return

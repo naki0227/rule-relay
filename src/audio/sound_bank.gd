@@ -88,7 +88,7 @@ func play_ui(event: StringName, pitch_semitones: int = 0) -> bool:
 	var player := _free_ui_player()
 	player.stream = stream
 	_apply_variation(player, event, pitch_semitones)
-	player.play()
+	_start(player)
 	last_event = event
 	return true
 
@@ -102,9 +102,18 @@ func play_at(event: StringName, at: Vector3) -> bool:
 	player.stream = stream
 	player.global_position = at
 	_apply_variation(player, event, 0)
-	player.play()
+	_start(player)
 	last_event = event
 	return true
+
+
+## 再生を始める。ヘッドレス（CI・テスト）では音の出口がない（Dummy ドライバー）うえ、再生中に
+## 終了すると音声サーバーが再生を手放さず「resources still in use at exit」になるため、
+## 鳴らす判断（どの音か・間引き・揺らぎ）までにして実際の再生はしない（2026-11-19 に確認）。
+func _start(player: Node) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	player.call(&"play")
 
 
 func play_slot_select(slot: int) -> bool:
