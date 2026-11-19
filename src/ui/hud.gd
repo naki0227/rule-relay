@@ -120,7 +120,9 @@ func update_context(target: Node3D, in_reach: bool, on_checkpoint: bool) -> void
 		prompts.append(["F", "ここで保存"])
 	if world != null and world.player != null and world.nearest_world_item() != null:
 		prompts.append(["F", "拾う"])
-	if target != null and in_reach:
+	if target is Bell and in_reach:
+		prompts.append(["F", "鳴らす"])
+	elif target != null and in_reach:
 		if hints.should_show("lend"):
 			prompts.append(["左クリック", "渡す"])
 		if hints.should_show("range"):

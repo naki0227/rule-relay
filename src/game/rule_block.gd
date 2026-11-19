@@ -31,7 +31,6 @@ var _marker_material: StandardMaterial3D
 var _signal_label: Label3D
 ## 登る（クライミンググローブの能力）を持っているとき、底面をこの高さまで上げてつかまる。NAN なら登らない。
 var _climb_bottom: float = NAN
-var _source_radius: float = 0.0
 
 
 func _ready() -> void:
@@ -334,50 +333,30 @@ func _build_visuals() -> void:
 # --- 音波（企画書 5.2 信号・5.4 音源） ---------------------------------------
 
 
-## このブロックを音源にする（周りへ音波を出し続ける）。見た目に音符の札を付ける。
-func make_sound_source(radius: float) -> void:
-	_source_radius = radius
+## 発射台にする（「投げる」を渡すと direction へ玉を撃つ）。撃つ向きに矢印の札を付ける。
+func make_launcher(direction: Vector3i) -> void:
 	var note := Label3D.new()
-	note.text = "♪ 音源"
+	note.text = "発射台 → %s" % _direction_name(direction)
 	note.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	note.position = Vector3(0.0, SIZE * 0.5 + 0.35, 0.0)
 	note.pixel_size = 0.004
 	note.font = UiTheme.font(700, 2)
-	note.font_size = 40
+	note.font_size = 36
 	note.modulate = UiTheme.INK
 	note.outline_modulate = Color(UiTheme.CREAM, 0.95)
 	note.outline_size = 12
 	add_child(note)
 
 
-func is_sound_source() -> bool:
-	return _source_radius > 0.0
-
-
-## 音波の輪を1つ出す（届く距離まで広がって消える）。
-func emit_pulse() -> void:
-	if not is_inside_tree():
-		return
-	var ring := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.96
-	torus.outer_radius = 1.0
-	torus.rings = 48
-	ring.mesh = torus
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.45, 0.66, 0.9, 0.7)
-	ring.material_override = mat
-	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	ring.top_level = true
-	add_child(ring)
-	ring.global_position = global_position + Vector3(0.0, -0.4, 0.0)
-	ring.scale = Vector3.ONE * 0.6
-	var tween := ring.create_tween().set_parallel()
-	tween.tween_property(ring, "scale", Vector3(_source_radius, 1.0, _source_radius), 1.2)
-	tween.tween_property(mat, "albedo_color:a", 0.0, 1.2)
-	tween.chain().tween_callback(ring.queue_free)
+static func _direction_name(direction: Vector3i) -> String:
+	match direction:
+		Vector3i(0, 0, -1):
+			return "北"
+		Vector3i(0, 0, 1):
+			return "南"
+		Vector3i(1, 0, 0):
+			return "東"
+	return "西"
 
 
 ## 信号方式の能力を持つときの表示: 受信中（音波が届いて動く）／休止中（届かず止まっている）。

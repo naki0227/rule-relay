@@ -19,6 +19,8 @@ var player: PlayerAvatar
 var camera_rig: CameraRig
 var blocks: Dictionary[int, RuleBlock] = {}
 var creatures: Dictionary[int, Creature] = {}
+## 鐘（音源）。F で鳴らすと、しばらく音波を出す。
+var bells: Array[Bell] = []
 var selected_slot: int = 0
 var lend_mode: TriggerMode.Kind = TriggerMode.Kind.SINGLE_SHOT
 var throw_mode: bool = false
@@ -34,9 +36,9 @@ var _repeat_cursors: Dictionary[int, RepeatCursor] = {}
 var _repeat_timers: Dictionary[int, float] = {}
 var _signal_cursors: Dictionary[int, RepeatCursor] = {}
 var _signal_timers: Dictionary[int, float] = {}
-## 音波を出しているブロック（音源）の ID。
-var _sources: Dictionary[int, bool] = {}
-var _pulse_timer: float = 0.0
+## 発射台のブロック（ID → 撃つ方角）。「投げる」を持っている間だけ玉を撃つ。
+var _launchers: Dictionary[int, Vector3i] = {}
+var _launch_timers: Dictionary[int, float] = {}
 var _history: CheckpointHistory = CheckpointHistory.new()
 var _home_cells: Dictionary[int, Vector3i] = {}
 var _spawn_point: Vector3 = Vector3.ZERO
@@ -96,25 +98,46 @@ func add_block(cell: Vector3i, color: Color = Color(0.85, 0.65, 0.35)) -> RuleBl
 	return block
 
 
-## 音源（企画書 5.4）: 周りへ音波を出し続けるブロック。ふつうのブロックと同じく能力を受け取って
-## 動けるので、W などを渡して「移動する音源」にもできる。
-func add_sound_source(cell: Vector3i) -> RuleBlock:
-	var block := add_block(cell, Color(0.62, 0.8, 0.95))
-	block.make_sound_source(Tuning.SIGNAL_RADIUS)
-	_sources[block.entity_id] = true
+## 鐘を置く（企画書 5.4 の音源。2026-11-19 本人の判断: 音源は基本、鐘で、F で鳴らす）。
+func add_bell(at: Vector3) -> Bell:
+	var bell := Bell.new()
+	bell.position = at
+	add_child(bell)
+	bells.append(bell)
+	bell.rang.connect(func() -> void: _sound(&"bell", bell.global_position))
+	return bell
+
+
+## 発射台（2026-11-19 本人の判断）: 「投げる」が来ないと撃たない仕掛け。持っている間、周期ごとに
+## direction（世界の方角）へ玉を撃つ。玉が鐘に当たると鐘が鳴る。
+func add_launcher(cell: Vector3i, direction: Vector3i) -> RuleBlock:
+	var block := add_block(cell, Color(0.86, 0.6, 0.45))
+	block.make_launcher(direction)
+	_launchers[block.entity_id] = direction
+	_launch_timers[block.entity_id] = 0.0
 	return block
 
 
-## その位置に音波が届いているか（音源からの距離が半径以内。自分自身の音は数えない）。
-## 伝わる距離・遮るもの・音の種類は要検証（企画書 5.4）で、P1 は距離だけで判定する（仮）。
+## 玉を投げる（発射台・生き物）。thrower には当たらない。
+func throw_ball(from: Vector3, velocity: Vector3, thrower: CollisionObject3D = null) -> ThrownBall:
+	var ball := ThrownBall.new()
+	ball.velocity = velocity
+	ball.ignore(thrower)
+	add_child(ball)
+	ball.global_position = from
+	ball.add_to_group(&"thrown_balls")
+	_sound(&"player_jump", from)
+	return ball
+
+
+## その位置に音波が届いているか（鳴っている鐘からの距離が半径以内）。
+## 伝わる距離だけで判定する（2026-11-19 本人の判断。遮る物体は追加するときに足す）。
 func is_receiving_signal(entity_id: int) -> bool:
 	if not blocks.has(entity_id):
 		return false
 	var at := blocks[entity_id].global_position
-	for source_id in _sources:
-		if source_id == entity_id:
-			continue
-		if blocks[source_id].global_position.distance_to(at) <= Tuning.SIGNAL_RADIUS:
+	for bell in bells:
+		if bell.reaches(at):
 			return true
 	return false
 
@@ -132,6 +155,9 @@ func add_creature(at: Vector3) -> Creature:
 	_creature_homes[id] = at
 	ledger.register_entity(id, EntityKind.Kind.CREATURE)
 	creature.jumped.connect(func() -> void: _sound(&"player_jump", creature.global_position))
+	creature.threw.connect(
+		func(from: Vector3, velocity: Vector3) -> void: throw_ball(from, velocity, creature)
+	)
 	return creature
 
 
@@ -242,6 +268,10 @@ func lend_to(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 	var t := ledger.token(v.token_id)
 	var mode := TriggerMode.Kind.NONE if t.is_prohibition else lend_mode
 	var result: RuleLedger.LendResult
+	if target is Bell:
+		_post("鐘には渡せません（F で鳴らす）")
+		_ui_sound(&"ui_error")
+		return RuleLedger.LendResult.UNKNOWN_TARGET
 	if use_range and not target is RuleBlock:
 		_post("生き物には範囲で渡せません（左クリックで1匹に渡す）")
 		_ui_sound(&"ui_error")
@@ -367,6 +397,10 @@ func interact(target: Node3D) -> void:
 	if is_on_checkpoint():
 		save_checkpoint()
 		return
+	if target is Bell and _within_touch(target):
+		(target as Bell).ring()
+		_post("鐘を鳴らしました")
+		return
 	if target != null and _within_touch(target):
 		var picked := _recall_all(ledger.tokens_on(_entity_of(target)))
 		if not picked.is_empty():
@@ -427,7 +461,9 @@ func aimed_block() -> Node3D:
 	if hit.is_empty():
 		return null
 	var collider := hit["collider"] as Node3D
-	return collider if collider is RuleBlock or collider is Creature else null
+	if collider is RuleBlock or collider is Creature or collider is Bell:
+		return collider
+	return null
 
 
 func update_highlight(target: Node3D) -> void:
@@ -500,49 +536,14 @@ func can_restore_previous_checkpoint() -> bool:
 
 
 func _capture() -> Dictionary:
-	var block_states := {}
-	for id in blocks:
-		var state := blocks[id].capture_state()
-		state["cursor"] = _repeat_cursors[id].get_index()
-		state["timer"] = _repeat_timers[id]
-		state["signal_cursor"] = _signal_cursors[id].get_index()
-		state["signal_timer"] = _signal_timers[id]
-		block_states[id] = state
-	var creature_states := {}
-	for id in creatures:
-		creature_states[id] = creatures[id].capture_state()
-	return {
-		"ledger": ledger.snapshot(),
-		"creatures": creature_states,
-		"player_position": player.global_position,
-		"blocks": block_states,
-		"selected_slot": selected_slot,
-		"lend_mode": lend_mode,
-		"goal_cleared": goal_cleared,
-	}
+	return WorldSnapshot.capture(self)
 
 
 func _apply(snapshot: Dictionary) -> void:
 	if snapshot.is_empty():
 		return
 	cancel_range_preview()
-	ledger.restore(snapshot["ledger"] as Dictionary)
-	player.global_position = snapshot["player_position"] as Vector3
-	player.velocity = Vector3.ZERO
-	var block_states := snapshot["blocks"] as Dictionary
-	for id: int in block_states:
-		var state := block_states[id] as Dictionary
-		blocks[id].restore_state(state)
-		_repeat_cursors[id].set_index(int(state["cursor"]))
-		_repeat_timers[id] = float(state["timer"])
-		_signal_cursors[id].set_index(int(state.get("signal_cursor", 0)))
-		_signal_timers[id] = float(state.get("signal_timer", 0.0))
-	var creature_states := snapshot.get("creatures", {}) as Dictionary
-	for id: int in creature_states:
-		creatures[id].restore_state(creature_states[id] as Dictionary)
-	selected_slot = int(snapshot["selected_slot"])
-	lend_mode = int(snapshot["lend_mode"]) as TriggerMode.Kind
-	goal_cleared = bool(snapshot["goal_cleared"])
+	WorldSnapshot.apply(self, snapshot)
 	state_changed.emit()
 
 
@@ -587,7 +588,7 @@ func _physics_process(delta: float) -> void:
 	_tick_climbers()
 	_tick_repeats(delta)
 	_tick_signals(delta)
-	_tick_pulses(delta)
+	_tick_launchers(delta)
 	if player == null:
 		return
 	_rescue_lost_blocks()
@@ -658,17 +659,20 @@ func _tick_climbers() -> void:
 		block.set_climb_target(NAN if top == -INF else top - RuleBlock.SIZE)
 
 
-## 音源の音波の見た目と音（周期ごとに輪が広がる）。
-func _tick_pulses(delta: float) -> void:
-	if _sources.is_empty():
-		return
-	_pulse_timer += delta
-	if _pulse_timer < Tuning.SIGNAL_PULSE_PERIOD:
-		return
-	_pulse_timer = 0.0
-	for source_id in _sources:
-		blocks[source_id].emit_pulse()
-		_sound(&"radial_open", blocks[source_id].global_position)
+## 発射台: 「投げる」を自分から使える（持っていて禁止されていない）間だけ、周期ごとに玉を撃つ。
+func _tick_launchers(delta: float) -> void:
+	for id in _launchers:
+		if not ledger.can_initiate(id, RuleAction.Kind.THROW):
+			_launch_timers[id] = Tuning.REPEAT_PERIOD - 0.3  # 渡されたらすぐ1発目を撃つ
+			continue
+		_launch_timers[id] += delta
+		if _launch_timers[id] < Tuning.REPEAT_PERIOD:
+			continue
+		_launch_timers[id] = 0.0
+		var dir := Vector3(_launchers[id])
+		var block := blocks[id]
+		var from := block.global_position + dir * 0.65 + Vector3(0.0, 0.2, 0.0)
+		throw_ball(from, dir * Tuning.THROW_SPEED + Vector3(0.0, 2.0, 0.0), block)
 
 
 func _fire_single_shot(token_id: int) -> void:

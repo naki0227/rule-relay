@@ -134,10 +134,10 @@ func test_4_single_shot_returns_repeat_and_signal_do_not() -> void:
 
 	island.set_lend_mode(TriggerMode.Kind.SIGNAL)
 	island.lend_to(block, false)
+	island.bell.ring()
 	await wait_physics_frames(int(60 * Tuning.REPEAT_PERIOD * 2.0))
 	assert_true(t.is_lent(), "signal keeps it while sounding")
-	island.sound_source.teleport(Vector3(-8.5, 0.5, 4.5), 0.0)
-	await wait_physics_frames(int(60 * Tuning.REPEAT_PERIOD * 2.0))
+	await wait_physics_frames(int(60 * Tuning.BELL_RING_TIME))
 	assert_false(island.is_receiving_signal(block.entity_id))
 	assert_true(t.is_lent(), "the sound stopped, the signal token stays")
 

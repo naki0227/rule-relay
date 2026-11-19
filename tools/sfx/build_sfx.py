@@ -384,6 +384,28 @@ def goal():
     return finish(soft_room(x, length=0.25, mix=0.22), -19)
 
 
+def bell():
+    """鐘: 教会の鐘の倍音の比（唸り 0.5・基音 1・短三度 1.19・五度 1.5・オクターブ 2・2.5・3）。
+    低い倍音ほど長く鳴る。基音は E4（330Hz）で高くしない。打った瞬間の金属の当たりを短く足す。"""
+    base_hz = NOTE["E4"]
+    x = t(2.0)
+    partials = [
+        (0.5, 0.5, 1.6), (1.0, 1.0, 1.2), (1.19, 0.55, 0.8), (1.5, 0.35, 0.6),
+        (2.0, 0.5, 0.5), (2.5, 0.22, 0.3), (3.0, 0.15, 0.22),
+        # 打った瞬間だけ鳴る高い倍音（鐘の「カーン」の輪郭。すぐ消えるので、余韻は低いまま）
+        (4.2, 0.9, 0.12), (5.4, 0.75, 0.09), (6.8, 0.5, 0.07),
+    ]
+    out = np.zeros_like(x)
+    for ratio, gain, decay in partials:
+        out += gain * np.sin(2 * np.pi * base_hz * ratio * x) * np.exp(-x / decay)
+    n_hit = int(0.01 * SR)
+    hit = band(RNG.standard_normal(n_hit), 2000, 6500) * np.exp(-np.arange(n_hit) / (0.002 * SR))
+    out[:n_hit] += hit * 3.0
+    tail = int(0.05 * SR)
+    out[-tail:] *= np.linspace(1.0, 0.0, tail) ** 2
+    return finish(soft_room(out, length=0.25, mix=0.15), -19)
+
+
 def radial_open():
     return finish(modal(NOTE["E4"], WOOD1, 0.08, hardness=0.55), -28)
 
@@ -413,6 +435,7 @@ SOUNDS = {
     "footstep_3": lambda: footstep(3),
     "save": save,
     "goal": goal,
+    "bell": bell,
 }
 
 

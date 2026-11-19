@@ -28,7 +28,9 @@ const BLOCK_HIGH_JUMP_HEIGHT: float = 4.0  # 高跳びを渡したブロック�
 const BLOCK_STEP_DURATION: float = 0.45  # W/A/S/D で1ブロック動く時間
 const REPEAT_PERIOD: float = 1.4  # 繰り返しの周期。ジャンプの滞空（約1.0秒）より長くする
 const SIGNAL_RADIUS: float = 6.0  # 音源の音波が届く距離（仮値。企画書 5.4 は要検証）
-const SIGNAL_PULSE_PERIOD: float = 1.4  # 音波の輪を出す間隔（見た目と音）
+const SIGNAL_PULSE_PERIOD: float = 0.7  # 鳴っている鐘が音波の輪を出す間隔（見た目）
+const BELL_RING_TIME: float = 5.0  # 鐘を1回鳴らすと音波が出ている時間（仮値）
+const THROW_SPEED: float = 7.0  # 投げた玉の水平の速さ（m/秒）
 
 # 付与（仮値）
 const TOUCH_REACH: float = 3.5

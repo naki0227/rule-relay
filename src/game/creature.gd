@@ -7,6 +7,8 @@ extends CharacterBody3D
 
 signal jumped
 signal stage_changed(stage: CreatureMind.Stage)
+## 持っている物を投げた（GameWorld が玉を飛ばす）。
+signal threw(from: Vector3, velocity: Vector3)
 
 const RADIUS: float = 0.3
 const HEIGHT: float = 0.7
@@ -25,6 +27,9 @@ var stage: CreatureMind.Stage = CreatureMind.Stage.WAIT
 var path: Array[Vector2i] = []
 ## 向いている世界の方角（x = 東、y = 南）。W はこの向き、A はその左、D は右、S は後ろ。
 var facing: Vector2i = Vector2i(0, -1)
+## 持っている物（例: 木の実）。空なら何も持っていない。「投げる」があると、立ち止まったときに投げる
+## （2026-11-19 本人の判断: 何かを持っているなら投げる）。
+var held_item: String = ""
 
 var _blocked: Dictionary = {}
 var _stuck: float = 0.0
@@ -37,6 +42,7 @@ var _outline: MeshInstance3D
 var _aimed: bool = false
 var _time: float = 0.0
 var _body: Node3D
+var _held_mesh: MeshInstance3D
 
 
 func _ready() -> void:
@@ -103,6 +109,8 @@ func _physics_process(delta: float) -> void:
 	var direction := Vector3.ZERO
 	if not path.is_empty():
 		direction = _follow(delta)
+	elif stage == CreatureMind.Stage.WAIT:
+		_maybe_throw()
 	velocity.x = direction.x * SPEED
 	velocity.z = direction.z * SPEED
 	move_and_slide()
@@ -151,6 +159,24 @@ func _follow(delta: float) -> Vector3:
 	return to.normalized()
 
 
+## 持っている物を、向いている方へ投げる（投げるを自分から使えるときだけ。禁止は優先）。
+func _maybe_throw() -> void:
+	if held_item == "" or not is_on_floor() or not can(RuleAction.Kind.THROW):
+		return
+	held_item = ""
+	_update_held()
+	var dir := Vector3(facing.x, 0.0, facing.y)
+	threw.emit(
+		global_position + dir * 0.45 + Vector3(0.0, 0.5, 0.0),
+		dir * Tuning.THROW_SPEED + Vector3(0.0, 2.0, 0.0)
+	)
+
+
+func _update_held() -> void:
+	if _held_mesh != null:
+		_held_mesh.visible = held_item != ""
+
+
 func _rise_to(next: Vector2i) -> float:
 	if not survey.is_valid():
 		return 0.0
@@ -181,13 +207,20 @@ func _set_stage(new_stage: CreatureMind.Stage) -> void:
 
 
 func capture_state() -> Dictionary:
-	return {"position": global_position, "velocity": velocity, "facing": facing}
+	return {
+		"position": global_position,
+		"velocity": velocity,
+		"facing": facing,
+		"held_item": held_item,
+	}
 
 
 func restore_state(state: Dictionary) -> void:
 	global_position = state["position"] as Vector3
 	velocity = state["velocity"] as Vector3
 	facing = state.get("facing", Vector2i(0, -1)) as Vector2i
+	held_item = String(state.get("held_item", held_item))
+	_update_held()
 	path.clear()
 	notify_environment_changed()
 
@@ -273,6 +306,9 @@ func _build() -> void:
 	_outline.position.y = 0.03
 	_outline.visible = false
 	add_child(_outline)
+	_held_mesh = _sphere(0.11, Vector3(0.0, -0.05, -0.36), Vector3.ONE, Color("#c97b4a"))
+	_body.add_child(_held_mesh)
+	_update_held()
 	_bubble = _label(1.05, 64)
 	_tokens_label = _label(1.45, 30)
 	_set_stage(CreatureMind.Stage.WAIT)
