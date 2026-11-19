@@ -22,4 +22,10 @@ static func _action_key(action: RuleAction.Kind) -> String:
 			return "back"
 		RuleAction.Kind.RIGHT:
 			return "right"
+		RuleAction.Kind.THROW:
+			return "throw"
+		RuleAction.Kind.HIGH_JUMP:
+			return "high_jump"
+		RuleAction.Kind.CLIMB:
+			return "climb"
 	return "jump"

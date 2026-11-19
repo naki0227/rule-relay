@@ -277,6 +277,12 @@ static func _explain(entry: InventoryQuery.Entry) -> String:
 			action = "右へ進む力。ブロックに渡すと東へ1マス動く。"
 		RuleAction.Kind.JUMP:
 			action = "跳ぶ力。ブロックに渡すと、そのブロックが跳ねる。"
+		RuleAction.Kind.THROW:
+			action = "投げて遠くへ渡す力（C で切り替え）。手放すと「触る」の距離だけになるが、F の回収は残る。"
+		RuleAction.Kind.HIGH_JUMP:
+			action = "いつもより高く跳ぶ力（約2ブロック）。装備しているときだけ自分に効く。"
+		RuleAction.Kind.CLIMB:
+			action = "壁を登る力。装備しているときだけ自分に効く。"
 	if t.is_prohibition:
 		var lent_note := "\n\nいまは貸し出し中なので、自分には効いていない。" if t.is_lent() else ""
 		return (

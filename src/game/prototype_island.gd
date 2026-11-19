@@ -9,6 +9,8 @@ extends GameWorld
 ##      （自分はジャンプ禁止になるが、外から持ち上げられるのは妨げない）
 ##   2. 高台の南の3つ並び（中央だけジャンプ禁止）にジャンプを渡し、乗って跳ぶ（単体でも範囲でも）
 ##   3. 南の青緑ブロックに W を渡して北へ動かし、岩棚の前まで運ぶ → 階段にして登る
+## 南西の小さな谷（深さ1、幅2）には、W と S を交互に繰り返す往復の足場がある（企画書 4-5・10）。
+## 谷の向こうは小島。ジャンプを渡して跳べないときも、往復の足場に乗れば渡れる。
 
 const SPAWN := Vector3(0.5, 0.0, 4.5)
 const GRASS := Color(0.45, 0.68, 0.38)
@@ -29,10 +31,16 @@ const TREES: Array[Vector3] = [
 ]
 ## 草や花を置かない範囲（パズルの通り道と、開始地点）。見た目だけで当たり判定はない。
 const CLEAR_AREA := AABB(Vector3(-1.0, -1.0, -12.0), Vector3(12.0, 4.0, 11.0))
+## 谷（床の上面 y = -1）と、その向こうの小島（上面 y = 0）。西寄りの x -7..-4。
+const VALLEY_MIN := Vector3i(-7, -2, 9)
+const VALLEY_MAX := Vector3i(-4, -2, 10)
+const ISLET_MIN := Vector3i(-7, -1, 11)
+const ISLET_MAX := Vector3i(-4, -1, 13)
 
 var bouncer: RuleBlock
 var row: Array[RuleBlock] = []
 var mover: RuleBlock
+var shuttle: RuleBlock
 var _goal_crystal: Node3D
 var _time: float = 0.0
 
@@ -43,6 +51,8 @@ func _ready() -> void:
 	TerrainBuilder.add_box(self, GROUND_MIN, GROUND_MAX, GRASS, "grass_cell")
 	TerrainBuilder.add_box(self, Vector3i(2, 0, -11), Vector3i(7, 2, -6), ROCK, "rock_cell")
 	TerrainBuilder.add_box(self, Vector3i(8, 0, -11), Vector3i(9, 1, -6), LEDGE, "sandstone_cell")
+	TerrainBuilder.add_box(self, VALLEY_MIN, VALLEY_MAX, ROCK, "rock_cell")
+	TerrainBuilder.add_box(self, ISLET_MIN, ISLET_MAX, GRASS, "grass_cell")
 	_build_scenery()
 	_build_blocks()
 	_give_starting_items()
@@ -64,6 +74,12 @@ func _build_blocks() -> void:
 		row.append(add_block(Vector3i(x, 0, -5)))
 	ledger.place_on_entity(RuleAction.Kind.JUMP, true, row[1].entity_id)
 	mover = add_block(Vector3i(8, 0, -2), Color(0.45, 0.76, 0.72))
+	# 谷底を北と南に1マスずつ往復する足場（上面が地面と同じ高さ）
+	shuttle = add_block(Vector3i(-6, -1, 9), Color(0.96, 0.78, 0.5))
+	ledger.place_on_entity(RuleAction.Kind.BACK, false, shuttle.entity_id, TriggerMode.Kind.REPEAT)
+	ledger.place_on_entity(
+		RuleAction.Kind.FORWARD, false, shuttle.entity_id, TriggerMode.Kind.REPEAT
+	)
 
 
 func _give_starting_items() -> void:
@@ -72,6 +88,7 @@ func _give_starting_items() -> void:
 	ledger.give_player_item(RuleAction.Kind.BACK, false, 2)
 	ledger.give_player_item(RuleAction.Kind.RIGHT, false, 3)
 	ledger.give_player_item(RuleAction.Kind.JUMP, false, 4)
+	ledger.give_player_item(RuleAction.Kind.THROW, false, 5)
 	select_slot(4)
 
 

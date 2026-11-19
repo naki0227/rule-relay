@@ -4,7 +4,7 @@ extends RefCounted
 ##
 ## 守る不変条件（validate() で検査する）:
 ## - トークンは「器の中」「付与先」「レベルに設置」のどれか1か所にだけある（複製しない）
-## - 器はホットバー（9枠）か通常インベントリ（無制限）のどちらかにある
+## - 器はホットバー（9枠）・通常インベントリ（無制限）・装備欄・世界（未回収）のどこか1か所にある
 ## - 同じ行為に能力と禁止が重なれば禁止を優先する
 
 signal changed
@@ -21,6 +21,7 @@ enum LendResult {
 	RANGE_PROHIBITION_UNSUPPORTED,
 	MODE_REQUIRED_FOR_BLOCK,
 	MODE_NOT_SUPPORTED,
+	EQUIPPED_CANNOT_LEND,
 }
 
 const PLAYER_ID: int = 1
@@ -83,6 +84,24 @@ func place_on_entity(
 	return token
 
 
+## 世界に落ちている器（F で拾うまで自分には何も効かない）。
+func place_in_world(
+	action: RuleAction.Kind,
+	is_prohibition: bool,
+	position: Vector3,
+	part: RuleVessel.Part = RuleVessel.Part.NONE,
+	item_name: String = ""
+) -> RuleVessel:
+	var token := _new_token(action, is_prohibition)
+	var vessel := _new_vessel(token)
+	vessel.location = RuleVessel.Location.WORLD
+	vessel.world_position = position
+	vessel.part = part
+	vessel.item_name = item_name
+	changed.emit()
+	return vessel
+
+
 # --- 問い合わせ -------------------------------------------------------------
 
 
@@ -105,6 +124,15 @@ func inventory_vessels() -> Array[RuleVessel]:
 	var result: Array[RuleVessel] = []
 	for v: RuleVessel in _vessels.values():
 		if v.location == RuleVessel.Location.INVENTORY:
+			result.append(v)
+	result.sort_custom(func(a: RuleVessel, b: RuleVessel) -> bool: return a.id < b.id)
+	return result
+
+
+func world_vessels() -> Array[RuleVessel]:
+	var result: Array[RuleVessel] = []
+	for v: RuleVessel in _vessels.values():
+		if v.location == RuleVessel.Location.WORLD:
 			result.append(v)
 	result.sort_custom(func(a: RuleVessel, b: RuleVessel) -> bool: return a.id < b.id)
 	return result
@@ -134,6 +162,8 @@ func player_has_ability(action: RuleAction.Kind) -> bool:
 
 func player_prohibited(action: RuleAction.Kind) -> bool:
 	for v: RuleVessel in _vessels.values():
+		if v.location == RuleVessel.Location.WORLD:
+			continue
 		var t := token(v.token_id)
 		if t.action == action and t.is_prohibition and not t.is_lent():
 			return true
@@ -234,7 +264,8 @@ func lend(
 	if check != LendResult.OK:
 		return check
 	t.holder_ids = target_ids.duplicate()
-	t.mode = mode if _all_blocks(target_ids) and not t.is_prohibition else TriggerMode.Kind.NONE
+	var uses_mode := _all_blocks(target_ids) and _needs_mode(t)
+	t.mode = mode if uses_mode else TriggerMode.Kind.NONE
 	t.is_range = is_range
 	if is_range:
 		t.range_center = range_spec["center"] as Vector3
@@ -280,10 +311,23 @@ func complete_single_shot(token_id: int, results: Array[BlockRules.Attempt]) -> 
 	return true
 
 
+## 世界に落ちている器を拾い、通常インベントリへ入れる（企画書 7: F で拾ったものは通常インベントリへ）。
+func pickup(vessel_id: int) -> bool:
+	var v := vessel(vessel_id)
+	if v == null or v.location != RuleVessel.Location.WORLD:
+		return false
+	v.location = RuleVessel.Location.INVENTORY
+	v.slot = -1
+	changed.emit()
+	return true
+
+
 ## 通常インベントリの器をホットバーの slot へ移す。slot に器があれば入れ替える。
 func move_to_hotbar(vessel_id: int, slot: int) -> bool:
 	var v := vessel(vessel_id)
 	if v == null or slot < 0 or slot >= HOTBAR_SIZE:
+		return false
+	if v.location == RuleVessel.Location.WORLD:
 		return false
 	var occupant := hotbar_vessel(slot)
 	if occupant == v:
@@ -300,7 +344,7 @@ func move_to_hotbar(vessel_id: int, slot: int) -> bool:
 ## ホットバーの器を通常インベントリへ戻す。
 func move_to_inventory(vessel_id: int) -> bool:
 	var v := vessel(vessel_id)
-	if v == null:
+	if v == null or v.location == RuleVessel.Location.WORLD:
 		return false
 	v.location = RuleVessel.Location.INVENTORY
 	v.slot = -1
@@ -362,6 +406,10 @@ func validate() -> PackedStringArray:
 			elif used_slots.has(v.slot):
 				errors.append("hotbar slot %d used twice" % v.slot)
 			used_slots[v.slot] = true
+	for v: RuleVessel in _vessels.values():
+		if v.location == RuleVessel.Location.WORLD and token(v.token_id) != null:
+			if token(v.token_id).is_lent():
+				errors.append("token %d is lent from a vessel still in the world" % v.token_id)
 	for t: RuleToken in _tokens.values():
 		if t.vessel_id == -1 and not t.is_lent():
 			errors.append("token %d is neither in a vessel nor placed" % t.id)
@@ -391,9 +439,14 @@ func _validate_targets(
 		return LendResult.RANGE_ONLY_FOR_BLOCKS
 	if is_range and t.is_prohibition:
 		return LendResult.RANGE_PROHIBITION_UNSUPPORTED
-	if all_blocks and not t.is_prohibition:
+	if all_blocks and _needs_mode(t):
 		return _validate_block_mode(mode)
 	return LendResult.OK
+
+
+## ブロックへ渡すときに発動方式が要るか（能力で、1回ずつ起こす行動のとき）。
+func _needs_mode(t: RuleToken) -> bool:
+	return not t.is_prohibition and RuleAction.is_triggered(t.action)
 
 
 func _validate_known_targets(target_ids: PackedInt32Array) -> LendResult:

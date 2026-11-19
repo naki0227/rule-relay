@@ -7,7 +7,7 @@
 | 段階 | 道具 | 内容 |
 |---|---|---|
 | format | gdtoolkit `gdformat`（4.5.0 固定） | `--check` で差分があれば失敗。`tools/check.sh --fix` で整形 |
-| lint | gdtoolkit `gdlint` | 命名・定義順・行長100など。設定は `.gdlintrc` |
+| lint | gdtoolkit `gdlint` | 命名・定義順・行長100など。設定は `.gdlintrc`。公開メソッド数の上限は 45（2026-11-19 に 30 から変更。台帳 `RuleLedger` と世界 `GameWorld` は窓口のクラスで、装備・生き物・信号の追加で 30 を超えるため） |
 | import | Godot `--headless --import` | クラス名キャッシュを作り、インポートエラーを検出 |
 | static | `tools/check_scripts.gd` | 全 `.gd` を読み込み、構文エラーと「エラーに格上げした警告」を検出 |
 | test | `tests/run_tests.gd`＋`TestCase` | `tests/unit`・`tests/integration` の `test_*.gd` を実行。`--fixed-fps 60` で物理を決定的に進める |

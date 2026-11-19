@@ -38,7 +38,8 @@ func max_height_over(node: Node3D, frames: int) -> float:
 
 func test_blocks_rest_on_the_ground() -> void:
 	for block: RuleBlock in island.blocks.values():
-		assert_almost(block.global_position.y, 0.5, 0.02, block.name)
+		var floor_y := -0.5 if block == island.shuttle else 0.5  # 往復の足場は谷底にいる
+		assert_almost(block.global_position.y, floor_y, 0.02, block.name)
 		assert_true(block.is_grounded(), block.name)
 
 

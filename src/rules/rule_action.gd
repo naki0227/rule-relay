@@ -3,9 +3,20 @@ extends RefCounted
 ## 操作キーと一対一に対応する「行動」。能力・禁止はこの行動ごとに存在する。
 ## ブロックの WASD は世界座標に固定（企画書 4-2）。北 = -Z、東 = +X とする。
 
-enum Kind { FORWARD, LEFT, BACK, RIGHT, JUMP }
+## THROW: 遠くの対象へ付与できる（企画書 5.1。渡すと自分は「触る」の距離だけになる）。
+## HIGH_JUMP / CLIMB: 装備（ジャンプブーツ / クライミンググローブ）に宿る強化（企画書 7）。
+enum Kind { FORWARD, LEFT, BACK, RIGHT, JUMP, THROW, HIGH_JUMP, CLIMB }
 
-const ALL: Array[Kind] = [Kind.FORWARD, Kind.LEFT, Kind.BACK, Kind.RIGHT, Kind.JUMP]
+const ALL: Array[Kind] = [
+	Kind.FORWARD,
+	Kind.LEFT,
+	Kind.BACK,
+	Kind.RIGHT,
+	Kind.JUMP,
+	Kind.THROW,
+	Kind.HIGH_JUMP,
+	Kind.CLIMB,
+]
 
 
 static func label(kind: Kind) -> String:
@@ -20,6 +31,12 @@ static func label(kind: Kind) -> String:
 			return "D"
 		Kind.JUMP:
 			return "ジャンプ"
+		Kind.THROW:
+			return "投げる"
+		Kind.HIGH_JUMP:
+			return "高跳び"
+		Kind.CLIMB:
+			return "登る"
 	return "?"
 
 
@@ -38,4 +55,10 @@ static func world_direction(kind: Kind) -> Vector3i:
 
 
 static func is_horizontal(kind: Kind) -> bool:
-	return kind != Kind.JUMP
+	return world_direction(kind) != Vector3i.ZERO
+
+
+## ブロックが自分から「1回の行動」として起こす行動（発動方式が要る）。
+## それ以外（投げる・高跳び・登る）は持っているだけで効く／効果のない性質で、方式を持たない。
+static func is_triggered(kind: Kind) -> bool:
+	return kind in [Kind.FORWARD, Kind.LEFT, Kind.BACK, Kind.RIGHT, Kind.JUMP]

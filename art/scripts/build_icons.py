@@ -2,7 +2,8 @@
 
     blender -b --factory-startup --python art/scripts/build_icons.py
 
-器は丸いメダル型。中央の記号で行動を示す（W/A/S/D は矢印、ジャンプは二重の山形）。
+器は丸いメダル型。中央の記号で行動を示す（W/A/S/D は矢印、ジャンプは二重の山形、投げるは玉と斜めの矢印、
+高跳び（ジャンプブーツ）は三重の山形、登る（クライミンググローブ）ははしご）。
 禁止は同じ記号を灰色にし、赤い輪と斜線を重ねる（色だけに頼らない）。
 矢印の向きはアイコン上の向きで、ゲーム内ではプレイヤーはカメラ相対、ブロックは世界の方角になる。
 原本は art/source/item_icons.blend（全アイコンを並べたシーン）。
@@ -25,7 +26,10 @@ ACTIONS = {
     "left": 90.0,
     "back": 180.0,
     "right": -90.0,
-    "jump": None,
+    "jump": "jump",
+    "throw": "throw",
+    "high_jump": "high_jump",
+    "climb": "climb",
 }
 
 
@@ -110,12 +114,36 @@ def chevron(y, width=0.2, thickness=0.085, height=0.12):
             (0.0, y + height + thickness), (-width, y + thickness)]
 
 
+def rect(x0, y0, x1, y1):
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+
+
+def ngon(cx, cy, radius, sides=12):
+    return [(cx + radius * math.cos(2 * math.pi * i / sides), cy + radius * math.sin(2 * math.pi * i / sides))
+            for i in range(sides)]
+
+
 def symbol(name, action, mat):
-    if ACTIONS[action] is None:
-        objs = [extruded_polygon(name + "A", chevron(-0.2), 0.05, mat),
+    kind = ACTIONS[action]
+    if kind == "jump":
+        return [extruded_polygon(name + "A", chevron(-0.2), 0.05, mat),
                 extruded_polygon(name + "B", chevron(0.0), 0.05, mat)]
-        return objs
-    return [extruded_polygon(name, ARROW, 0.05, mat, ACTIONS[action])]
+    if kind == "high_jump":
+        return [extruded_polygon(name + "A", chevron(-0.27, height=0.1, thickness=0.07), 0.05, mat),
+                extruded_polygon(name + "B", chevron(-0.1, height=0.1, thickness=0.07), 0.05, mat),
+                extruded_polygon(name + "C", chevron(0.07, height=0.1, thickness=0.07), 0.05, mat)]
+    if kind == "throw":
+        small = [(x * 0.75, y * 0.75) for x, y in ARROW]
+        arrow = extruded_polygon(name + "Arrow", small, 0.05, mat, -45.0)
+        for v in arrow.data.vertices:
+            v.co.x += 0.06
+            v.co.y += 0.06
+        return [extruded_polygon(name + "Ball", ngon(-0.15, -0.15, 0.085), 0.05, mat), arrow]
+    if kind == "climb":
+        parts = [rect(-0.16, -0.25, -0.1, 0.25), rect(0.1, -0.25, 0.16, 0.25)]
+        parts += [rect(-0.1, y - 0.03, 0.1, y + 0.03) for y in (-0.15, 0.0, 0.15)]
+        return [extruded_polygon(f"{name}{i}", pts, 0.05, mat) for i, pts in enumerate(parts)]
+    return [extruded_polygon(name, ARROW, 0.05, mat, kind)]
 
 
 def prohibition_mark(name):
