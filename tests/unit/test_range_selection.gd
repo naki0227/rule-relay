@@ -58,8 +58,11 @@ func test_range_rejects_creatures_and_prohibitions() -> void:
 	)
 	assert_eq(
 		ledger.lend(ban.id, PackedInt32Array([10]), TriggerMode.Kind.NONE, spec),
-		RuleLedger.LendResult.RANGE_PROHIBITION_UNSUPPORTED
+		RuleLedger.LendResult.OK,
+		"prohibitions can be range-lent (2026-11-19)"
 	)
+	assert_true(ledger.entity_prohibited(10, JUMP))
+	assert_false(ledger.player_prohibited(JUMP), "lent away: no longer binds the player")
 
 
 func test_range_recall_from_anywhere_inside() -> void:

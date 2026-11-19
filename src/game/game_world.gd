@@ -306,8 +306,6 @@ func _range_refusal(target: Node3D) -> String:
 	var t := ledger.token(v.token_id)
 	if t.is_lent():
 		return "%s は貸出中です" % t.describe()
-	if t.is_prohibition:
-		return "禁止の範囲付与は未実装です（P0）"
 	return _range_target_refusal(target)
 
 
@@ -359,7 +357,8 @@ func cancel_range_preview() -> void:
 
 
 ## F: 足もとに器が落ちていれば拾う。チェックポイント上なら保存。そうでなければ狙ったブロックから
-## 1つ回収し、無ければ立っている範囲付与を一括回収する。回収は「投げる」の有無によらず触る距離。
+## 付いているものを全部回収し、無ければ立っている範囲付与を全部回収する。回収は「投げる」の有無によらず触る距離。
+## 全部回収（2026-11-19 本人の判断）: 自分が貸したものは器へ、最初から置かれていたものは拾ったものとして通常インベントリへ。
 func interact(target: Node3D) -> void:
 	var item := nearest_world_item()
 	if item != null:
@@ -369,16 +368,15 @@ func interact(target: Node3D) -> void:
 		save_checkpoint()
 		return
 	if target != null and _within_touch(target):
-		var picked := _recall_one(_entity_of(target))
-		if picked != null:
-			_post("%s を回収しました" % picked.describe())
-			_sound(&"prohibit" if picked.is_prohibition else &"recall", target.global_position)
+		var picked := _recall_all(ledger.tokens_on(_entity_of(target)))
+		if not picked.is_empty():
+			_post("%s を回収しました" % _describe_tokens(picked))
+			var only_bans := picked.all(func(t: RuleToken) -> bool: return t.is_prohibition)
+			_sound(&"prohibit" if only_bans else &"recall", target.global_position)
 			return
-	var zone := ledger.range_tokens_at(player.global_position)
+	var zone := _recall_all(ledger.range_tokens_at(player.global_position))
 	if not zone.is_empty():
-		var t := zone[0]
-		ledger.recall(t.id)
-		_post("範囲の %s を回収しました" % t.describe())
+		_post("範囲の %s を回収しました" % _describe_tokens(zone))
 		_sound(&"recall", player.global_position)
 		return
 	_post("回収できるものがありません")
@@ -695,23 +693,20 @@ func _fire_single_shot(token_id: int) -> void:
 # --- 内部 -------------------------------------------------------------------
 
 
-## 回収の順番: 自分が貸したもの → レベルに置かれた禁止 → レベルに置かれた能力（仮の方針）。
-func _recall_one(entity_id: int) -> RuleToken:
-	var tokens := ledger.tokens_on(entity_id)
-	var ordered: Array[RuleToken] = []
+## まとめて回収し、回収できたものを返す。
+func _recall_all(tokens: Array[RuleToken]) -> Array[RuleToken]:
+	var picked: Array[RuleToken] = []
 	for t in tokens:
-		if t.vessel_id != -1:
-			ordered.append(t)
+		if ledger.recall(t.id):
+			picked.append(t)
+	return picked
+
+
+func _describe_tokens(tokens: Array[RuleToken]) -> String:
+	var names := PackedStringArray()
 	for t in tokens:
-		if t.vessel_id == -1 and t.is_prohibition:
-			ordered.append(t)
-	for t in tokens:
-		if t.vessel_id == -1 and not t.is_prohibition:
-			ordered.append(t)
-	if ordered.is_empty():
-		return null
-	ledger.recall(ordered[0].id)
-	return ordered[0]
+		names.append(t.describe())
+	return "・".join(names)
 
 
 ## いまの届き方（触る／投げる）で target に届くか。照準の色分けにも使う。

@@ -18,7 +18,6 @@ enum LendResult {
 	UNKNOWN_TARGET,
 	CANNOT_TARGET_PLAYER,
 	RANGE_ONLY_FOR_BLOCKS,
-	RANGE_PROHIBITION_UNSUPPORTED,
 	MODE_REQUIRED_FOR_BLOCK,
 	MODE_NOT_SUPPORTED,
 	EQUIPPED_CANNOT_LEND,
@@ -519,8 +518,6 @@ func _validate_targets(
 	var all_blocks := _all_blocks(target_ids)
 	if is_range and not all_blocks:
 		return LendResult.RANGE_ONLY_FOR_BLOCKS
-	if is_range and t.is_prohibition:
-		return LendResult.RANGE_PROHIBITION_UNSUPPORTED
 	if all_blocks and _needs_mode(t):
 		return _validate_block_mode(mode)
 	return LendResult.OK

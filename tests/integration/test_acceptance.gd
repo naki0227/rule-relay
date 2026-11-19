@@ -228,7 +228,11 @@ func test_7a_goal_by_climbing_with_gloves() -> void:
 
 func test_7b_goal_by_riding_the_bouncer_while_prohibited() -> void:
 	await place_player(Vector3(0.5, 0.0, -6.0))
-	island.interact(island.bouncer)
+	island.interact(island.bouncer)  # 置かれていた「ジャンプ（繰り返し）」と「ジャンプ禁止」を全部回収
+	# 跳ばなくなった足場へ、自分のジャンプを繰り返しで渡し直す（禁止中でも渡すことはできる）
+	island.select_slot(JUMP_SLOT)
+	island.set_lend_mode(TriggerMode.Kind.REPEAT)
+	assert_eq(island.lend_to(island.bouncer, false), RuleLedger.LendResult.OK)
 	assert_false(island.ledger.player_can(JUMP), "the player cannot jump at all")
 	await place_player(island.bouncer.global_position + Vector3(0.0, 0.5, 0.0))
 	for i in 400:
@@ -238,3 +242,18 @@ func test_7b_goal_by_riding_the_bouncer_while_prohibited() -> void:
 		if island.goal_cleared:
 			break
 	assert_true(island.goal_cleared)
+
+
+## 2026-11-19 本人の判断: 禁止も範囲で渡せる。F は範囲のどこからでも全部回収する。
+func test_range_prohibition_and_f_takes_everything() -> void:
+	await place_player(Vector3(4.5, 0.0, -2.5))
+	var ban := island.ledger.give_player_item(JUMP, true, 8)
+	assert_false(island.ledger.player_can(JUMP))
+	island.select_slot(8)
+	assert_eq(island.lend_to(island.row[0], true), RuleLedger.LendResult.OK)
+	assert_true(island.ledger.player_can(JUMP), "the prohibition left the player")
+	for b in island.row:
+		assert_true(island.ledger.entity_prohibited(b.entity_id, JUMP), b.name)
+	island.interact(island.row[2])  # 狙ったブロックに付いているもの（範囲の禁止）を全部回収
+	assert_false(island.ledger.token(ban.token_id).is_lent())
+	assert_true(island.ledger.entity_prohibited(island.row[1].entity_id, JUMP), "its own stays")

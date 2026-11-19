@@ -11,8 +11,6 @@ static func describe(t: RuleToken, result: RuleLedger.LendResult, use_range: boo
 			return "%s を%s%sで付与しました" % [t.describe(), how, mode]
 		RuleLedger.LendResult.ALREADY_LENT:
 			return "%s は貸出中です（F で回収）" % t.describe()
-		RuleLedger.LendResult.RANGE_PROHIBITION_UNSUPPORTED:
-			return "禁止の範囲付与は未実装です（P0）"
 		RuleLedger.LendResult.EQUIPPED_CANNOT_LEND:
 			return "装備しているものは渡せません（外してホットバーに置くと渡せます）"
 		RuleLedger.LendResult.NO_TARGETS:

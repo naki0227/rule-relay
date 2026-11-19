@@ -72,7 +72,8 @@ func test_preview_explains_why_it_cannot_lend() -> void:
 	island.ledger.give_player_item(RuleAction.Kind.JUMP, true, 8)
 	island.select_slot(8)
 	var ban := island.preview_range(island.row[0])
-	assert_true(String(ban["reason"]).contains("禁止"), "prohibitions cannot be range-lent")
+	assert_eq(String(ban["reason"]), "", "prohibitions can be range-lent too")
+	assert_gt((ban["ids"] as PackedInt32Array).size(), 2)
 
 
 func test_all_three_modes_can_be_selected() -> void:
