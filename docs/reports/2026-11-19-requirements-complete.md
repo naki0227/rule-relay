@@ -16,7 +16,7 @@
 
 ## テスト
 
-`tools/check.sh --build` が通過（format / lint / 効果音の基準 / import / static / テスト 164 件 / 起動確認 / Windows 書き出し）。
+`tools/check.sh --build` が通過（format / lint / 効果音の基準 / import / static / テスト 163 件 / 起動確認 / Windows 書き出し）。
 
 ## 途中で分かったこと
 
