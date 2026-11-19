@@ -7,8 +7,14 @@ extends RefCounted
 ## min_cell〜max_cell（両端を含む）を埋めた地形を parent に追加する。
 ## model_name を指定すると、そのモデル（1x1x1、中心が原点）を各セルに並べる。セルごとに
 ## 90度単位で向きを変えて、同じ形の繰り返しを目立たなくする（向きは座標から決まり毎回同じ）。
+## with_visual を false にすると当たり判定だけを作る（見た目は別のモデルで出すとき）。
 static func add_box(
-	parent: Node3D, min_cell: Vector3i, max_cell: Vector3i, color: Color, model_name: String = ""
+	parent: Node3D,
+	min_cell: Vector3i,
+	max_cell: Vector3i,
+	color: Color,
+	model_name: String = "",
+	with_visual: bool = true
 ) -> void:
 	var body := StaticBody3D.new()
 	body.collision_layer = Tuning.LAYER_TERRAIN
@@ -20,6 +26,9 @@ static func add_box(
 	shape.shape = box
 	shape.position = Vector3(min_cell) + size * 0.5
 	body.add_child(shape)
+	if not with_visual:
+		parent.add_child(body)
+		return
 
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D

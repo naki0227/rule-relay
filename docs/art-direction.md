@@ -33,3 +33,17 @@
 
 納品の条件: GLB、1 万三角形前後、PBR テクスチャ 1024px、A ポーズ（リグがあれば付ける）、身長 1.4m 前後。
 生成結果は `art/source/tripo/` に元データを、`assets/models/` に GLB を置き、生成日・プロンプト・利用条件を `docs/ai-usage.md` に記録する。
+
+## 2026-11-19 地形を「ブロックなのに角張って見えない」形に（本人の要望）
+
+本人の要望: ブロックでできた箱庭のゲームでも、見た目はそんなに四角く見えないものが多い。そうしたい。
+
+- セルごとに角を丸めた箱を並べるのをやめ、島の地形を **1つにつないだモデル** にした（`art/scripts/build_terrain.py`）。
+  外に出ている面だけを作るので、内側の継ぎ目は消える。折れ曲がった辺は凸も凹も丸める（0.13）
+- ブロックでできていることは残す: 岩・砂岩の側面はセルごとに少し膨らませて石積みに、色はセルごとにわずかに変える
+- 側面の頂点だけを少し揺らし、定規で引いた直線を崩す。上面は歩く面なので揺らさない
+- 当たり判定は箱のまま（見た目と1〜3cm ずれる）。動くブロック（能力を受け取るブロック）は対象外
+- 地形を変えたら `godot --headless --script res://tools/export_terrain.gd` → `blender -b --factory-startup --python art/scripts/build_terrain.py`。
+  作り直し忘れはテスト（`test_terrain_layout`）で分かる
+
+画面: `docs/images/compare/soft-terrain-after.png`（前は `cozy-art-after.png`）。
