@@ -339,8 +339,12 @@ func _build_visuals() -> void:
 # --- 音波（企画書 5.2 信号・5.4 音源） ---------------------------------------
 
 
-## 発射台にする（「投げる」を渡すと direction へ玉を撃つ）。撃つ向きに矢印の札を付ける。
+## 発射台にする（「投げる」を渡すと direction へ玉を撃つ）。モデル（launcher.glb）の筒と矢印は +X 向きなので、
+## 撃つ方角へ回す。撃つ向きの札も付ける。
 func make_launcher(direction: Vector3i) -> void:
+	var model := get_node_or_null("Model") as Node3D
+	if model != null:
+		model.rotation.y = atan2(-float(direction.z), float(direction.x))
 	var note := Label3D.new()
 	note.text = "発射台 → %s" % _direction_name(direction)
 	note.billboard = BaseMaterial3D.BILLBOARD_ENABLED

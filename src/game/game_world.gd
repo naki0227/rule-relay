@@ -139,7 +139,7 @@ func add_bell(at: Vector3) -> Bell:
 ## 発射台（2026-11-19 本人の判断）: 「投げる」が来ないと撃たない仕掛け。持っている間、周期ごとに
 ## direction（世界の方角）へ玉を撃つ。玉が鐘に当たると鐘が鳴る。
 func add_launcher(cell: Vector3i, direction: Vector3i) -> RuleBlock:
-	var block := add_block(cell, Color(0.86, 0.6, 0.45))
+	var block := add_block(cell, Color.WHITE, "launcher")
 	block.make_launcher(direction)
 	_launchers[block.entity_id] = direction
 	_launch_timers[block.entity_id] = 0.0
@@ -298,7 +298,12 @@ func lend_to(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 		result = ledger.lend(v.id, PackedInt32Array([_entity_of(target)]), mode)
 	_post(WorldQueries.describe(t, result, use_range))
 	if result == RuleLedger.LendResult.OK:
-		_sound(&"lend_range" if use_range else &"lend", target.global_position)
+		# 法則の音（能力ごとの音程）と、受け取った物が自分の材質の声で応える音
+		var motif := (
+			"%s@%d" % ["lend_range" if use_range else "lend", RuleAction.motif_semitone(t.action)]
+		)
+		_sound(StringName(motif), target.global_position)
+		_sound(WorldQueries.receive_sound(target), target.global_position)
 	else:
 		_ui_sound(&"ui_error")
 	if result == RuleLedger.LendResult.OK and mode == TriggerMode.Kind.SIGNAL:
@@ -426,7 +431,8 @@ func interact(target: Node3D) -> void:
 		if not picked.is_empty():
 			_post("%s を回収しました" % _describe_tokens(picked))
 			var only_bans := picked.all(func(t: RuleToken) -> bool: return t.is_prohibition)
-			_sound(&"prohibit" if only_bans else &"recall", target.global_position)
+			var back := "recall@%d" % RuleAction.motif_semitone(picked[0].action)
+			_sound(&"prohibit" if only_bans else StringName(back), target.global_position)
 			return
 	var zone := _recall_all(ledger.range_tokens_at(player.global_position))
 	if not zone.is_empty():
