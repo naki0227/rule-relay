@@ -118,3 +118,91 @@ jobs:
             exit 1
           fi
 
+
+  # Mac 版を Developer ID で署名し、Apple の公証に通す（初回起動の「開発元を確認できません」をなくす）。
+  # Secrets が登録されるまでは何もせずに通る。PR では動かさない（main と手動実行だけ）。
+  # 必要な Secrets（docs/macos-signing.md）:
+  #   MACOS_DEVELOPER_ID_P12_BASE64 / MACOS_DEVELOPER_ID_PASSWORD: Developer ID Application 証明書（秘密鍵つき .p12）
+  #   ASC_KEY_ID / ASC_ISSUER_ID / ASC_P8: App Store Connect の API キー（公証に使う）
+  macos-notarize:
+    name: macOS sign and notarize (Developer ID)
+    needs: checks
+    if: github.event_name != 'pull_request'
+    runs-on: macos-latest
+    timeout-minutes: 40
+    env:
+      HAS_SIGNING: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 != '' && secrets.ASC_P8 != '' }}
+    steps:
+      - name: Signing secrets are not set yet
+        if: env.HAS_SIGNING != 'true'
+        run: echo "::notice::署名用の Secrets が未登録なので、署名と公証を飛ばしました（docs/macos-signing.md）"
+
+      - uses: actions/download-artifact@v5
+        if: env.HAS_SIGNING == 'true'
+        with:
+          name: rule-relay-macos
+          path: build
+
+      - name: Import Developer ID certificate
+        if: env.HAS_SIGNING == 'true'
+        env:
+          P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_PASSWORD }}
+        run: |
+          kc="$RUNNER_TEMP/signing.keychain-db"
+          kc_password="$(uuidgen)"
+          printf '%s' "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$kc_password" "$kc"
+          security set-keychain-settings -lut 3600 "$kc"
+          security unlock-keychain -p "$kc_password" "$kc"
+          security import "$RUNNER_TEMP/cert.p12" -k "$kc" -P "$P12_PASSWORD" -f pkcs12 \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$kc_password" "$kc" >/dev/null
+          security list-keychains -d user -s "$kc" $(security list-keychains -d user | tr -d '"')
+          rm -f "$RUNNER_TEMP/cert.p12"
+          if ! security find-identity -v -p codesigning "$kc" | grep -q '"Developer ID Application'; then
+            echo "::error::.p12 に Developer ID Application の証明書（秘密鍵つき）がありません。Apple Distribution / Apple Development では Mac 版を配れません"
+            exit 1
+          fi
+
+      - name: Sign the app
+        if: env.HAS_SIGNING == 'true'
+        run: |
+          cd build
+          unzip -q rule-relay.zip
+          app="$(ls -d *.app | head -n 1)"
+          codesign --force --deep --options runtime --timestamp \
+            --sign "Developer ID Application" "$app"
+          codesign --verify --deep --strict --verbose=2 "$app"
+
+      - name: Notarize and staple
+        if: env.HAS_SIGNING == 'true'
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_P8: ${{ secrets.ASC_P8 }}
+        run: |
+          cd build
+          app="$(ls -d *.app | head -n 1)"
+          key="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$ASC_P8" > "$key"
+          ditto -c -k --keepParent "$app" notarize.zip
+          xcrun notarytool submit notarize.zip --key "$key" --key-id "$ASC_KEY_ID" \
+            --issuer "$ASC_ISSUER_ID" --wait --timeout 30m
+          rm -f "$key" notarize.zip
+          xcrun stapler staple "$app"
+          spctl --assess --type execute --verbose=2 "$app"
+          mkdir -p ../signed
+          ditto -c -k --keepParent "$app" ../signed/rule-relay-macos.zip
+
+      - name: Upload signed macOS build
+        if: env.HAS_SIGNING == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: rule-relay-macos-signed
+          path: signed
+          retention-days: 30
+
+      - name: Remove the signing keychain
+        if: always() && env.HAS_SIGNING == 'true'
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
