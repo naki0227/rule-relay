@@ -21,6 +21,10 @@ const CHIPS: Array[InventoryQuery.Category] = [
 ]
 
 var ledger: RuleLedger
+## 持ち物を動かす窓口（参加者ならホストへの依頼になる）。空なら台帳を直接動かす。
+var actions: LedgerActions
+## この画面を見ているプレイヤー。
+var player_id: int = RuleLedger.PLAYER_ID
 ## 効果音を鳴らす関数（Hud.play_ui）。無ければ鳴らさない。
 var play_sound: Callable
 var category: InventoryQuery.Category = InventoryQuery.Category.ALL
@@ -108,14 +112,14 @@ func selected_vessel_id() -> int:
 
 ## 選んでいる器をホットバーの slot へ（入っていた器と入れ替え）。
 func move_selected_to_hotbar(slot: int) -> bool:
-	var ok := _selected_id != -1 and ledger.move_to_hotbar(_selected_id, slot)
+	var ok := _selected_id != -1 and _actions().move_to_hotbar(_selected_id, slot)
 	_sound(&"ui_drop" if ok else &"ui_error")
 	return ok
 
 
 ## 選んでいる器をかばん（通常インベントリ）へ。能力はかばんでは自分に効かない（禁止は効いたまま）。
 func move_selected_to_inventory() -> bool:
-	var ok := _selected_id != -1 and ledger.move_to_inventory(_selected_id)
+	var ok := _selected_id != -1 and _actions().move_to_inventory(_selected_id)
 	_sound(&"ui_drop" if ok else &"ui_error")
 	return ok
 
@@ -123,14 +127,14 @@ func move_selected_to_inventory() -> bool:
 ## ドラッグ＆ドロップと同じ処理（テストからも呼ぶ）。
 func drop_on_hotbar(vessel_id: int, slot: int) -> bool:
 	_selected_id = vessel_id
-	var ok := ledger.move_to_hotbar(vessel_id, slot)
+	var ok := _actions().move_to_hotbar(vessel_id, slot)
 	_sound(&"ui_drop" if ok else &"ui_error")
 	return ok
 
 
 func drop_into_bag(vessel_id: int) -> bool:
 	_selected_id = vessel_id
-	var ok := ledger.move_to_inventory(vessel_id)
+	var ok := _actions().move_to_inventory(vessel_id)
 	_sound(&"ui_drop" if ok else &"ui_error")
 	return ok
 
@@ -139,7 +143,7 @@ func drop_into_bag(vessel_id: int) -> bool:
 func drop_on_equip(vessel_id: int, part: RuleVessel.Part) -> bool:
 	_selected_id = vessel_id
 	var v := ledger.vessel(vessel_id)
-	var ok := v != null and v.part == part and ledger.equip(vessel_id) == RuleLedger.EquipResult.OK
+	var ok := v != null and v.part == part and _actions().equip(vessel_id)
 	_sound(&"ui_confirm" if ok else &"ui_error")
 	return ok
 
@@ -152,9 +156,9 @@ func toggle_equip_selected() -> bool:
 		return false
 	var ok := false
 	if v.location == RuleVessel.Location.EQUIPPED:
-		ok = ledger.unequip(v.id)
+		ok = _actions().unequip(v.id)
 	else:
-		ok = ledger.equip(v.id) == RuleLedger.EquipResult.OK
+		ok = _actions().equip(v.id)
 	_sound(&"ui_confirm" if ok else &"ui_error")
 	return ok
 
@@ -162,6 +166,14 @@ func toggle_equip_selected() -> bool:
 func _accepts_for_equip(vessel_id: int, part: RuleVessel.Part) -> bool:
 	var v := ledger.vessel(vessel_id)
 	return v != null and v.part == part
+
+
+func _actions() -> LedgerActions:
+	if actions == null or actions.ledger != ledger:
+		actions = LedgerActions.new()
+		actions.ledger = ledger
+		actions.player_id = player_id
+	return actions
 
 
 func _sound(event: StringName) -> void:
@@ -177,13 +189,13 @@ func detail_title() -> String:
 func refresh() -> void:
 	if ledger == null or _grid == null or not visible:
 		return
-	_matches = InventoryQuery.search(ledger, _search.text, category)
+	_matches = InventoryQuery.search(ledger, _search.text, category, player_id)
 	var bag: Array[InventoryQuery.Entry] = []
 	for entry in _matches:
 		if entry.location == RuleVessel.Location.INVENTORY:
 			bag.append(entry)
 	_grid.set_entries(bag)
-	var bag_total := ledger.inventory_vessels().size()
+	var bag_total := ledger.inventory_vessels(player_id).size()
 	_bag_count.text = (
 		"%d こ" % bag_total if bag.size() == bag_total else "%d / %d こ" % [bag.size(), bag_total]
 	)
@@ -209,13 +221,13 @@ func _update_slots() -> void:
 		not _search.text.strip_edges().is_empty() or category != InventoryQuery.Category.ALL
 	)
 	for slot in _hotbar_slots:
-		var v := ledger.hotbar_vessel(slot.slot_index)
+		var v := ledger.hotbar_vessel(slot.slot_index, player_id)
 		var id := -1 if v == null else v.id
 		var t: RuleToken = null if v == null else ledger.token(v.token_id)
 		var dim := filtering and t != null and _find(id) == null
 		slot.show_vessel(id, t, id != -1 and id == _selected_id, dim)
 	for i in _equip_slots.size():
-		var ev := ledger.equipped_vessel(EQUIP_PARTS[i])
+		var ev := ledger.equipped_vessel(EQUIP_PARTS[i], player_id)
 		var eid := -1 if ev == null else ev.id
 		var et: RuleToken = null if ev == null else ledger.token(ev.token_id)
 		var edim := filtering and et != null and _find(eid) == null

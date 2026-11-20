@@ -7,6 +7,8 @@ extends Node
 ## 同じ依頼の再送（同じ seq）は一度しか適用しない。古い世代の状態は捨てる。
 
 signal joined(player_id: int)
+## ホスト: 参加者が入った（再接続も含む）。
+signal player_joined(player_id: int)
 signal join_refused
 signal state_changed(generation: int)
 signal result_received(seq: int, result: Dictionary)
@@ -42,8 +44,9 @@ func host(peer: MultiplayerPeer, host_ledger: RuleLedger, session_key: String) -
 
 
 ## 部屋に入る。接続できたら session_key を名乗って参加を頼む。
-func join(peer: MultiplayerPeer, session_key: String) -> void:
-	ledger = RuleLedger.new()
+## into_ledger を渡すと、ホストから届いた状態をその台帳に入れる（画面と同じ台帳を使うため）。
+func join(peer: MultiplayerPeer, session_key: String, into_ledger: RuleLedger = null) -> void:
+	ledger = into_ledger if into_ledger != null else RuleLedger.new()
 	_session_key = session_key
 	multiplayer.multiplayer_peer = peer
 	if not multiplayer.connected_to_server.is_connected(_on_connected):
@@ -76,6 +79,21 @@ func publish() -> void:
 	_broadcast()
 
 
+## ホスト: peer に対応するプレイヤー ID（知らなければ -1）。
+func player_of_peer(peer: int) -> int:
+	return _roster.player_of_peer(peer) if is_host() else -1
+
+
+## ホスト: プレイヤーに対応する peer（つながっていなければ -1）。
+func peer_of_player(target: int) -> int:
+	if not is_host():
+		return -1
+	for peer in multiplayer.get_peers():
+		if _roster.player_of_peer(peer) == target:
+			return peer
+	return -1
+
+
 func close() -> void:
 	if multiplayer.multiplayer_peer != null:
 		multiplayer.multiplayer_peer.close()
@@ -98,6 +116,7 @@ func _request_join(session_key: String) -> void:
 	if id == -1:
 		_refuse.rpc_id(peer)
 		return
+	player_joined.emit(id)
 	generation += 1
 	_welcome.rpc_id(peer, id)
 	_broadcast()

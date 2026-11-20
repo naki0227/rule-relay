@@ -10,6 +10,8 @@ signal goal_reached
 signal checkpoint_changed
 ## 効果音の依頼。positional なら at から鳴らし、そうでなければ画面の音として鳴らす。
 signal sound_requested(event: StringName, at: Vector3, positional: bool)
+## 参加者の画面で操作したとき。ホストへ送る依頼（NetWorld が受け取って送る）。
+signal action_requested(op: Dictionary)
 
 const FIRST_BLOCK_ID: int = 100
 const FIRST_CREATURE_ID: int = 500
@@ -30,6 +32,17 @@ var checkpoint_center: Vector3 = Vector3.ZERO
 var checkpoint_radius: float = 1.5
 ## 到達判定の高台（AABB）。
 var goal_box: AABB = AABB()
+
+## 通信対戦中か（ホストでも参加者でも true）。参加者は replica も true。
+var networked: bool = false
+## 参加者の画面: ルールと物理はホストが決める。ここでは自分のアバターだけを動かし、操作は依頼として送る。
+var replica: bool = false
+## 仲間のアバター（操り人形）。キーはプレイヤー ID。
+var avatars: Dictionary[int, PlayerAvatar] = {}
+## メッセージの送り先を差し替える（ホストが参加者の代わりに操作するとき、その人へ返すため）。
+var post_sink: Callable = Callable()
+## 持ち物の画面からの操作の窓口（参加者ならホストへの依頼になる）。
+var ledger_actions: LedgerActions = LedgerActions.new()
 
 var _next_block_id: int = FIRST_BLOCK_ID
 var _repeat_cursors: Dictionary[int, RepeatCursor] = {}
@@ -54,6 +67,7 @@ var _world_items: Dictionary[int, WorldItem] = {}
 
 
 func _ready() -> void:
+	ledger_actions.ledger = ledger
 	ledger.changed.connect(_on_ledger_changed)
 
 
@@ -75,6 +89,18 @@ func spawn_player(at: Vector3) -> PlayerAvatar:
 	camera_rig.target = player
 	add_child(camera_rig)
 	return player
+
+
+## プレイヤー ID のアバター（自分なら player、仲間なら操り人形。いなければ null）。
+func avatar_of(player_id: int) -> PlayerAvatar:
+	if player != null and player.player_id == player_id:
+		return player
+	return avatars.get(player_id) as PlayerAvatar
+
+
+## いま操作している人のプレイヤー ID。
+func acting_id() -> int:
+	return player.player_id if player != null else RuleLedger.PLAYER_ID
 
 
 func add_block(cell: Vector3i, color: Color = Color(0.85, 0.65, 0.35)) -> RuleBlock:
@@ -175,7 +201,7 @@ func _notify_creatures() -> void:
 
 
 func selected_vessel() -> RuleVessel:
-	return ledger.hotbar_vessel(selected_slot)
+	return ledger.hotbar_vessel(selected_slot, acting_id())
 
 
 func select_slot(slot: int) -> void:
@@ -209,7 +235,8 @@ func cycle_mode() -> void:
 ## ないときだけ選べる。渡したあとも「触る」と F の回収は残る。
 func toggle_reach() -> void:
 	if not throw_mode and not can_throw():
-		_post("「投げる」が使えません（%s）" % _throw_unavailable_reason())
+		var why := WorldQueries.throw_unavailable_reason(ledger, acting_id())
+		_post("「投げる」が使えません（%s）" % why)
 		_ui_sound(&"ui_error")
 		return
 	throw_mode = not throw_mode
@@ -218,44 +245,42 @@ func toggle_reach() -> void:
 
 
 func can_throw() -> bool:
-	return ledger.player_can(RuleAction.Kind.THROW)
+	return ledger.player_can(RuleAction.Kind.THROW, acting_id())
 
 
+## 投げるを n 個持てば射程も n 倍（2026-11-19 本人確定）。
 func reach() -> float:
-	return Tuning.THROW_REACH if throw_mode and can_throw() else Tuning.TOUCH_REACH
-
-
-func _throw_unavailable_reason() -> String:
-	if ledger.player_prohibited(RuleAction.Kind.THROW):
-		return "投げる禁止を持っています"
-	for t: RuleToken in _player_tokens(RuleAction.Kind.THROW):
-		if not t.is_in_vessel():
-			return "貸出中です（F で回収）"
-	return "ホットバーにありません"
-
-
-func _player_tokens(action: RuleAction.Kind) -> Array[RuleToken]:
-	var result: Array[RuleToken] = []
-	for v: RuleVessel in ledger.inventory_vessels():
-		result.append(ledger.token(v.token_id))
-	for slot in RuleLedger.HOTBAR_SIZE:
-		var hv := ledger.hotbar_vessel(slot)
-		if hv != null:
-			result.append(ledger.token(hv.token_id))
-	return result.filter(func(t: RuleToken) -> bool: return t.action == action)
+	if not (throw_mode and can_throw()):
+		return Tuning.TOUCH_REACH
+	return (
+		Tuning.THROW_REACH
+		* Tuning.stack_factor(ledger.ability_count(RuleAction.Kind.THROW, acting_id()))
+	)
 
 
 ## W/A/S/D/Space を押した瞬間。自分の行動と、貸し出した単発の起動に振り分ける。
+## 同じ行動の単発が同じブロックに n 個あれば、まとめて1回 n 倍で試みる。
 func press_action(action: RuleAction.Kind) -> void:
-	var route := InputRouter.route_press(ledger, action)
+	var route := InputRouter.route_press(ledger, action, acting_id())
 	if route.player_acts and action == RuleAction.Kind.JUMP:
 		player.request_jump()
-	for token_id in route.single_shot_token_ids:
-		_fire_single_shot(token_id)
+	if replica:
+		action_requested.emit({"op": "press", "action": action})
+		return
+	if not route.single_shot_token_ids.is_empty():
+		_fire_single_shots(route.single_shot_token_ids)
 
 
 ## 選択中のホットバーの器から、target へ付与する。use_range なら target の層の円内の全ブロックへ。
 func lend_to(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
+	if replica:
+		var ref := WorldQueries.target_ref(self, target)
+		action_requested.emit({"op": "lend", "target": ref, "range": use_range})
+		return RuleLedger.LendResult.OK
+	return _give_to(target as PlayerAvatar) if target is PlayerAvatar else _lend(target, use_range)
+
+
+func _lend(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 	var v := selected_vessel()
 	if v == null:
 		_post("ホットバー %d は空です" % (selected_slot + 1))
@@ -293,6 +318,25 @@ func lend_to(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 		for holder in t.holder_ids:
 			# 付与してすぐ動き出すように、最初の周期を短くする
 			_repeat_timers[holder] = Tuning.REPEAT_PERIOD - 0.25
+	return result
+
+
+## 仲間へ能力を渡す（受け手の承認なし。2026-11-19 本人確定）。選んでいる枠の能力から渡す。
+## 枠の器が空なら、受け取って持っている同じ種類の能力を渡す。
+func _give_to(target: PlayerAvatar) -> RuleLedger.LendResult:
+	var token_id := WorldQueries.giveable_token(ledger, acting_id(), selected_slot)
+	if token_id == -1 or not _within_reach(target):
+		_post("渡せる能力がないか、届きません")
+		_ui_sound(&"ui_error")
+		return RuleLedger.LendResult.NO_TARGETS
+	var result := ledger.give_to_player(token_id, acting_id(), target.player_id)
+	var t := ledger.token(token_id)
+	if result == RuleLedger.LendResult.OK:
+		_post("%s を仲間に渡しました" % t.describe())
+		_sound(&"lend", target.global_position)
+	else:
+		_post(WorldQueries.describe(t, result, false))
+		_ui_sound(&"ui_error")
 	return result
 
 
@@ -390,11 +434,24 @@ func cancel_range_preview() -> void:
 ## 付いているものを全部回収し、無ければ立っている範囲付与を全部回収する。回収は「投げる」の有無によらず触る距離。
 ## 全部回収（2026-11-19 本人の判断）: 自分が貸したものは器へ、最初から置かれていたものは拾ったものとして通常インベントリへ。
 func interact(target: Node3D) -> void:
+	if replica:
+		action_requested.emit({"op": "interact", "target": WorldQueries.target_ref(self, target)})
+		return
+	var dropped := WorldQueries.nearest_dropped(ledger, player.global_position)
+	if dropped == -1:
+		_interact(target)
+		return
+	ledger.pickup_token(dropped, acting_id())
+	_post("落ちていた %s を拾いました" % ledger.token(dropped).describe())
+	_sound(&"ui_pick", player.global_position)
+
+
+func _interact(target: Node3D) -> void:
 	var item := nearest_world_item()
 	if item != null:
 		_pick_up(item)
 		return
-	if is_on_checkpoint():
+	if is_on_checkpoint() and not networked:
 		save_checkpoint()
 		return
 	if target is Bell and _within_touch(target):
@@ -431,7 +488,7 @@ func nearest_world_item() -> RuleVessel:
 
 func _pick_up(v: RuleVessel) -> void:
 	var at := v.world_position
-	ledger.pickup(v.id)
+	ledger.pickup(v.id, acting_id())
 	var t := ledger.token(v.token_id)
 	var item_label := v.item_name if v.item_name != "" else t.describe()
 	_post("%s を拾いました（通常インベントリ。E で開いて使う）" % item_label)
@@ -454,14 +511,18 @@ func aimed_block() -> Node3D:
 	var cam := camera_rig.camera()
 	var from := cam.global_position
 	var to := from + -cam.global_basis.z * (Tuning.THROW_REACH + CameraRig.DISTANCE)
-	var query := PhysicsRayQueryParameters3D.create(
-		from, to, Tuning.LAYER_TERRAIN | Tuning.LAYER_BLOCKS | Tuning.LAYER_CREATURES
-	)
+	var mask := Tuning.LAYER_TERRAIN | Tuning.LAYER_BLOCKS | Tuning.LAYER_CREATURES
+	var query := PhysicsRayQueryParameters3D.create(from, to, mask | Tuning.LAYER_AVATARS)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	if hit.is_empty():
 		return null
 	var collider := hit["collider"] as Node3D
-	if collider is RuleBlock or collider is Creature or collider is Bell:
+	if (
+		collider is RuleBlock
+		or collider is Creature
+		or collider is Bell
+		or collider is PlayerAvatar
+	):
 		return collider
 	return null
 
@@ -556,43 +617,20 @@ func _falling_blocks() -> Array[RuleBlock]:
 	return result
 
 
-## 島の外へ落ちきったブロックを救済する（仮の方針、docs/TODO.md）: 自分が貸していた
-## 能力・禁止は器へ戻し、ブロックは最初の位置に戻す。レベルに置かれていた能力・禁止はブロックに残る。
-func _rescue_lost_blocks() -> void:
-	for id in blocks:
-		var block := blocks[id]
-		if block.global_position.y >= Tuning.FALL_LIMIT_Y:
-			continue
-		var returned := 0
-		for t in ledger.tokens_on(id):
-			if t.vessel_id != -1 and ledger.recall(t.id):
-				returned += 1
-		block.teleport(RuleBlock.cell_center(_home_cells[id]), 0.0)
-		var note := "（貸していた %d 個は手元に戻りました）" % returned if returned > 0 else ""
-		_post("島から落ちたブロックを元の位置に戻しました%s" % note)
-	for id in creatures:
-		var creature := creatures[id]
-		if creature.global_position.y >= Tuning.FALL_LIMIT_Y:
-			continue
-		for t in ledger.tokens_on(id):
-			if t.vessel_id != -1:
-				ledger.recall(t.id)
-		creature.restore_state({"position": _creature_homes[id], "velocity": Vector3.ZERO})
-		_post("島から落ちた生き物を元の場所に戻しました")
-
-
 # --- 毎フレーム -------------------------------------------------------------
 
 
 func _physics_process(delta: float) -> void:
-	_tick_climbers()
+	if replica:
+		return  # ルールと物理はホストが決める
+	WorldTicks.climbers(self)
 	_tick_repeats(delta)
 	_tick_signals(delta)
-	_tick_launchers(delta)
+	WorldTicks.launchers(self, delta)
 	if player == null:
 		return
-	_rescue_lost_blocks()
-	if player.global_position.y < Tuning.FALL_LIMIT_Y:
+	WorldTicks.rescue_lost(self)
+	if player.global_position.y < Tuning.FALL_LIMIT_Y and not networked:
 		restore_checkpoint()
 	if not goal_cleared and goal_box.has_volume() and goal_box.has_point(player.global_position):
 		goal_cleared = true
@@ -615,7 +653,7 @@ func _tick_repeats(delta: float) -> void:
 		var block := blocks[id]
 		var result := BlockRules.attempt(ledger, id, action, block.is_ready_for(action))
 		if result == BlockRules.Attempt.SUCCESS:
-			block.perform(action, ledger.can_initiate(id, RuleAction.Kind.HIGH_JUMP))
+			block.perform(action, _high(id), PartyQuery.entity_count(ledger, id, action))
 
 
 ## 信号方式: 音波が届いている間だけ、繰り返しと同じ周期で行動を試みる。途絶えると次の動作は
@@ -638,54 +676,41 @@ func _tick_signals(delta: float) -> void:
 		var block := blocks[id]
 		var result := BlockRules.attempt(ledger, id, action, block.is_ready_for(action))
 		if result == BlockRules.Attempt.SUCCESS:
-			block.perform(action, ledger.can_initiate(id, RuleAction.Kind.HIGH_JUMP))
+			block.perform(action, _high(id), PartyQuery.entity_count(ledger, id, action))
 
 
-## 登るを持つブロック: 東西南北の隣でいちばん高い上面に、自分の上面がそろうまで登る（rule_block.gd）。
-## 禁止は優先（登る禁止を持てば登らない）。
-func _tick_climbers() -> void:
-	for id in blocks:
-		var block := blocks[id]
-		if not ledger.can_initiate(id, RuleAction.Kind.CLIMB):
-			block.set_climb_target(NAN)
-			continue
-		var c := block.cell()
-		var heights := survey_heights(Vector2i(c.x, c.z), 1)
-		var top := -INF
-		for dir: Vector2i in CreatureMind.DIRECTIONS:
-			var n := Vector2i(c.x, c.z) + dir
-			if heights.has(n):
-				top = maxf(top, float(heights[n]))
-		block.set_climb_target(NAN if top == -INF else top - RuleBlock.SIZE)
+func _high(id: int) -> bool:
+	return ledger.can_initiate(id, RuleAction.Kind.HIGH_JUMP)
 
 
-## 発射台: 「投げる」を自分から使える（持っていて禁止されていない）間だけ、周期ごとに玉を撃つ。
-func _tick_launchers(delta: float) -> void:
-	for id in _launchers:
-		if not ledger.can_initiate(id, RuleAction.Kind.THROW):
-			_launch_timers[id] = Tuning.REPEAT_PERIOD - 0.3  # 渡されたらすぐ1発目を撃つ
-			continue
-		_launch_timers[id] += delta
-		if _launch_timers[id] < Tuning.REPEAT_PERIOD:
-			continue
-		_launch_timers[id] = 0.0
-		var dir := Vector3(_launchers[id])
-		var block := blocks[id]
-		var from := block.global_position + dir * 0.65 + Vector3(0.0, 0.2, 0.0)
-		throw_ball(from, dir * Tuning.THROW_SPEED + Vector3(0.0, 2.0, 0.0), block)
+## 単発をまとめて起動する。同じブロックに同じ行動の単発が n 個あれば、1回だけ n 倍で試みる
+## （例: 4人分のジャンプを単発で渡す → 1回の高いジャンプ。2026-11-19 本人確定）。
+## 起動したトークンは成否によらず、直前に付与した人へ戻る（付与者が退出していれば落ちる）。
+func _fire_single_shots(token_ids: PackedInt32Array) -> void:
+	var by_holder := {}
+	for token_id in token_ids:
+		for holder in ledger.token(token_id).holder_ids:
+			by_holder[holder] = int(by_holder.get(holder, 0)) + 1
+	var outcome := {}
+	for holder: int in by_holder:
+		var action := ledger.token(token_ids[0]).action
+		var block := blocks[holder]
+		var result := BlockRules.attempt(ledger, holder, action, block.is_ready_for(action))
+		if result == BlockRules.Attempt.SUCCESS:
+			block.perform(action, _high(holder), int(by_holder[holder]))
+		outcome[holder] = result
+	for token_id in token_ids:
+		_finish_single_shot(token_id, outcome)
 
 
-func _fire_single_shot(token_id: int) -> void:
+func _finish_single_shot(token_id: int, outcome: Dictionary) -> void:
 	var t := ledger.token(token_id)
 	var results: Array[BlockRules.Attempt] = []
 	for holder in t.holder_ids:
-		var block := blocks[holder]
-		var result := BlockRules.attempt(ledger, holder, t.action, block.is_ready_for(t.action))
-		if result == BlockRules.Attempt.SUCCESS:
-			block.perform(t.action, ledger.can_initiate(holder, RuleAction.Kind.HIGH_JUMP))
-		results.append(result)
+		results.append(outcome[holder] as BlockRules.Attempt)
 	var label := t.describe()
-	ledger.complete_single_shot(token_id, results)
+	var drop_at := blocks[t.holder_ids[0]].global_position + Vector3(0.0, 0.8, 0.0)
+	ledger.complete_single_shot(token_id, results, drop_at)
 	if BlockRules.single_shot_succeeded(results):
 		_post("単発の %s が成功して戻りました" % label)
 	else:
@@ -701,7 +726,7 @@ func _fire_single_shot(token_id: int) -> void:
 func _recall_all(tokens: Array[RuleToken]) -> Array[RuleToken]:
 	var picked: Array[RuleToken] = []
 	for t in tokens:
-		if ledger.recall(t.id):
+		if ledger.recall(t.id, acting_id()):
 			picked.append(t)
 	return picked
 
@@ -748,10 +773,16 @@ func _sound(event: StringName, at: Vector3) -> void:
 
 
 func _ui_sound(event: StringName) -> void:
+	if post_sink.is_valid():
+		post_sink.call("", event)
+		return
 	sound_requested.emit(event, Vector3.ZERO, false)
 
 
 func _post(text: String) -> void:
+	if post_sink.is_valid():
+		post_sink.call(text, &"")
+		return
 	message_posted.emit(text)
 
 
@@ -760,25 +791,9 @@ func _on_ledger_changed() -> void:
 		blocks[id].show_tokens(ledger.tokens_on(id))
 	for id in creatures:
 		creatures[id].show_tokens(ledger.tokens_on(id))
-	_sync_world_items()
+	WorldItem.sync_all(self, ledger, _world_items)
 	if throw_mode and not can_throw():
 		# 「投げる」を渡した・禁止を拾ったら、その場で「触る」に戻る（最後の1回は投げられる）
 		throw_mode = false
 		_post("「投げる」を手放したので、届き方は「触る」になりました")
 	state_changed.emit()
-
-
-func _sync_world_items() -> void:
-	var present := {}
-	for v in ledger.world_vessels():
-		present[v.id] = true
-		if not _world_items.has(v.id):
-			var node := WorldItem.new()
-			node.setup(v, ledger.token(v.token_id))
-			add_child(node)
-			_world_items[v.id] = node
-		_world_items[v.id].position = v.world_position
-	for id: int in _world_items.keys():
-		if not present.has(id):
-			_world_items[id].queue_free()
-			_world_items.erase(id)

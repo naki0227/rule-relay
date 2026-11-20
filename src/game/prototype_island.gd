@@ -114,13 +114,22 @@ func _build_creature() -> void:
 		ledger.place_on_entity(action, false, creature.entity_id)
 
 
+## はじめの持ち物（W/A/S/D・ジャンプ・投げる）。オンラインで入ってきた仲間にも同じものを配る。
+func give_starting_items(player_id: int = RuleLedger.PLAYER_ID) -> void:
+	var actions: Array[RuleAction.Kind] = [
+		RuleAction.Kind.FORWARD,
+		RuleAction.Kind.LEFT,
+		RuleAction.Kind.BACK,
+		RuleAction.Kind.RIGHT,
+		RuleAction.Kind.JUMP,
+		RuleAction.Kind.THROW,
+	]
+	for i in actions.size():
+		ledger.give_player_item(actions[i], false, i, player_id)
+
+
 func _give_starting_items() -> void:
-	ledger.give_player_item(RuleAction.Kind.FORWARD, false, 0)
-	ledger.give_player_item(RuleAction.Kind.LEFT, false, 1)
-	ledger.give_player_item(RuleAction.Kind.BACK, false, 2)
-	ledger.give_player_item(RuleAction.Kind.RIGHT, false, 3)
-	ledger.give_player_item(RuleAction.Kind.JUMP, false, 4)
-	ledger.give_player_item(RuleAction.Kind.THROW, false, 5)
+	give_starting_items()
 	select_slot(4)
 	ledger.place_in_world(
 		RuleAction.Kind.HIGH_JUMP, false, BOOTS_AT, RuleVessel.Part.FEET, "ジャンプブーツ"

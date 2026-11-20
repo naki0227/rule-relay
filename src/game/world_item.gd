@@ -51,3 +51,32 @@ func _process(delta: float) -> void:
 	if _medal != null:
 		_medal.position.y = 0.7 + sin(_time * 2.2) * 0.07
 		_medal.rotation.y = _time * 1.4
+
+
+## 台帳に合わせて、世界に落ちている器と能力（単発成功時に付与者が退出していた）の見た目をそろえる。
+## nodes はキー → ノード（器は vessel_id、落ちている能力は -token_id）。
+static func sync_all(parent: Node, ledger: RuleLedger, nodes: Dictionary[int, WorldItem]) -> void:
+	var present := {}
+	for v in ledger.world_vessels():
+		present[v.id] = true
+		_place(parent, nodes, v.id, v, ledger.token(v.token_id))
+	for t in PartyQuery.dropped_tokens(ledger):
+		var stand_in := RuleVessel.new()
+		stand_in.world_position = t.drop_position
+		present[-t.id] = true
+		_place(parent, nodes, -t.id, stand_in, t)
+	for key: int in nodes.keys():
+		if not present.has(key):
+			nodes[key].queue_free()
+			nodes.erase(key)
+
+
+static func _place(
+	parent: Node, nodes: Dictionary[int, WorldItem], key: int, v: RuleVessel, t: RuleToken
+) -> void:
+	if not nodes.has(key):
+		var node := WorldItem.new()
+		node.setup(v, t)
+		parent.add_child(node)
+		nodes[key] = node
+	nodes[key].position = v.world_position

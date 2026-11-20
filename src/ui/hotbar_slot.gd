@@ -8,6 +8,12 @@ const SIZE := Vector2(80, 80)
 var slot_index: int = 0
 var selected: bool = false
 var token: RuleToken
+## 同じ能力をいくつ持っているか（2以上なら「×n」を出す）。
+var stack: int = 0:
+	set(value):
+		if value != stack:
+			stack = value
+			queue_redraw()
 
 
 func _ready() -> void:
@@ -52,3 +58,10 @@ func _draw() -> void:
 	style.number = slot_index + 1
 	style.compact = true
 	ItemPainter.draw_slot(self, Rect2(Vector2.ZERO, SIZE), token, style)
+	if stack >= 2:
+		var font := UiTheme.font(800)
+		var at := Vector2(SIZE.x - 34, SIZE.y - 8)
+		draw_string_outline(
+			font, at, "×%d" % stack, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, 6, UiTheme.CREAM
+		)
+		draw_string(font, at, "×%d" % stack, HORIZONTAL_ALIGNMENT_LEFT, -1, 20, UiTheme.INK)

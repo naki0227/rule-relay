@@ -15,6 +15,8 @@ const SIZE: float = 1.0
 
 var entity_id: int = -1
 var velocity_y: float = 0.0
+## 参加者の画面では、ブロックはホストから受け取った位置へ動くだけ（自分では物理を計算しない）。
+var remote: bool = false
 
 var _step_from: Vector3 = Vector3.ZERO
 var _step_to: Vector3 = Vector3.ZERO
@@ -31,6 +33,7 @@ var _marker_material: StandardMaterial3D
 var _signal_label: Label3D
 ## 登る（クライミンググローブの能力）を持っているとき、底面をこの高さまで上げてつかまる。NAN なら登らない。
 var _climb_bottom: float = NAN
+var _remote_target: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
@@ -77,10 +80,11 @@ func is_ready_for(action: RuleAction.Kind) -> bool:
 
 ## 行動を実行する。呼ぶ前に is_ready_for と BlockRules.attempt で成功を確かめること。
 ## high_jump: 高跳び（ジャンプブーツの能力）を持っていれば、跳ぶ高さが固定で上がる。
-func perform(action: RuleAction.Kind, high_jump: bool = false) -> void:
+## stack: 同じ能力の数。ジャンプを n 個持てば到達高度が n 倍（2026-11-19 本人確定）。
+func perform(action: RuleAction.Kind, high_jump: bool = false, stack: int = 1) -> void:
 	if action == RuleAction.Kind.JUMP:
 		var height := Tuning.BLOCK_HIGH_JUMP_HEIGHT if high_jump else Tuning.BLOCK_JUMP_HEIGHT
-		velocity_y = Tuning.jump_velocity(height)
+		velocity_y = Tuning.jump_velocity(height * Tuning.stack_factor(stack))
 		jumped.emit()
 		return
 	stepped.emit()
@@ -171,8 +175,19 @@ func show_tokens(tokens: Array[RuleToken]) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if remote:
+		# 運動学の同期を残したまま動かすので、乗っている参加者のアバターも運ばれる
+		global_position = global_position.lerp(_remote_target, minf(1.0, delta * 20.0))
+		return
 	_integrate_vertical(delta)
 	_integrate_horizontal(delta)
+
+
+## 参加者の画面で、ホストから受け取った位置を目指す。大きくずれたらすぐ合わせる。
+func set_remote_target(at: Vector3) -> void:
+	if not remote or at.distance_to(global_position) > 3.0:
+		teleport(at, 0.0)
+	_remote_target = at
 
 
 ## 登る: 隣のマス（東西南北）でいちばん高い上面まで、自分の上面がそろう高さへ登ってつかまる
