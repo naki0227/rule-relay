@@ -108,10 +108,12 @@ func enter_stage(new_stage_id: String) -> void:
 	tracker.reset(world.ledger)
 	_clear_timer = -1.0
 	_snapshots = {PartyLifecycle.STAGE_START: _capture()}
-	for player_id in players:
-		_teleport(player_id, world.spawn_for(player_id))
+	# 先にステージを組み立てさせてから出現地点へ動かす（逆だと参加者の新しい世界では、
+	# 古い世界へ届いた移動が失われ、全員が1人目の出現地点に重なる）
 	if _online():
 		_enter.rpc(new_stage_id, run_id)
+	for player_id in players:
+		_teleport(player_id, world.spawn_for(player_id))
 	_broadcast_party()
 
 
@@ -291,16 +293,20 @@ func request_restart() -> void:
 
 
 ## V 長押し: 全員リセットの投票（無ければ提案）。参加者はホストへ送る。
+## 票には「見ていたリセットの回数」を添える。同時に届いた票の途中でリセットが決まったとき、
+## 残りの票が次の投票の提案として数えられないようにするため。
 func request_vote() -> void:
 	if not in_stage():
 		return
 	if is_authority():
-		_vote_as(local_id())
+		_vote_as(local_id(), lifecycle.reset_count())
 	else:
-		_vote.rpc_id(1)
+		_vote.rpc_id(1, lifecycle.reset_count())
 
 
-func _vote_as(player_id: int) -> void:
+func _vote_as(player_id: int, seen_resets: int) -> void:
+	if seen_resets < lifecycle.reset_count():
+		return  # 賛成したリセットはもう決まった
 	if lifecycle.vote_reset(player_id):
 		world.message_posted.emit(
 			"全員リセットの投票 %d / %d（V 長押しで賛成）" % [lifecycle.yes_vote_count(), lifecycle.required_votes()]
@@ -652,10 +658,10 @@ func _ack(player_key: String, reward_event_id: String) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _vote() -> void:
+func _vote(seen_resets: int) -> void:
 	var sender := net.session.player_of_peer(multiplayer.get_remote_sender_id())
 	if is_authority() and sender != -1 and in_stage():
-		_vote_as(sender)
+		_vote_as(sender, seen_resets)
 
 
 @rpc("any_peer", "call_remote", "reliable")
