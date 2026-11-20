@@ -1,7 +1,10 @@
 class_name PlayerInput
 extends Node
-## キーボード・マウスの入力を GameWorld の操作に変換する。ルールの判定はここに書かない。
-## キー割当は project.godot の Input Map（企画書 8 の操作表）。
+## キーボード・マウス・ゲームパッドの入力を GameWorld の操作に変換する。ルールの判定はここに書かない。
+## キー割当は project.godot の Input Map（企画書 8 の操作表）。ゲームパッドは Xbox 風の並び
+## （Steam Deck と同じ）: 左スティック 移動・右スティック カメラ・A ジャンプ・X F（回収など）・
+## Y 触る／投げる・RT 渡す・LT まとめて渡す（押している間プレビュー）・LB/RB ホットバー・
+## 十字↑ 方式の切り替え・十字↓ 全員リセットの投票・View 持ち物・Start メニュー・右スティック押し込み 円形メニュー。
 
 const ACTION_KEYS: Dictionary[StringName, RuleAction.Kind] = {
 	&"move_forward": RuleAction.Kind.FORWARD,
@@ -10,6 +13,9 @@ const ACTION_KEYS: Dictionary[StringName, RuleAction.Kind] = {
 	&"move_right": RuleAction.Kind.RIGHT,
 	&"jump": RuleAction.Kind.JUMP,
 }
+
+## 右スティックでカメラを回す速さ（マウスの移動量に換算して 1 秒あたり。仮値）。
+const PAD_LOOK_SPEED: float = 800.0
 
 var world: GameWorld
 var hud: Hud
@@ -21,7 +27,7 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if world == null or world.player == null:
 		return
 	var blocked := hud != null and hud.is_inventory_open()
@@ -32,6 +38,7 @@ func _process(_delta: float) -> void:
 			Input.get_axis(&"move_back", &"move_forward")
 		)
 	world.player.move_intent = intent
+	_look_with_stick(delta)
 	world.player.view_yaw = world.camera_rig.yaw
 	var aimed := world.aimed_block()
 	world.update_highlight(aimed)
@@ -62,6 +69,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		world.cancel_range_preview()
 		var open := hud.toggle_inventory()
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if open else Input.MOUSE_MODE_CAPTURED
+		if open and event is InputEventJoypadButton:
+			# ゲームパッドでは検索欄に文字を打たないので、十字キーと A を持ち物の操作に回す
+			get_viewport().gui_release_focus()
 	elif hud != null and hud.is_inventory_open():
 		_handle_inventory(event)
 	elif Input.mouse_mode != Input.MOUSE_MODE_CAPTURED and event is InputEventMouseButton:
@@ -78,6 +88,7 @@ func _handle_gameplay(event: InputEvent) -> void:
 	for i in RuleLedger.HOTBAR_SIZE:
 		if event.is_action_pressed(StringName("slot_%d" % (i + 1))):
 			world.select_slot(i)
+	_step_hotbar(event)
 	if event.is_action_pressed(&"lend_single"):
 		if world.lend_to(world.aimed_block(), false) == RuleLedger.LendResult.OK and hud != null:
 			hud.hints.used("lend")
@@ -138,16 +149,61 @@ func _handle_radial(event: InputEvent) -> void:
 
 
 ## 持ち物画面を開いている間（検索欄に入力中のキーは検索欄が受け取るので、ここには来ない）。
+## ゲームパッド: 十字←→ で持ち物を選び、LB/RB で入れる枠を選んで A でホットバーへ、X でかばんへ、Y で装備。
 func _handle_inventory(event: InputEvent) -> void:
 	for i in RuleLedger.HOTBAR_SIZE:
 		if event.is_action_pressed(StringName("slot_%d" % (i + 1))):
 			hud.inventory.move_selected_to_hotbar(i)
 	if event.is_action_pressed(&"store_item"):
 		hud.inventory.move_selected_to_inventory()
+	if not event is InputEventJoypadButton:
+		return
+	_step_hotbar(event)
+	if event.is_action_pressed(&"ui_left"):
+		_step_inventory(-1)
+	elif event.is_action_pressed(&"ui_right"):
+		_step_inventory(1)
+	elif event.is_action_pressed(&"jump"):
+		hud.inventory.move_selected_to_hotbar(world.selected_slot)
+	elif event.is_action_pressed(&"interact"):
+		hud.inventory.move_selected_to_inventory()
+	elif event.is_action_pressed(&"toggle_reach"):
+		hud.inventory.toggle_equip_selected()
+
+
+## LB/RB: ホットバーの枠を1つ前・後ろへ（端で反対側へ回る）。
+func _step_hotbar(event: InputEvent) -> void:
+	var step := 0
+	if event.is_action_pressed(&"hotbar_prev"):
+		step = -1
+	elif event.is_action_pressed(&"hotbar_next"):
+		step = 1
+	if step != 0:
+		world.select_slot(posmod(world.selected_slot + step, RuleLedger.HOTBAR_SIZE))
+
+
+## 持ち物画面で、見えている持ち物を1つ前・後ろへ選ぶ。
+func _step_inventory(step: int) -> void:
+	var ids := hud.inventory.visible_vessel_ids()
+	if ids.is_empty():
+		return
+	var at := ids.find(hud.inventory.selected_vessel_id())
+	hud.inventory.select_vessel(ids[posmod(at + step, ids.size())])
+
+
+## 右スティック: カメラを回す。円形メニューを開いている間は、倒した向きで方式を選ぶ。
+func _look_with_stick(delta: float) -> void:
+	var look := Input.get_vector(&"camera_left", &"camera_right", &"camera_up", &"camera_down")
+	if _radial_open():
+		if look.length() > 0.3:
+			hud.radial_menu.point(look)
+	elif look != Vector2.ZERO and not (hud != null and hud.is_inventory_open()):
+		world.camera_rig.rotate_by(look * PAD_LOOK_SPEED * delta)
 
 
 ## Esc は検索欄に入力中でも持ち物画面を閉じる（世界は戻さない）。GUI より先に受け取る。
 func _input(event: InputEvent) -> void:
+	InputMode.observe(event)
 	if hud == null or not hud.is_inventory_open():
 		return
 	if event.is_action_pressed(&"restore_checkpoint"):

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI/ローカル用: 固定バージョンの Godot (Linux editor) と Windows・macOS のエクスポートテンプレートを
+# CI/ローカル用: 固定バージョンの Godot (Linux editor) と Windows・macOS・Linux のエクスポートテンプレートを
 # 公式リリースから取得し、SHA-512 を検証して配置する。
 #   tools/install_godot.sh [インストール先ディレクトリ]   (既定: $HOME/godot)
 # 終了後、インストール先の godot を PATH に通すか GODOT 環境変数で指定する。
@@ -31,15 +31,18 @@ if [ ! -x "$DEST/godot" ]; then
   chmod +x "$DEST/godot"
 fi
 
-if [ ! -f "$TEMPLATE_DIR/windows_release_x86_64.exe" ] || [ ! -f "$TEMPLATE_DIR/macos.zip" ]; then
+if [ ! -f "$TEMPLATE_DIR/windows_release_x86_64.exe" ] || [ ! -f "$TEMPLATE_DIR/macos.zip" ] \
+  || [ ! -f "$TEMPLATE_DIR/linux_release.x86_64" ]; then
   fetch "$TEMPLATES_TPZ" "$TEMPLATES_SHA512"
-  # 容量を抑えるため Windows x86_64 用と macOS 用（Intel と Apple シリコンの両方入り）だけを展開する
+  # 容量を抑えるため Windows・Linux（Steam Deck を含む）の x86_64 用と macOS 用（Intel と Apple シリコン）だけを展開する
   unzip -q -o -j "$WORK/$TEMPLATES_TPZ" \
     templates/version.txt \
     templates/windows_release_x86_64.exe \
     templates/windows_debug_x86_64.exe \
     templates/windows_debug_x86_64_console.exe \
     templates/macos.zip \
+    templates/linux_release.x86_64 \
+    templates/linux_debug.x86_64 \
     -d "$TEMPLATE_DIR"
 fi
 

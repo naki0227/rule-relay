@@ -138,7 +138,7 @@ func update_context(target: Node3D, in_reach: bool, on_checkpoint: bool) -> void
 			prompts.append(["C", "遠すぎる"])
 		elif world.can_throw():
 			prompts.append(["C", "投げるで届く"])
-	var key := str(prompts)
+	var key := str(prompts) + str(InputMode.using_pad)
 	if _context.get_meta("key", "") == key:
 		return
 	_context.set_meta("key", key)
