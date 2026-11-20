@@ -3,7 +3,7 @@ extends "res://tests/integration/island_playthrough.gd"
 ## 結果は docs/reports/2026-11-20-goal-probes.md。
 ## - test_gate_*: 意図した挙動が守られていることを確かめる
 ## - test_finding_*: 試遊した時点の、意外な挙動を記録する（直すかどうかは本人が決める）
-## - test_accepted_*: 本人が「このままでよい」と決めた挙動（決めた内容は報告の「決定」の節）
+## - test_accepted_*: 本人が「このままでよい」と決めた挙動（G2・G5 など。決めた内容は報告の「決定」の節）
 ## 照準はゲームと同じく、カメラ（CameraRig）を回して GameWorld.aimed_block() の光線で決める。
 ## カメラは頭の上 1.5 を中心に回るので、光線はいつもその点を通る。狙う点（仲間の体の高さ）へ
 ## 向けた yaw・pitch を、CameraRig の範囲（-70°〜30°）に収めて与える（マウスで向けるのと同じ）。
@@ -24,7 +24,7 @@ const HEAD := 1.5
 ## [ステージ, 登り口の下に立つ仲間の足もと, 立ったまま狙えるか, 跳んで狙えるか]
 ## 下の仲間の位置は test_goal_sightlines と同じ。
 const CASES: Array = [
-	[StageCatalog.INTRO_ID, Vector3(0.5, 0.0, -3.5), true, true],
+	[StageCatalog.INTRO_ID, Vector3(0.5, 0.0, -3.5), false, true],
 	[StageCatalog.HILL_ID, Vector3(0.5, 2.0, -1.5), false, true],
 	[StageCatalog.HILL_ID, Vector3(0.5, 0.0, 5.5), false, true],
 	[StageCatalog.QUARRY_ID, Vector3(1.5, 3.0, -7.5), false, false],
@@ -65,7 +65,8 @@ func after_each() -> void:
 
 
 ## 窪みの床に立ったままでは、カメラをどう向けても（下向きいっぱいの -70° を含む）下の仲間に照準が
-## 合わない（開けた島 6 つ）。導入だけは縁が 1 マスなので合う（test_finding_intro_*）。
+## 合わない（導入と開けた島 6 つ）。導入は縁が 1 マスで合っていたので、2026-11-20 に南の縁を 2 マスに
+## した（G1。test_gate_intro_*）。
 func test_gate_camera_from_the_hollow_floor_misses_the_climbers_below() -> void:
 	for case: Array in CASES:
 		var seen := await _standing_aims(String(case[0]), case[1] as Vector3)
@@ -78,7 +79,9 @@ func test_gate_camera_from_the_hollow_floor_misses_the_climbers_below() -> void:
 
 ## 窪みの中で跳ぶと、頂点の近くで縁の上からカメラが下の仲間に合う（足もとはゴールの箱の中のまま）。
 ## 三つの鐘・採石場の段など、下の人が崖のすぐ下にいる所は跳んでも合わない。
-func test_finding_jumping_in_the_hollow_aims_over_the_rim() -> void:
+## G2: 2026-11-20 本人の判断で受け入れた。跳んで頂点で狙うのは上手な人の技として認め、
+## システムのルール（「ゴールの中・空中からは渡せない」など）は足さない（docs/adr/0011 決定 10）。
+func test_accepted_jumping_in_the_hollow_aims_over_the_rim() -> void:
 	for case: Array in CASES:
 		var seen := await _jumping_aims(String(case[0]), case[1] as Vector3)
 		print("    %s %s: 跳んで狙えた点 %d / %d" % [case[0], case[1], seen.x, seen.y])
@@ -89,7 +92,8 @@ func test_finding_jumping_in_the_hollow_aims_over_the_rim() -> void:
 
 
 ## 丘の上の旗: 歩いて窪みに入り、窪みの中で跳んで、段丘（高さ 2）の仲間へジャンプを投げ渡せる。
-func test_finding_hill_top_jump_and_give_from_inside_the_goal() -> void:
+## G2: 上手な人の技として受け入れた（本人の方針: 技は認め、システムのルールは足さない）。
+func test_accepted_hill_top_jump_and_give_from_inside_the_goal() -> void:
 	await _enter_with_teammate(StageCatalog.HILL_ID)
 	var mate := WorldParty.add_avatar(w, B, Vector3(0.5, 2.0, -1.5))
 	await _walk_to(Vector3(0.5, 1.0, 1.5))
@@ -111,55 +115,50 @@ func test_finding_hill_top_jump_and_give_from_inside_the_goal() -> void:
 	assert_eq(w.ledger.ability_count(JUMP, B), 2, "the teammate below now has jump x2")
 
 
-## 導入: 窪みの南の列に立てば、立ったまま下の仲間の頭に照準が合い、触る距離（4.0）で渡せる。
-func test_finding_intro_gives_down_from_the_hollow_floor() -> void:
+## 導入: 窪みの南の列（壁ぎわ）に歩いて立っても、下の仲間のどこにも照準が合わない。
+## G1: 縁が 1 マスだったころは、ここから頭に合って触って渡せた。2026-11-20 に岩棚を北へ広げて
+## 南の縁を 2 マスにした（地形だけで直す。ルールは足さない）。
+func test_gate_intro_hollow_floor_cannot_give_down() -> void:
 	await _enter_with_teammate(StageCatalog.INTRO_ID)
 	var mate := WorldParty.add_avatar(w, B, Vector3(0.5, 0.0, -3.5))
 	await _lift_up("lift", Vector3(0.5, 0.0, -3.5), Vector3(0.5, 2.0, -5.5))
 	await _walk_into_goal()
-	await _walk_to(Vector3(0.5, 1.0, -6.4), 0.1)
+	await _walk_to(Vector3(0.5, 1.0, _goal().end.z - 0.1), 0.1)
 	assert_true(_goal().has_point(_me().global_position), "standing on the hollow floor")
 	assert_lt(_me().global_position.y, 1.2, "down in the hollow")
-	assert_true(await _aims(w, _me(), mate, BODY), "the camera sees the head over the rim")
-	var chest := _me().global_position + Vector3(0.0, 1.0, 0.0)
-	print("    導入: 胸から仲間の足もとまで %.2f（触る届き 4.0）" % chest.distance_to(mate.global_position))
-	w.select_slot(_slot_of(JUMP))
-	assert_eq(w.lend_to(w.aimed_block(), false), RuleLedger.LendResult.OK, "gave by touch")
-	assert_eq(w.ledger.ability_count(JUMP, B), 2, "the teammate below now has jump x2")
+	assert_false(await _aims(w, _me(), mate, BODY), "the 2-cell rim hides the teammate below")
 
 
 # --- 4. 縁に立ってもゴールに数えられるか -------------------------------------------
 
 
-## 縁の角に乗ったまま（足もとの高さは縁）、体の中心が窪みの上へ 0.2 ほど出ると、ゴールの箱に入る。
-## そこからは下の仲間に照準が合い、投げて渡せる（縁に立っているのと同じ見通し）。
-func test_finding_standing_on_the_rim_lip_counts_as_in_the_goal() -> void:
+## 縁の角に乗ったまま（足もとの高さは縁）、体の中心を窪みの上へ少しずつ出していっても、窪みへ落ちる
+## までゴールの箱には入らない。G3: 縁の角に乗った人（中心が窪みの上へ 0.22 m まで出る）が数えられて
+## いたので、2026-11-20 にゴールの箱を水平に 0.3 内側へ縮めた（ClearCondition.GOAL_INSET。全ステージ共通）。
+func test_gate_standing_on_the_rim_lip_is_not_in_the_goal() -> void:
 	await _enter_with_teammate(StageCatalog.HILL_ID)
-	var mate := WorldParty.add_avatar(w, B, Vector3(0.5, 2.0, -1.5))
 	await _walk_to(Vector3(0.5, 1.0, 1.5))
 	await _walk_to(Vector3(-0.5, 2.0, -1.5))
 	await _lift_up("lift", Vector3(-0.5, 2.0, -1.5), Vector3(0.5, 4.0, -4.5))
 	await _walk_to(Vector3(0.5, 4.0, -4.3), 0.15)
-	var lip := false
+	var rim_z := -5.0  # 窪み（z = -7〜-5）の南の縁
+	var overhang := 0.0
 	for step in 60:
 		_face(Vector3(0.5, 4.0, -9.0))
 		_me().move_intent = Vector2(0.0, 0.3)  # ほんの少しずつ前へ（キーを短く押す）
 		await tree.physics_frame
 		_me().move_intent = Vector2.ZERO
 		await wait_physics_frames(20)
-		if _goal().has_point(_me().global_position) and _me().global_position.y > 3.8:
-			lip = true
-			break
-	assert_true(lip, "balanced on the rim lip inside the goal box")
-	await wait_physics_frames(120)
-	var at := _me().global_position
-	print("    縁の角: 足もと %s（窪みの床は y = 3、縁は y = 4）" % at)
-	assert_true(_me().is_on_floor() and at.y > 3.8, "still standing on the rim after 2 s")
-	assert_true(_goal().has_point(at), "and still counted as in the goal")
-	assert_true(await _aims(w, _me(), mate, BODY), "the terrace below is in sight")
-	w.toggle_reach()
-	w.select_slot(_slot_of(JUMP))
-	assert_eq(w.lend_to(w.aimed_block(), false), RuleLedger.LendResult.OK, "threw the jump down")
+		var at := _me().global_position
+		if at.y < 3.5:
+			break  # 窪みへ落ちた
+		overhang = maxf(overhang, rim_z - at.z)
+		assert_false(_goal().has_point(at), "on the rim lip (%s) is not in the goal" % at)
+	print("    縁の角: 窪みの上へ出た最大 %.2f m（数える箱は縁から 0.3 内側）" % overhang)
+	assert_gt(overhang, 0.0, "balanced on the rim lip over the hollow")
+	assert_lt(_me().global_position.y, 3.5, "then dropped into the hollow")
+	await wait_physics_frames(10)
+	assert_true(_goal().has_point(_me().global_position), "down on the floor counts")
 
 
 # --- 2. 窪みの罠（ひとり） ---------------------------------------------------------
@@ -266,11 +265,11 @@ func _stand_at(from: Vector3) -> void:
 	await wait_physics_frames(4)
 
 
-## ゴールの箱の床の点（壁から 0.3 内側。step が箱より大きければ真ん中と四隅）。
+## ゴールの箱の床の点（数える箱そのものが壁から 0.3 内側。step が箱より大きければ真ん中と四隅）。
 func _floor_points(goal: AABB, step: float) -> Array[Vector3]:
 	var y := goal.position.y + 0.1
-	var lo := Vector3(goal.position.x + 0.3, y, goal.position.z + 0.3)
-	var hi := Vector3(goal.end.x - 0.3, y, goal.end.z - 0.3)
+	var lo := Vector3(goal.position.x, y, goal.position.z)
+	var hi := Vector3(goal.end.x, y, goal.end.z)
 	if step > goal.size.x:
 		var c := goal.get_center()
 		return [
@@ -418,7 +417,7 @@ func test_accepted_one_player_outside_blocks_the_clear_but_is_named() -> void:
 	await wait_physics_frames(20)
 	assert_eq(host.goal_missing_text(), "", "nobody in the goal yet: no list")
 	var goal := _goal_of(host)
-	assert_true(await _drive(host.world, Vector3(0.5, 1.1, -7.0), 300), "A walked into the goal")
+	assert_true(await _drive(host.world, Vector3(0.5, 1.1, -8.0), 300), "A walked into the goal")
 	assert_true(goal.has_point(host.world.player.global_position))
 	await _until(func() -> bool: return client.goal_missing == PackedInt32Array([B]), "list")
 	assert_eq(host.goal_missing, PackedInt32Array([B]))
@@ -442,9 +441,9 @@ func test_gate_both_in_the_goal_show_no_list_and_clear() -> void:
 	host.world.player.global_position = Vector3(0.5, 2.1, -5.5)
 	client.world.player.global_position = Vector3(-0.5, 2.1, -5.5)
 	await wait_physics_frames(20)
-	assert_true(await _drive(client.world, Vector3(-0.5, 1.1, -7.0), 300), "B in the goal")
+	assert_true(await _drive(client.world, Vector3(-0.5, 1.1, -8.0), 300), "B in the goal")
 	await _until(func() -> bool: return host.goal_missing == PackedInt32Array([A]), "A missing")
-	assert_true(await _drive(host.world, Vector3(0.5, 1.1, -7.0), 300), "A in the goal")
+	assert_true(await _drive(host.world, Vector3(0.5, 1.1, -8.0), 300), "A in the goal")
 	await _until(func() -> bool: return host.last_clear_text != "", "clear")
 	await _until(func() -> bool: return client.last_clear_text != "", "clear on the client")
 	for d: PartyDirector in [host, client]:
@@ -461,7 +460,7 @@ func test_gate_waiting_spectator_does_not_block_the_clear() -> void:
 	assert_eq(host.lifecycle.state_of(B), PartyLifecycle.State.WAITING_SPECTATOR)
 	host.world.player.global_position = Vector3(0.5, 2.1, -5.5)
 	await wait_physics_frames(20)
-	assert_true(await _drive(host.world, Vector3(0.5, 1.1, -7.0), 300), "A walked into the goal")
+	assert_true(await _drive(host.world, Vector3(0.5, 1.1, -8.0), 300), "A walked into the goal")
 	await _until(func() -> bool: return host.last_clear_text != "")
 	assert_false(client.progress.has_cleared(StageCatalog.INTRO_ID), "the waiting one gets nothing")
 

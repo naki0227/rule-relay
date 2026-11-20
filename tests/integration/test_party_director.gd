@@ -87,12 +87,13 @@ func test_lending_jump_to_the_lift_clears_and_saves_rewards() -> void:
 	assert_eq(w.lend_to(lift, false), RuleLedger.LendResult.OK)
 	assert_false(w.ledger.player_can(JUMP), "the player gave up jump")
 	await _put(lift.global_position + Vector3(0.0, 0.6, 0.0))
-	for i in 240:
+	var reached_ledge := false
+	for i in 300:
 		if director.last_clear_text != "":
 			break
-		# ブロックが跳んだ頂点で岩棚の上へ歩く
-		var above_ledge := _player().global_position.y > 2.05
-		_player().move_intent = Vector2(0.0, 1.0) if above_ledge else Vector2.ZERO
+		# ブロックが跳んだ頂点で岩棚の上へ歩き、そのまま奥の窪み（ゴール）の真ん中へ降りる
+		reached_ledge = reached_ledge or _player().global_position.y > 2.05
+		_player().move_intent = Vector2(0.0, 1.0) if reached_ledge else Vector2.ZERO
 		_player().view_yaw = 0.0
 		await tree.physics_frame
 	_player().move_intent = Vector2.ZERO

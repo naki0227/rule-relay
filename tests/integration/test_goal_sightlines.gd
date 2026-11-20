@@ -91,11 +91,12 @@ func test_goal_hollow_floor_is_inside_the_goal_box() -> void:
 	await _walk_to(Vector3(0.5, 4.0, -4.5))
 
 
-## ゴールの箱の中の、足もとの点（真ん中と、内側へ 0.3 寄せた四隅）。
+## ゴールの箱の中の、足もとの点（真ん中と四隅）。数える箱は窪みの壁から水平に 0.3 内側
+## （ClearCondition.GOAL_INSET）なので、四隅は壁から 0.3 の点（床に立つ人が寄れるいちばん端）。
 func _points_in(goal: AABB) -> Array[Vector3]:
 	var y := goal.position.y + 0.1
-	var lo := Vector3(goal.position.x + 0.3, y, goal.position.z + 0.3)
-	var hi := Vector3(goal.end.x - 0.3, y, goal.end.z - 0.3)
+	var lo := Vector3(goal.position.x, y, goal.position.z)
+	var hi := Vector3(goal.end.x, y, goal.end.z)
 	var center := goal.get_center()
 	return [
 		Vector3(center.x, y, center.z),
