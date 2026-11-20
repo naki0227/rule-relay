@@ -28,4 +28,6 @@ static func _action_key(action: RuleAction.Kind) -> String:
 			return "high_jump"
 		RuleAction.Kind.CLIMB:
 			return "climb"
+		RuleAction.Kind.DASH:
+			return "forward"  # 仮: ダッシュ専用のアイコンは見た目の作業でつくる
 	return "jump"

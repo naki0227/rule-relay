@@ -35,7 +35,9 @@ func _ready() -> void:
 	_add_label(box, "Rule Relay", UiTheme.SIZE_TITLE, UiTheme.INK)
 	_add_label(box, "ルールは厳格に。解法は自由に。", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_profile = _add_field(box, "記録の名前（同じ PC で2つ起動するときは別の名前に）", "player")
-	_add_button(box, "ひとりで遊ぶ", func() -> void: solo_chosen.emit(profile_name()))
+	var first := _add_button(box, "ひとりで遊ぶ", func() -> void: solo_chosen.emit(profile_name()))
+	# ゲームパッドでも選べるよう、最初のボタンに焦点を置く（十字キーで移動、A で決定）
+	first.call_deferred(&"grab_focus")
 	_add_button(box, "部屋を作る（友だちを待つ）", _host)
 	_address = _add_field(box, "部屋に入る: ホストの IP アドレス", "127.0.0.1")
 	_port = _add_field(box, "ポート", str(DEFAULT_PORT))

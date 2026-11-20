@@ -17,7 +17,7 @@ extends RefCounted
 ##   達成できる形にした。通信切断中の人を active に入れるかは実行時の層が決める）
 ## - active が空（全員死亡）なら、どの人の条件も成立しない
 
-enum Kind { NONE, REACH_HEIGHT, ALL_AT_GOAL, CARRY_OBJECT, ACTIVATE }
+enum Kind { NONE, REACH_HEIGHT, ALL_AT_GOAL, CARRY_OBJECT, ACTIVATE, ALL_OF }
 
 ## 足もとの高さの誤差（物理で 2.999 のように少し沈むため）。仮値。
 const HEIGHT_TOLERANCE: float = 0.05
@@ -29,6 +29,8 @@ var area: AABB = AABB()
 var height: float = 0.0
 ## CARRY_OBJECT の対象物、ACTIVATE の仕掛けの key。
 var target_key: String = ""
+## ALL_OF: これが全部成り立てばクリア（手分けして別々の鐘を鳴らす、など）。
+var parts: Array[ClearCondition] = []
 
 
 static func none() -> ClearCondition:
@@ -61,6 +63,14 @@ static func carry_object(key: String, goal: AABB) -> ClearCondition:
 	return c
 
 
+## 全部が成り立つ（順番は問わない。例: 3つの鐘を全部鳴らす）。
+static func all_of(conditions: Array[ClearCondition]) -> ClearCondition:
+	var c := ClearCondition.new()
+	c.kind = Kind.ALL_OF
+	c.parts = conditions
+	return c
+
+
 ## 仕掛け（key）が作動した（鐘を鳴らした など）。
 static func activate(key: String) -> ClearCondition:
 	var c := ClearCondition.new()
@@ -82,10 +92,20 @@ func is_met(snapshot: Dictionary) -> bool:
 			return (snapshot.get("activated", PackedStringArray()) as PackedStringArray).has(
 				target_key
 			)
+		Kind.ALL_OF:
+			return (
+				not parts.is_empty()
+				and parts.all(func(c: ClearCondition) -> bool: return c.is_met(snapshot))
+			)
 	return false
 
 
 func describe() -> String:
+	if kind == Kind.ALL_OF:
+		var texts := PackedStringArray()
+		for c in parts:
+			texts.append(c.describe())
+		return "全部: " + "／".join(texts)
 	match kind:
 		Kind.REACH_HEIGHT:
 			return "高さ %.0f の場所へ誰かが上がる" % height

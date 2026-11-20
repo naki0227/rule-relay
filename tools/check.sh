@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ローカルとCIで同じ品質ゲートを実行する。
 #   tools/check.sh            format / lint / import / static / test / smoke
-#   tools/check.sh --build    上記に加えて Windows 実行ファイルと macOS アプリをエクスポート
+#   tools/check.sh --build    上記に加えて Windows・macOS・Linux（Steam Deck）向けにエクスポート
 #   tools/check.sh --fix      gdformat で整形してから検査
 # 環境変数 GODOT で Godot 実行ファイルを指定できる（既定: godot）。
 set -euo pipefail
@@ -82,6 +82,14 @@ if [ "$BUILD" -eq 1 ]; then
   run_godot export_macos --headless --export-release "macOS" build/macos/rule-relay.zip
   test -s build/macos/rule-relay.zip
   ls -la build/macos
+  step "build (Linux x86_64 / Steam Deck)"
+  mkdir -p build/linux
+  run_godot export_linux --headless --export-release "Linux" build/linux/rule-relay.x86_64
+  test -s build/linux/rule-relay.x86_64
+  ls -la build/linux
+  step "smoke (exported Linux build, solo, 300 frames)"
+  GODOT="build/linux/rule-relay.x86_64" run_godot smoke_linux_build --headless --quit-after 300 \
+    -- --solo --profile=zz_smoke
 fi
 
 printf '\nall checks passed\n'

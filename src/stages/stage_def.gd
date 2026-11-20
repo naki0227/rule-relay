@@ -37,6 +37,11 @@ var clear_condition: ClearCondition = ClearCondition.none()
 var entrances: Array[EntranceSpec] = []
 ## チェックポイントの台座の位置（ID は "cp0"・"cp1"… の順）。1人が触れたらチーム共通になる。
 var checkpoints: Array[Vector3] = []
+## 帰り道の台座（F で出現地点＝広場へ戻る）。手分けするステージで、枝道の奥から広場へ戻るため。
+var return_pads: Array[Vector3] = []
+## 目安のクリア時間（分。ひとりで初めて遊ぶ想定。仮の値で、本人の試遊で調整する）。
+## ハブの入口はこの短い順に並ぶ（2026-11-20 本人の「短い方から順番に試せるように」）。
+var target_minutes: int = 0
 ## 仮の配置か（プレイテスト前の置き場所）。説明・ADR 用の印。
 var provisional: bool = true
 

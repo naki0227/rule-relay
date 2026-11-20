@@ -27,6 +27,12 @@ func drag(relative: Vector2) -> void:
 	queue_redraw()
 
 
+## ゲームパッドの右スティック: 倒した向き（長さ 0〜1）をそのまま選ぶ位置にする。
+func point(direction: Vector2) -> void:
+	offset = direction.limit_length(1.0) * MAX_DRAG
+	queue_redraw()
+
+
 ## 今の位置で離したときに選ばれる方式。選ばない場合は -1。
 func picked_index() -> int:
 	return RadialSelector.pick(offset, RadialSelector.MODES.size())

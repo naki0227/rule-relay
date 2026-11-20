@@ -46,7 +46,7 @@ jobs:
       - name: Install Godot (checksum verified)
         run: tools/install_godot.sh "$HOME/godot"
 
-      - name: Run quality gate and Windows / macOS export
+      - name: Run quality gate and Windows / macOS / Linux export
         run: GODOT="$HOME/godot/godot" tools/check.sh --build
 
       - name: Upload logs
@@ -69,6 +69,13 @@ jobs:
         with:
           name: rule-relay-macos
           path: build/macos
+          retention-days: 14
+
+      - name: Upload Linux build (Steam Deck)
+        uses: actions/upload-artifact@v5
+        with:
+          name: rule-relay-linux
+          path: build/linux
           retention-days: 14
 
   windows-smoke:
@@ -209,7 +216,7 @@ jobs:
         if: always() && env.HAS_SIGNING == 'true'
         run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
 
-  # タグ（v*）を push したときだけ: Windows 版と、署名・公証済みの Mac 版を GitHub の Release に並べる。
+  # タグ（v*）を push したときだけ: Windows 版・署名と公証済みの Mac 版・Linux 版（Steam Deck）を Release に並べる。
   release:
     name: GitHub Release (tag)
     needs: [checks, windows-smoke, macos-smoke, macos-notarize]
@@ -229,6 +236,11 @@ jobs:
           name: rule-relay-macos-signed
           path: macos
 
+      - uses: actions/download-artifact@v5
+        with:
+          name: rule-relay-linux
+          path: linux
+
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -236,8 +248,10 @@ jobs:
         run: |
           (cd windows && zip -q -r "../rule-relay-${TAG}-windows.zip" .)
           cp macos/rule-relay-macos.zip "rule-relay-${TAG}-macos.zip"
+          chmod +x linux/rule-relay.x86_64
+          (cd linux && zip -q -r "../rule-relay-${TAG}-linux.zip" .)
           ls -la *.zip
-          files=("rule-relay-${TAG}-windows.zip" "rule-relay-${TAG}-macos.zip")
+          files=("rule-relay-${TAG}-windows.zip" "rule-relay-${TAG}-macos.zip" "rule-relay-${TAG}-linux.zip")
           # GitHub の画面で Release を先に作った場合は、そこへ ZIP を足す
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"

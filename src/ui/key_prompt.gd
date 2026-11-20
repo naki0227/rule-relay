@@ -11,7 +11,7 @@ static func make(key: String, action: String, _dim: bool = false) -> KeyPrompt:
 	cap.theme_type_variation = &"KeyCap"
 	cap.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var key_label := Label.new()
-	key_label.text = key
+	key_label.text = InputMode.label(key)
 	key_label.theme_type_variation = &"KeyLabel"
 	cap.add_child(key_label)
 	prompt.add_child(cap)
