@@ -94,3 +94,22 @@ func test_holding_s_does_not_dash_backward() -> void:
 	world.player.move_intent = Vector2.ZERO
 	await wait_physics_frames(40)
 	assert_lt(world.player.global_position.z, start, "went forward, not backward")
+
+
+## ダッシュの音（dash、3回目の候補 T17）: 突進が始まったときに1回だけ、自分の位置から鳴る。
+## 能力が無くて突進しなかった押下では鳴らない。
+func test_dash_sound_plays_once_when_the_dash_starts() -> void:
+	var heard: Array[StringName] = []
+	world.sound_requested.connect(
+		func(event: StringName, _at: Vector3, positional: bool) -> void:
+			heard.append(StringName("%s:%s" % [event, "world" if positional else "ui"]))
+	)
+	world.player.view_yaw = 0.0
+	world.press_action(DASH)
+	assert_true(world.player.is_dashing())
+	assert_eq(heard.count(&"dash:world"), 1, "dash sound on the press that starts the dash")
+	var v := world.ledger.hotbar_vessel(1)
+	world.ledger.move_to_inventory(v.id)
+	await wait_physics_frames(60)
+	world.press_action(DASH)
+	assert_eq(heard.count(&"dash:world"), 1, "no sound without the dash ability")

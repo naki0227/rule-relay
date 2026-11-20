@@ -3,6 +3,10 @@
 2回目（`docs/sound-candidates-2026-11-20-round2.md`）でも合格が無かった4つと、新しく足した機能の音2つ（dash、ui_notice）。1イベントにつき seed を変えて4つ。
 **ゲームの音（`assets/`）には触れていない。** 気に入ったものを ID（T01 など）で指定してもらえれば、rule-relay 側で取り込む。
 
+> 追記（2026-11-20）: 本人の「採用できると判断したものは採用してよい」を受けて、2回目と同じ方法で測り直し、効果音 6 種を取り込んだ
+> （T03→ui_confirm・T07→ui_error・T09→ui_open・T15→bell・T17→dash・T21→ui_notice）。下の「結果」の表の「採用」の列を参照。
+> 選び方・採らなかった理由・聴いてほしい点は `docs/sound-design.md` の「5回目」。
+
 - 生成: Audio Studio MCP 1.2.0（このMacでローカル生成）、モデル Stable Audio 3 medium（Stability AI、Hugging Face `stabilityai/stable-audio-3-optimized` の MLX 版 `dit_medium_f16`、リビジョン `30cb2644da54bfa63275d1bc7f1fa67fc718680f`）、steps 8、cfg 4.0。2026-11-20
 - 置き場所: `art/audio/stable-audio/sfx3/<イベント名>_<n>.wav`（16bit モノラル 44.1kHz）。生成の設定は各ファイルの `.json` と `measurements.json`
 - 加工と測定: `uv run --with numpy --with scipy --with soundfile python tools/sfx/stable_audio_candidates.py ~/AudioStudio --round 3`。基準は1・2回目と同じ。**外れたものも消さずに印を付けた**
@@ -14,14 +18,14 @@
 
 24 個のうち、基準をすべて満たしたのは **15 個**。
 
-| イベント | 作り直す理由 | 合格した候補 | 追加のローパス |
-|---|---|---|---|
-| ui_confirm | 2回目まで、こもり（頭の明るさ 1〜12%） | 3/4（T01・T03・T04） | — |
-| ui_error | 2回目まで、こもり | 2/4（T06・T07） | 6000Hz |
-| ui_open | 2回目まで、シャー（4kHz 以上が強い） | 2/4（T09・T11） | — |
-| bell | 2回目は低さは目標どおりだが、こもり | 1/4（T15） | — |
-| dash | 新しい音（3マスの突進） | 3/4（T17・T18・T19） | 4500Hz |
-| ui_notice | 新しい音（投票の開始・時間切れ） | 4/4（T21・T22・T23・T24） | — |
+| イベント | 作り直す理由 | 合格した候補 | 追加のローパス | 採用 |
+|---|---|---|---|---|
+| ui_confirm | 2回目まで、こもり（頭の明るさ 1〜12%） | 3/4（T01・T03・T04） | — | **T03** |
+| ui_error | 2回目まで、こもり | 2/4（T06・T07） | 6000Hz | **T07** |
+| ui_open | 2回目まで、シャー（4kHz 以上が強い） | 2/4（T09・T11） | — | **T09** |
+| bell | 2回目は低さは目標どおりだが、こもり | 1/4（T15） | — | **T15** |
+| dash | 新しい音（3マスの突進） | 3/4（T17・T18・T19） | 4500Hz | **T17** |
+| ui_notice | 新しい音（投票の開始・時間切れ） | 4/4（T21・T22・T23・T24） | — | **T21** |
 
 ## 直し方
 
