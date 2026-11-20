@@ -66,6 +66,9 @@ static func provisional() -> RewardTable:
 				"floating_isles": _stage_rewards("isles", "tmp_hub_lighthouse"),
 				"windy_ridge": _stage_rewards("ridge", "tmp_hub_windmill"),
 				"ruined_fort": _stage_rewards("fort", "tmp_hub_gatehouse"),
+				"creature_nest": _stage_rewards("nest", "tmp_hub_nest_box"),
+				"ban_garden": _stage_rewards("garden", "tmp_hub_sign_post"),
+				"long_expedition": _stage_rewards("expedition", "tmp_hub_camp"),
 			}
 		)
 	)
