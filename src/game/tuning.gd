@@ -8,6 +8,8 @@ const LAYER_BLOCKS: int = 2
 const LAYER_PLAYER: int = 4
 const LAYER_TRIGGERS: int = 8
 const LAYER_CREATURES: int = 16
+## 仲間のアバター（通信で位置を受け取る操り人形）。照準で狙えるが、ぶつからない。
+const LAYER_AVATARS: int = 32
 
 # 重力はプレイヤーとブロックで同じにする。乗っている間に足場から離れないため。
 const GRAVITY: float = 20.0
@@ -37,6 +39,13 @@ const TOUCH_REACH: float = 3.5
 const THROW_REACH: float = 20.0
 ## 落ちている器を F で拾える距離（足もとからの距離）
 const PICKUP_REACH: float = 1.8
+
+
+## 同じ能力を n 個持ったときの効果の倍率（2026-11-19 本人確定: 数に比例して強まる）。
+## ジャンプは到達高度が n 倍（初速は √n 倍）、移動は速さが n 倍、投げるは射程が n 倍。
+## 上限は未決（引き継ぎ仕様 7-8）。仮に上限なし（人数が4人までなので、補助を除けば最大 ×4）。
+static func stack_factor(count: int) -> float:
+	return float(maxi(count, 1))
 
 
 static func jump_velocity(height: float) -> float:

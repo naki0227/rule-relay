@@ -20,6 +20,15 @@ var move_intent: Vector2 = Vector2.ZERO
 ## 移動の基準にするカメラの水平向き（ラジアン、Y軸回り）。
 var view_yaw: float = 0.0
 var ledger: RuleLedger
+## 台帳の上でのプレイヤー ID（1人用は PLAYER_ID）。
+var player_id: int = RuleLedger.PLAYER_ID
+## 仲間のアバター（操り人形）。入力も物理も使わず、通信で受け取った位置へなめらかに動く。
+var puppet: bool = false
+## 操り人形が目指す位置・向き（通信で受け取る）。
+var remote_position: Vector3 = Vector3.ZERO
+var remote_yaw: float = 0.0
+var remote_moving: bool = false
+var remote_on_floor: bool = true
 
 ## 壁を登っている最中（クライミンググローブを装備して壁へ向かって進んでいる）。
 var climbing: bool = false
@@ -33,8 +42,9 @@ var _facing: float = 0.0
 
 
 func _ready() -> void:
-	collision_layer = Tuning.LAYER_PLAYER
-	collision_mask = Tuning.LAYER_TERRAIN | Tuning.LAYER_BLOCKS
+	collision_layer = Tuning.LAYER_AVATARS if puppet else Tuning.LAYER_PLAYER
+	collision_mask = 0 if puppet else Tuning.LAYER_TERRAIN | Tuning.LAYER_BLOCKS
+	remote_position = position
 	floor_snap_length = 0.2
 	floor_max_angle = deg_to_rad(50.0)
 	platform_on_leave = CharacterBody3D.PLATFORM_ON_LEAVE_ADD_VELOCITY
@@ -45,7 +55,22 @@ func _ready() -> void:
 ## 自分のジャンプを要求する。能力・禁止の確認は呼び出し側（InputRouter）で済ませている前提だが、
 ## 念のためここでも ledger を確認し、床にいるときだけ跳ぶ。
 func request_jump() -> void:
-	_jump_requested = true
+	if not puppet:
+		_jump_requested = true
+
+
+## 通信で受け取った仲間の状態。
+func apply_remote(at: Vector3, yaw: float, moving: bool, on_floor: bool) -> void:
+	remote_position = at
+	remote_yaw = yaw
+	remote_moving = moving
+	remote_on_floor = on_floor
+
+
+## 送る自分の状態 [位置, 体の向き, 歩いているか, 床にいるか]。
+func remote_state() -> Array:
+	var moving := Vector2(velocity.x, velocity.z).length() > 0.1
+	return [global_position, _facing, moving, is_on_floor()]
 
 
 func feet_position() -> Vector3:
@@ -54,16 +79,20 @@ func feet_position() -> Vector3:
 
 ## いまのジャンプの高さ。ジャンプブーツ（高跳び）を装備していれば固定で高くなる（企画書 7）。
 ## 高跳びはジャンプの強化なので、ジャンプ自体が使えない（貸出中・禁止）なら跳べない。
+## 仲間から集めたジャンプが n 個なら、到達高度は n 倍（Tuning.stack_factor）。
 func jump_height() -> float:
-	if ledger != null and ledger.player_can(RuleAction.Kind.HIGH_JUMP):
-		return Tuning.BOOTS_JUMP_HEIGHT
-	return Tuning.PLAYER_JUMP_HEIGHT
+	var base := Tuning.PLAYER_JUMP_HEIGHT
+	if ledger == null:
+		return base
+	if ledger.player_can(RuleAction.Kind.HIGH_JUMP, player_id):
+		base = Tuning.BOOTS_JUMP_HEIGHT
+	return base * Tuning.stack_factor(ledger.ability_count(RuleAction.Kind.JUMP, player_id))
 
 
 ## クライミンググローブ（登る）: 壁に触れていて、その壁へ向かって進もうとしているあいだ登る。
 ## 進めない方向（能力が無い・禁止）へは押せないので、移動の能力・禁止も守る。
 func _should_climb(direction: Vector3) -> bool:
-	if ledger == null or not ledger.player_can(RuleAction.Kind.CLIMB):
+	if ledger == null or not ledger.player_can(RuleAction.Kind.CLIMB, player_id):
 		return false
 	if not is_on_wall() or direction.length() < 0.1:
 		return false
@@ -71,6 +100,9 @@ func _should_climb(direction: Vector3) -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	if puppet:
+		_follow_remote(delta)
+		return
 	var direction := _allowed_direction()
 	velocity.x = direction.x * Tuning.PLAYER_SPEED
 	velocity.z = direction.z * Tuning.PLAYER_SPEED
@@ -78,7 +110,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= Tuning.GRAVITY * delta
 	if _jump_requested:
 		_jump_requested = false
-		if is_on_floor() and ledger != null and ledger.player_can(RuleAction.Kind.JUMP):
+		if is_on_floor() and ledger != null and ledger.player_can(RuleAction.Kind.JUMP, player_id):
 			velocity.y = Tuning.jump_velocity(jump_height())
 			jumped.emit()
 	climbing = _should_climb(direction)
@@ -102,21 +134,36 @@ func _physics_process(delta: float) -> void:
 		_try_step_up(horizontal)
 
 
-## 能力があり禁止されていない方向だけを合成する。
+## 操り人形: 受け取った位置へなめらかに寄せ、歩きの見た目だけ動かす。
+func _follow_remote(delta: float) -> void:
+	var gap := remote_position - global_position
+	if gap.length() > 4.0:
+		global_position = remote_position  # 大きくずれたら（復活・瞬間移動）すぐ合わせる
+	else:
+		global_position = global_position.lerp(remote_position, minf(1.0, delta * 15.0))
+	_facing = lerp_angle(_facing, remote_yaw, minf(1.0, delta * 12.0))
+	if _visual != null:
+		_visual.rotation.y = _facing
+	var shown := Vector3(-sin(_facing), 0.0, -cos(_facing)) if remote_moving else Vector3.ZERO
+	_animate_limbs(delta, shown, remote_on_floor)
+
+
+## 能力があり禁止されていない方向だけを合成する。同じ方向の能力を n 個持てば、その方向の速さは n 倍。
 func _allowed_direction() -> Vector3:
 	if ledger == null:
 		return Vector3.ZERO
 	var local := Vector2.ZERO
-	if move_intent.y > 0.0 and ledger.player_can(RuleAction.Kind.FORWARD):
-		local.y += move_intent.y
-	if move_intent.y < 0.0 and ledger.player_can(RuleAction.Kind.BACK):
-		local.y += move_intent.y
-	if move_intent.x < 0.0 and ledger.player_can(RuleAction.Kind.LEFT):
-		local.x += move_intent.x
-	if move_intent.x > 0.0 and ledger.player_can(RuleAction.Kind.RIGHT):
-		local.x += move_intent.x
-	if local.length() > 1.0:
-		local = local.normalized()
+	if move_intent.y > 0.0:
+		local.y += move_intent.y * _speed_factor(RuleAction.Kind.FORWARD)
+	if move_intent.y < 0.0:
+		local.y += move_intent.y * _speed_factor(RuleAction.Kind.BACK)
+	if move_intent.x < 0.0:
+		local.x += move_intent.x * _speed_factor(RuleAction.Kind.LEFT)
+	if move_intent.x > 0.0:
+		local.x += move_intent.x * _speed_factor(RuleAction.Kind.RIGHT)
+	var peak := maxf(absf(local.x), absf(local.y))
+	if local.length() > peak and local.length() > 0.0:
+		local = local.normalized() * peak  # 斜めでも速くならない
 	var basis := Basis(Vector3.UP, view_yaw)
 	var forward := basis * Vector3.FORWARD
 	var right := basis * Vector3.RIGHT
@@ -125,6 +172,13 @@ func _allowed_direction() -> Vector3:
 
 ## 低い段差（Tuning.STEP_ASSIST_HEIGHT 以下）を歩いて上がる補助（企画書 4-6）。
 ## 移動入力があるときだけ働き、隙間を飛び越えたり禁止を無視したりはしない。
+## その方向へ進めるときの速さの倍率（進めなければ 0）。
+func _speed_factor(action: RuleAction.Kind) -> float:
+	if not ledger.player_can(action, player_id):
+		return 0.0
+	return Tuning.stack_factor(ledger.ability_count(action, player_id))
+
+
 func _try_step_up(horizontal: Vector3) -> void:
 	var up := Vector3.UP * Tuning.STEP_ASSIST_HEIGHT
 	# カプセルの丸い底が段の角に引っかからないよう、中心が段の上に乗るまで前へ確かめる
@@ -146,12 +200,16 @@ func _try_step_up(horizontal: Vector3) -> void:
 func _animate(delta: float, direction: Vector3) -> void:
 	if _visual == null:
 		return
-	var speed := direction.length()
+	var speed := minf(direction.length(), 1.0)
 	if speed > 0.05:
 		var target := atan2(-direction.x, -direction.z)
 		_facing = lerp_angle(_facing, target, minf(1.0, delta * 12.0))
 		_visual.rotation.y = _facing
-	var grounded := is_on_floor()
+	_animate_limbs(delta, direction, is_on_floor())
+
+
+func _animate_limbs(delta: float, direction: Vector3, grounded: bool) -> void:
+	var speed := minf(direction.length(), 1.0)
 	if grounded and speed > 0.05:
 		_walk_phase = fmod(_walk_phase + delta * 11.0 * speed, TAU)
 	else:

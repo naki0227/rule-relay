@@ -15,6 +15,8 @@ const SIZE: float = 1.0
 
 var entity_id: int = -1
 var velocity_y: float = 0.0
+## 参加者の画面では、ブロックはホストから受け取った位置へ動くだけ（自分では物理を計算しない）。
+var remote: bool = false
 
 var _step_from: Vector3 = Vector3.ZERO
 var _step_to: Vector3 = Vector3.ZERO
@@ -31,6 +33,7 @@ var _marker_material: StandardMaterial3D
 var _signal_label: Label3D
 ## 登る（クライミンググローブの能力）を持っているとき、底面をこの高さまで上げてつかまる。NAN なら登らない。
 var _climb_bottom: float = NAN
+var _remote_target: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
@@ -41,11 +44,12 @@ func _ready() -> void:
 		_build_visuals()
 
 
-func setup(id: int, cell: Vector3i, color: Color) -> void:
+func setup(id: int, cell: Vector3i, color: Color, model_name: String = "ability_block") -> void:
 	entity_id = id
 	name = "Block%d" % id
 	position = cell_center(cell)
 	set_meta("color", color)
+	set_meta("model", model_name)
 
 
 static func cell_center(cell: Vector3i) -> Vector3:
@@ -77,10 +81,11 @@ func is_ready_for(action: RuleAction.Kind) -> bool:
 
 ## 行動を実行する。呼ぶ前に is_ready_for と BlockRules.attempt で成功を確かめること。
 ## high_jump: 高跳び（ジャンプブーツの能力）を持っていれば、跳ぶ高さが固定で上がる。
-func perform(action: RuleAction.Kind, high_jump: bool = false) -> void:
+## stack: 同じ能力の数。ジャンプを n 個持てば到達高度が n 倍（2026-11-19 本人確定）。
+func perform(action: RuleAction.Kind, high_jump: bool = false, stack: int = 1) -> void:
 	if action == RuleAction.Kind.JUMP:
 		var height := Tuning.BLOCK_HIGH_JUMP_HEIGHT if high_jump else Tuning.BLOCK_JUMP_HEIGHT
-		velocity_y = Tuning.jump_velocity(height)
+		velocity_y = Tuning.jump_velocity(height * Tuning.stack_factor(stack))
 		jumped.emit()
 		return
 	stepped.emit()
@@ -171,8 +176,19 @@ func show_tokens(tokens: Array[RuleToken]) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if remote:
+		# 運動学の同期を残したまま動かすので、乗っている参加者のアバターも運ばれる
+		global_position = global_position.lerp(_remote_target, minf(1.0, delta * 20.0))
+		return
 	_integrate_vertical(delta)
 	_integrate_horizontal(delta)
+
+
+## 参加者の画面で、ホストから受け取った位置を目指す。大きくずれたらすぐ合わせる。
+func set_remote_target(at: Vector3) -> void:
+	if not remote or at.distance_to(global_position) > 3.0:
+		teleport(at, 0.0)
+	_remote_target = at
 
 
 ## 登る: 隣のマス（東西南北）でいちばん高い上面まで、自分の上面がそろう高さへ登ってつかまる
@@ -276,15 +292,20 @@ func _update_outline() -> void:
 
 func _build_visuals() -> void:
 	var color: Color = get_meta("color", Color(0.85, 0.65, 0.35))
-	# 見た目は Blender のモデル（art/source/ability_block.blend）。各面のパネルをブロックの色にする
-	var model := ModelLibrary.instantiate("ability_block")
+	# 見た目は Blender のモデル（art/source/*.blend）。能力のブロックは各面のパネルをブロックの色にする。
+	# 地形から動くブロックにしたセルは、その種類のセルの形（grass_cell など）
+	var model_name := String(get_meta("model", "ability_block"))
+	var model := ModelLibrary.instantiate(model_name)
 	model.name = "Model"
-	ModelLibrary.tint_material(model, "Panel", color)
+	if model_name == "ability_block":
+		ModelLibrary.tint_material(model, "Panel", color)
 	add_child(model)
 
 	var shape := CollisionShape3D.new()
 	var box_shape := BoxShape3D.new()
-	box_shape.size = Vector3.ONE * SIZE
+	# 横は少しだけ細くする。となりの地形と面がぴったり接していると、物理エンジン（Jolt）の
+	# 動きの判定が、最初から重なっているとみなして床を見落とした（地形のセルを動くブロックにしたとき）
+	box_shape.size = Vector3(SIZE * 0.98, SIZE, SIZE * 0.98)
 	shape.shape = box_shape
 	add_child(shape)
 
@@ -333,8 +354,12 @@ func _build_visuals() -> void:
 # --- 音波（企画書 5.2 信号・5.4 音源） ---------------------------------------
 
 
-## 発射台にする（「投げる」を渡すと direction へ玉を撃つ）。撃つ向きに矢印の札を付ける。
+## 発射台にする（「投げる」を渡すと direction へ玉を撃つ）。モデル（launcher.glb）の筒と矢印は +X 向きなので、
+## 撃つ方角へ回す。撃つ向きの札も付ける。
 func make_launcher(direction: Vector3i) -> void:
+	var model := get_node_or_null("Model") as Node3D
+	if model != null:
+		model.rotation.y = atan2(-float(direction.z), float(direction.x))
 	var note := Label3D.new()
 	note.text = "発射台 → %s" % _direction_name(direction)
 	note.billboard = BaseMaterial3D.BILLBOARD_ENABLED

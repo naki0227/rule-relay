@@ -63,11 +63,13 @@ func toggle_inventory() -> bool:
 func refresh() -> void:
 	if world == null or _slots.is_empty():
 		return
+	var me := world.player.player_id if world.player != null else RuleLedger.PLAYER_ID
 	for i in RuleLedger.HOTBAR_SIZE:
-		var v := world.ledger.hotbar_vessel(i)
-		_slots[i].show_token(
-			null if v == null else world.ledger.token(v.token_id), i == world.selected_slot
-		)
+		var v := world.ledger.hotbar_vessel(i, me)
+		var t: RuleToken = null if v == null else world.ledger.token(v.token_id)
+		_slots[i].show_token(t, i == world.selected_slot)
+		# 仲間から集めた同じ能力の数（×n）。2個以上のときだけ出す
+		_slots[i].stack = 0 if t == null else world.ledger.ability_count(t.action, me)
 	_badge.show_state(world.lend_mode, world.throw_mode)
 	if world.selected_slot != _last_selected:
 		if _last_selected != -1 and sounds != null:
@@ -252,6 +254,9 @@ func _build() -> void:
 
 	inventory = InventoryPanel.new()
 	inventory.ledger = world.ledger if world != null else null
+	if world != null and world.player != null:
+		inventory.player_id = world.player.player_id
+		inventory.actions = world.ledger_actions
 	inventory.play_sound = play_ui
 	inventory.visible = false
 	_root.add_child(inventory)

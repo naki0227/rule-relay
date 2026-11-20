@@ -27,3 +27,18 @@ static func origin_owner(ledger: RuleLedger, token_id: int) -> int:
 	if t == null or t.vessel_id == -1:
 		return -1
 	return ledger.vessel(t.vessel_id).owner_id
+
+
+## ブロック・生き物に付いている同じ能力の数（同じ能力を n 個持てば効果が n 倍）。
+static func entity_count(ledger: RuleLedger, entity_id: int, action: RuleAction.Kind) -> int:
+	var count := 0
+	for t in ledger.tokens_on(entity_id):
+		if not t.is_prohibition and t.action == action:
+			count += 1
+	return count
+
+
+## 器に宿っているトークン（器が無ければ null）。
+static func token_of_vessel(ledger: RuleLedger, vessel_id: int) -> RuleToken:
+	var v := ledger.vessel(vessel_id)
+	return null if v == null else ledger.token(v.token_id)
