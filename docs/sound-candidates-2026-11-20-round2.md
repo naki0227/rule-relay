@@ -4,6 +4,11 @@
 1回目で基準を満たした ui_hover・receive_stone・block_jump・block_step・player_jump・save は、ゲームに取り込み中なので作っていない。
 **ゲームの音（`assets/`）には触れていない。** 気に入ったものを ID（R01 など）で指定してもらえれば、rule-relay 側で取り込む。
 
+> 追記（2026-11-20）: 本人の「採用できると判断したものは採用してよい」を受けて、測り直したうえで効果音 15 種を取り込んだ
+> （R09・R12・R16・R19・R22・R26・R29・R36・R38・R40・R43・R47・R50・R53・R63）。下の「結果」の表の「採用」の列を参照。
+> 基準は満たすが、短い間隔でくり返し鳴り、候補が長すぎて重なるので ui_select（R01・R03）と footstep（R55〜R57）は採らなかった。
+> 経緯・数値・聴いてほしい点は `docs/sound-design.md` の「2026-11-20（4回目）」。
+
 - 生成: Audio Studio MCP 1.2.0（このMacでローカル生成）、モデル Stable Audio 3 medium（Stability AI、`stabilityai/stable-audio-3-optimized` の MLX 版、`dit_medium_f16`、リビジョン `30cb264`）、steps 8。2026-11-20
 - 置き場所: `art/audio/stable-audio/sfx2/<イベント名>_<n>.wav`（16bit モノラル 44.1kHz）。生成の設定は各ファイルの `.json` と `measurements.json`
 - 加工と測定: `uv run --with numpy --with scipy --with soundfile python tools/sfx/stable_audio_candidates.py ~/AudioStudio --round 2`。基準は1回目と同じ（`tools/sfx/test_sfx.py`）。**外れたものも消さずに印を付けた**
@@ -14,29 +19,29 @@
 
 63 個のうち、基準をすべて満たしたのは **29 個**（1回目は同じイベントで 0 個）。
 
-| イベント | 1回目の印 | 合格した候補 |
-|---|---|---|
-| ui_select | こもり | 2/3 （R01・R03） |
-| ui_confirm | こもり | 0/3  |
-| ui_close | こもり | 1/3 （R09） |
-| ui_drop | こもり | 2/3 （R11・R12） |
-| ui_error | こもり | 0/3  |
-| prohibit | こもり | 2/3 （R16・R18） |
-| receive_wood | こもり | 1/3 （R19） |
-| receive_creature | こもり | 2/3 （R22・R24） |
-| block_land | こもり | 1/3 （R26） |
-| ui_cancel | シャー | 3/3 （R28・R29・R30） |
-| ui_open | シャー | 0/3  |
-| ui_pick | シャー | 1/3 （R36） |
-| radial_open | シャー | 2/3 （R38・R39） |
-| lend | シャー | 1/3 （R40） |
-| lend_range | シャー | 1/3 （R43） |
-| recall | シャー | 2/3 （R46・R47） |
-| receive_grass | シャー | 2/3 （R49・R50） |
-| player_land | シャー | 2/3 （R52・R53） |
-| footstep | シャー | 3/3 （R55・R56・R57） |
-| bell | 高すぎ | 0/3  |
-| goal | 高すぎ | 1/3 （R63） |
+| イベント | 1回目の印 | 合格した候補 | 採用 |
+|---|---|---|---|
+| ui_select | こもり | 2/3 （R01・R03） | なし（長すぎて重なる） |
+| ui_confirm | こもり | 0/3  | — |
+| ui_close | こもり | 1/3 （R09） | **R09** |
+| ui_drop | こもり | 2/3 （R11・R12） | **R12** |
+| ui_error | こもり | 0/3  | — |
+| prohibit | こもり | 2/3 （R16・R18） | **R16** |
+| receive_wood | こもり | 1/3 （R19） | **R19** |
+| receive_creature | こもり | 2/3 （R22・R24） | **R22** |
+| block_land | こもり | 1/3 （R26） | **R26** |
+| ui_cancel | シャー | 3/3 （R28・R29・R30） | **R29** |
+| ui_open | シャー | 0/3  | — |
+| ui_pick | シャー | 1/3 （R36） | **R36** |
+| radial_open | シャー | 2/3 （R38・R39） | **R38** |
+| lend | シャー | 1/3 （R40） | **R40** |
+| lend_range | シャー | 1/3 （R43） | **R43** |
+| recall | シャー | 2/3 （R46・R47） | **R47** |
+| receive_grass | シャー | 2/3 （R49・R50） | **R50** |
+| player_land | シャー | 2/3 （R52・R53） | **R53** |
+| footstep | シャー | 3/3 （R55・R56・R57） | なし（長すぎて重なる） |
+| bell | 高すぎ | 0/3  | — |
+| goal | 高すぎ | 1/3 （R63） | **R63** |
 
 ## 直し方
 
