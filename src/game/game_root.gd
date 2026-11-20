@@ -196,6 +196,15 @@ func _on_world_changed(world: StageWorld) -> void:
 	add_child(_input)
 
 
+## いまの島の HUD と入力（島が変わるたびに作り直す。テスト用）。
+func current_hud() -> Hud:
+	return _hud
+
+
+func current_input() -> PlayerInput:
+	return _input
+
+
 ## PlayerInput から: V（全員リセットの投票）。
 func handle_party_action(action: StringName) -> void:
 	if director == null or director.world == null:

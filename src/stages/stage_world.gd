@@ -61,9 +61,11 @@ func _ready() -> void:
 		_add_pad(def.checkpoints[i], "チェックポイント")
 	for pad in def.return_pads:
 		_add_pad(pad, "広場へ戻る（%s）" % InputMode.key(&"interact"))
-	for e in def.entrances:
+	for i in def.entrances.size():
+		var e := def.entrances[i]
 		var stage := StageCatalog.by_id(e.stage_id)
-		var caption := "%s\n目安 %d 分（仮）・%s"
+		# 最初の入口（いちばん短い導入）にだけ「はじめはここから」を添える。説明はしない
+		var caption := ("はじめはここから\n" if i == 0 else "") + "%s\n目安 %d 分（仮）・%s"
 		_add_pad(
 			e.position,
 			caption % [stage.display_name, stage.target_minutes, InputMode.key(&"interact")]
@@ -204,8 +206,26 @@ func _add_goal_marker(goal: AABB) -> void:
 	plate.mesh = mesh
 	plate.position = Vector3(goal.get_center().x, floor_y + 0.03, goal.get_center().z)
 	add_child(plate)
-	var label_at := Vector3(goal.get_center().x, floor_y + 2.2, goal.get_center().z)
+	# 下の地面からも見えるよう、床の上に浮かぶ結晶（試作の島の目標と同じ形）をゆっくり回す。
+	# 柱と台座は置かない（窪みの中を歩いて通り抜けられるように。当たり判定もない）
+	_add_goal_crystal(Vector3(goal.get_center().x, floor_y + 2.0, goal.get_center().z))
+	var label_at := Vector3(goal.get_center().x, floor_y + 2.9, goal.get_center().z)
 	PrototypeIsland.add_label(self, label_at, "ゴール（全員で集まる）")
+
+
+func _add_goal_crystal(at: Vector3) -> void:
+	var beacon := ModelLibrary.instantiate("goal_beacon")
+	var crystal := beacon.find_child("Crystal") as Node3D
+	if crystal == null:
+		beacon.free()
+		return
+	crystal.get_parent().remove_child(crystal)
+	beacon.free()
+	crystal.name = "GoalCrystal"
+	crystal.position = at
+	add_child(crystal)
+	var spin := crystal.create_tween().set_loops()
+	spin.tween_property(crystal, "rotation:y", TAU, 5.0).from(0.0)
 
 
 func _add_pad(at: Vector3, text: String) -> void:
