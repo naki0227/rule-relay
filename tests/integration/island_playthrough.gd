@@ -140,6 +140,22 @@ func _ring(key: String) -> void:
 	assert_true(w.activated.has(key), "rang %s" % key)
 
 
+## ゴールの箱（生きている全員が集まればクリア。docs/adr/0011 決定 9）。
+func _goal() -> AABB:
+	return w.def.clear_condition.goal_area()
+
+
+## via を順に歩いてから、ゴールの窪みの真ん中へ歩いて入る（瞬間移動しない）。
+func _walk_into_goal(via: Array[Vector3] = []) -> void:
+	for p in via:
+		await _walk_to(p)
+	var goal := _goal()
+	var center := goal.get_center()
+	await _walk_to(Vector3(center.x, goal.position.y + 0.1, center.z))
+	await wait_physics_frames(10)  # 窪みへ降りきるまで待つ
+	assert_true(goal.has_point(_me().global_position), "standing in the goal")
+
+
 func _cleared() -> bool:
 	for i in 180:
 		if director.last_clear_text != "":

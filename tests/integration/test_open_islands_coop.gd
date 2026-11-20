@@ -3,6 +3,11 @@ extends "res://tests/integration/island_playthrough.gd"
 ## 協力の近道は、仲間がくれた能力（W・ジャンプをもう1つ）を台帳の普通の配り方で持たせて再現する。
 ## 関門（ふつうのジャンプでは 2 段に上がれない・鐘は下から鳴らせない）が残っていることも確かめる。
 
+## 採石場の南の縁から、縁づたいに北のゴールへ歩く道。
+const RIM_TO_GOAL: Array[Vector3] = [
+	Vector3(9.5, 5.0, 9.5), Vector3(9.5, 5.0, -9.5), Vector3(1.5, 5.0, -9.5)
+]
+
 # --- 丘の上の旗 ----------------------------------------------------------------
 
 
@@ -26,6 +31,7 @@ func test_hill_top_leap_from_the_lookout_needs_double_speed() -> void:
 	await _climb_lookout()
 	_gift_from_teammate(FORWARD)
 	assert_true(await _run_and_jump(Vector3(8.6, 3.0, -4.5), edge, summit), "leapt with W x2")
+	await _walk_into_goal()
 	assert_true(await _cleared(), "reached the summit from the lookout")
 
 
@@ -40,6 +46,7 @@ func test_quarry_double_jump_skips_the_stone_and_the_lifts() -> void:
 	await _walk_to(Vector3(0.5, 2.0, 6.5))
 	await _walk_to(Vector3(0.5, 3.0, 8.5))
 	await _walk_to(Vector3(0.5, 5.0, 9.6))
+	await _walk_into_goal(RIM_TO_GOAL)
 	assert_true(await _cleared(), "jumped out of the quarry with jump x2")
 
 
@@ -81,6 +88,7 @@ func test_quarry_banned_lift_after_moving_the_ban_away() -> void:
 	_lend_by_throwing(_block("stone_b"), ban_slot)
 	assert_true(w.ledger.player_can(JUMP, _me().player_id), "can jump again")
 	await _lift_up("banned_lift", Vector3(0.5, 3.0, 8.5), Vector3(1.5, 5.0, 9.6))
+	await _walk_into_goal(RIM_TO_GOAL)
 	assert_true(await _cleared(), "rode the freed lift out of the quarry")
 
 

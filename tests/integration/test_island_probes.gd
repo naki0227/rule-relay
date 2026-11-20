@@ -351,6 +351,7 @@ func test_accepted_any_ground_cell_is_a_lift_on_the_hill() -> void:
 			break
 		await tree.physics_frame
 	_me().move_intent = Vector2.ZERO
+	await _walk_to(Vector3(0.5, 3.0, -6.0))  # 頂上の奥のゴール（窪み）へ歩いて入る
 	assert_true(await _cleared(), "ACCEPTED: reached the summit on a promoted ground cell")
 	var pit_lift := _block("lift")
 	assert_true(w.ledger.tokens_on(pit_lift.entity_id).is_empty(), "the pit lift was never used")
@@ -400,6 +401,8 @@ func test_accepted_quarry_rim_from_the_terrace_by_stacking() -> void:
 			break
 		await tree.physics_frame
 	_me().move_intent = Vector2.ZERO
+	# 西の縁から、縁づたいに北のゴール（窪み）へ歩いて入る
+	await _walk_route([Vector3(-9.5, 5.0, -9.5), Vector3(0.5, 5.0, -9.5), Vector3(0.5, 4.0, -11.5)])
 	assert_true(await _cleared(), "ACCEPTED: terrace (2) to rim (5) without pit/boots/gloves")
 
 

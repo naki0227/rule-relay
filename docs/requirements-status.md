@@ -122,7 +122,7 @@
 | P2 | オンライン: ホスト権威で依頼を検証・適用し、台帳を全員へ配る。2人が通信越しに渡す・F で回収する | 台帳の同期のみ（ENet、同じ PC 内の2端で確認）。アバター・ブロックの同期、画面からの操作は未実装 | `src/net/`（`NetSession`・`PartyCommand`・`PartyRoster`）、ADR 0006 | `test_net_session`、`test_party_command`、`test_party_roster` |
 | 16 の一部 | 同じトークンを二重に持たない（再送・peer ID の振り直し・なりすまし） | 台帳の同期のみ | 依頼の seq で再送を一度だけ適用、session_key でプレイヤー ID を固定、送り主は通信から決める | 同上 |
 | P2 続き | 仲間のアバター・世界の同期・通信越しの操作（付与・F・単発・持ち物の整理）・仲間へ渡す | 実装＋テスト（同じ PC 内の ENet） | `NetWorld`・`WorldFrame`・`WorldParty`・`GameWorld.replica` | `test_net_world` |
-| 3（倍率） | ジャンプ×n は到達高度 n 倍、W×n は速さ n 倍、投げる×n は射程 n 倍、ブロックの単発 n 個はまとめて n 倍 | 実装＋テスト（上限は未決のため仮になし） | `Tuning.stack_factor`、`PlayerAvatar`、`GameWorld._fire_single_shots` | `test_net_world`（ジャンプ×2） |
+| 3（倍率） | ジャンプ×n は到達高度 n 倍、W×n は速さ n 倍、投げる×n は射程 n 倍、ブロックの単発 n 個はまとめて n 倍 | 実装＋テスト（上限なし。2026-11-20 本人の決定: 全員がゴールに集まる条件にしたので、×4 で1人が跳ぶだけではクリアしない。ADR 0011 決定 11） | `Tuning.stack_factor`、`PlayerAvatar`、`GameWorld._fire_single_shots` | `test_net_world`（ジャンプ×2） |
 | 10 | 人数別補助は全員リセットのときだけ作り直す | 実装＋テスト | `StageLoadout.rebuild_helpers`、`PartyDirector._apply_reset` | `test_stage_rules`、`test_net_director`（途中参加） |
 | 11 | 死亡しても貸与・手持ちはそのまま、世界は戻らない | 実装＋テスト | `PartyLifecycle.die`、`PartyDirector._check_deaths` | `test_party_lifecycle`、`test_net_director` |
 | 12 | 1人到達で共通チェックポイント、台座の F で全員復活（ロードなし・巻き戻しなし） | 実装＋テスト | `PartyDirector._check_checkpoints`／`_on_checkpoint_interacted` | `test_net_director`、`test_party_director` |
@@ -132,7 +132,8 @@
 | 16 | ホスト移譲: 停止→選出中→新ホストで再開、二重所有なし、失敗は失敗と出す | 実装＋テスト（ENet・同じ PC 内の3人） | `HostMigration`、`PartyDirector.export_state`／`adopt_state` | `test_host_migration` |
 | 17〜21 | 報酬資格の真理値表、切断者は部屋があるうちに戻れば受け取る、初回と周回、複数の記録 | 実装＋テスト | `src/progress/`、`PartyDirector._on_clear`／`deliver_rewards` | `test_stage_run_rewards`、`test_player_progress`、`test_net_director` |
 | 22 | 再送・競合で状態・報酬が一意 | 一部（依頼の再送・報酬の再送・投票の重複はテスト済み。同時 F 回収の競合はホストが順に処理する作りで、専用テストなし） | `NetSession`、`StageRunRewards`、`PartyLifecycle` | `test_net_session`、`test_stage_run_rewards`、`test_party_lifecycle` |
-| 23 | 導入ステージをソロでも2〜4人でも攻略できる | 一部（ソロのクリアは結合テスト。2〜4人の別解は ×n の式が仮のため未確認） | `StageCatalog.intro_jump_lend` | `test_party_director`、`test_stage_rules` |
+| 23 | 導入ステージをソロでも2〜4人でも攻略できる | 一部（ソロのクリアは結合テスト。2人とも岩棚の窪みに集まるとクリアするのは `test_net_director`。2〜4人の別解の通しプレイは未確認） | `StageCatalog.intro_jump_lend` | `test_party_director`、`test_stage_rules` |
+| クリア | どのステージも「島の条件＋生きている全員がゴールに集まる」（2026-11-20 本人。ゴールは縁より 1 段低い窪みで、窪みの中からは下の仲間を狙えない。渡すのをルールで禁止はしない） | 実装＋テスト | `ClearCondition.goal_area`、`OpenIslands.goal_hollow`、`StageWorld._add_goal_marker`、ADR 0011 決定 9〜11 | `test_net_director`（1人ではクリアしない・2人でクリア）、`test_goal_sightlines`、各島の通しプレイ |
 | ハブ | ハブを歩いて入口を見つけ、F でステージへ。クリア後はハブへ戻る | 実装＋テスト（見た目は仮） | `StageCatalog.hub`、`StageWorld`、`PartyDirector` | `test_party_director` |
 | 入口 | タイトル（ひとりで／部屋を作る／部屋に入る） | 実装（起動確認のみ） | `TitleMenu`、`GameRoot` | `tools/check.sh` の起動確認 |
 | Steam 版 | ロビー・招待・P2P | 差し替え口のみ（**未検証**） | `SteamTransport` | `test_steam_transport`（使えないときの動作だけ） |
