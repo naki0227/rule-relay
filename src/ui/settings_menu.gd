@@ -1,7 +1,8 @@
 class_name SettingsMenu
 extends Control
 ## 設定の画面（Esc のメニューの「せってい」から開く）。生成りの札を1枚、画面の中央に出す。
-##   文字の大きさ（4段階）／視点の速さ（マウス・パッド）／キー割り当て（キーボード・マウスとパッド）
+##   文字の大きさ（4段階）／視点の速さ（マウス・パッド）／音の大きさ（BGM・効果音）／
+##   キー割り当て（キーボード・マウスとパッド）
 ## ゲームパッドだけでも使える: 十字キーで項目を移り、A で決定、つまみは左右で動かす。B か Start でもどる。
 ## 割り当ては、ボタンを選んでから割り当てたい入力を押す（5秒押さなければ取り消し）。
 ## 変えたらすぐ反映し、`user://settings.cfg` へ保存する（GameSettings）。
@@ -26,6 +27,10 @@ var _mouse_slider: HSlider
 var _pad_slider: HSlider
 var _mouse_value: Label
 var _pad_value: Label
+var _music_slider: HSlider
+var _sfx_slider: HSlider
+var _music_value: Label
+var _sfx_value: Label
 var _bind_buttons: Dictionary[String, Button] = {}
 var _status: Label
 var _reset: Button
@@ -84,6 +89,10 @@ func refresh() -> void:
 	_pad_slider.set_value_no_signal(settings.pad_sensitivity)
 	_mouse_value.text = "×%.1f" % settings.mouse_sensitivity
 	_pad_value.text = "×%.1f" % settings.pad_sensitivity
+	_music_slider.set_value_no_signal(settings.music_volume)
+	_sfx_slider.set_value_no_signal(settings.sfx_volume)
+	_music_value.text = "%d%%" % settings.music_volume
+	_sfx_value.text = "%d%%" % settings.sfx_volume
 	for action: StringName in KeyBindings.ACTIONS:
 		for slot: KeyBindings.Slot in SLOTS:
 			var descriptor := settings.bindings.get_descriptor(action, slot)
@@ -98,6 +107,21 @@ func choose_scale(step: int) -> void:
 	settings.apply(get_tree())
 	_saved("文字の大きさ: %s" % GameSettings.SCALE_NAMES[settings.scale_step])
 	_fit()
+
+
+## BGM の音量（0〜100%）。すぐにバスへ反映し、保存は閉じるときにまとめて行う。テストからも呼ぶ。
+func choose_music_volume(percent: int) -> void:
+	settings.set_music_volume(percent)
+	settings.apply_volumes()
+	_saved("BGM の音量: %d%%" % settings.music_volume, false)
+
+
+## 効果音の音量（0〜100%）。大きさが分かるよう、動かすたびに選んだ音を鳴らす。テストからも呼ぶ。
+func choose_sfx_volume(percent: int) -> void:
+	settings.set_sfx_volume(percent)
+	settings.apply_volumes()
+	_saved("効果音の音量: %d%%" % settings.sfx_volume, false)
+	_sound(&"ui_select")
 
 
 ## 割り当てたい入力を待つ。テストからも呼ぶ。
@@ -159,7 +183,7 @@ func choose_reset() -> void:
 	if not _reset_armed:
 		_reset_armed = true
 		refresh()
-		_set_status("もう一度えらぶと、文字の大きさ・視点の速さ・キー割り当てをはじめにもどします。")
+		_set_status("もう一度えらぶと、文字の大きさ・視点の速さ・音の大きさ・キー割り当てをはじめにもどします。")
 		_sound(&"ui_select")
 		return
 	_reset_armed = false
@@ -285,6 +309,15 @@ func _build() -> void:
 	_pad_slider = SettingsRows.slider(_on_pad_changed)
 	_pad_value = Label.new()
 	body.add_child(SettingsRows.labeled("パッド（右スティック）", _pad_slider, _pad_value))
+	body.add_child(SettingsRows.section("音の大きさ"))
+	_music_slider = SettingsRows.volume_slider(
+		func(v: float) -> void: choose_music_volume(roundi(v))
+	)
+	_music_value = Label.new()
+	body.add_child(SettingsRows.labeled("BGM の音量", _music_slider, _music_value))
+	_sfx_slider = SettingsRows.volume_slider(func(v: float) -> void: choose_sfx_volume(roundi(v)))
+	_sfx_value = Label.new()
+	body.add_child(SettingsRows.labeled("効果音の音量", _sfx_slider, _sfx_value))
 	body.add_child(SettingsRows.section("キー割り当て"))
 	body.add_child(_build_bindings())
 	column.add_child(SettingsRows.rule())

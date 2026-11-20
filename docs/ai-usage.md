@@ -10,6 +10,7 @@
 | 2026-11-18 | Claude Code（Anthropic） | アイコン | Blender の Python スクリプト（`art/scripts/build_icons.py`）で器のアイコン10枚を描画。画像生成AIは未使用 | PR でレビュー予定 |
 | 2026-11-18 | Claude Code（Anthropic） | 効果音 | Python のスクリプト（`tools/sfx/build_sfx.py`）でモーダル合成と雑音の加工により効果音24種を合成。音声生成AI・外部の音素材は未使用 | 本人の試聴待ち |
 | 2026-11-20 | Audio Studio MCP（Stable Audio 3 medium、Stability AI、ローカル生成） | BGM・効果音 | BGM 3場面×2、効果音 27種×2 の候補を生成（`art/audio/stable-audio/`、一覧は `docs/sound-candidates-2026-11-20.md`）。ゲームの音は置き換えていない。応募規約で生成音声が使えるかは未確認 | 本人の試聴待ち |
+| 2026-11-20 | Audio Studio MCP（Stable Audio 3 medium、Stability AI、ローカル生成。Stability AI Community License） | BGM | 上の候補のうち BGM の B1（ハブ）・B3（島）・B5（タイトル）を、加工せずにゲームへ取り込んだ（`assets/audio/music/`、鳴らすのは `src/audio/music_player.gd`）。AI は音を聴けないので仮の選曲。応募規約で生成音声が使えるかは未確認 | 本人の試聴待ち |
 
 - モデル名・バージョンは、提出時に本人が各サービスの表示で確認して記入する。
 - 3D生成AI（Tripo など）を使った場合は、生成物のファイル名・利用規約上の権利・加工の有無をここに追記する。

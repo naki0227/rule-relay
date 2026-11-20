@@ -49,6 +49,11 @@ func is_inventory_open() -> bool:
 	return inventory != null and inventory.visible
 
 
+## メニュー（Esc・その上の「せってい」・持ち物）を開いているか。BGM を少し下げるのに使う。
+func is_menu_open() -> bool:
+	return is_inventory_open() or (pause_menu != null and pause_menu.is_open())
+
+
 func toggle_inventory() -> bool:
 	if inventory.visible:
 		inventory.close()
