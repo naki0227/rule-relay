@@ -101,3 +101,22 @@ func test_lending_jump_to_the_lift_clears_and_saves_rewards() -> void:
 	assert_true(ProgressStore.new().exists(PROFILE), "progress saved")
 	await wait_physics_frames(int(PartyDirector.RETURN_DELAY * 60.0) + 10)
 	assert_false(director.in_stage(), "back to the hub")
+
+
+## 製品版の入口（all_stages_open = false）: 最初のステージは開いていて、次は前をクリアするまで閉じている。
+func test_locked_entrances_open_in_order_of_target_time() -> void:
+	director.all_stages_open = false
+	var second: StageDef.EntranceSpec = director.world.def.entrances[1]
+	await _put(second.position + Vector3(0.0, 0.1, 0.0))
+	director.world.interact(null)
+	await wait_physics_frames(5)
+	assert_eq(director.stage_id, StageCatalog.HUB_ID, "the second stage is locked")
+	await _enter_intro()
+	assert_eq(director.stage_id, StageCatalog.INTRO_ID, "the first stage is always open")
+
+
+func test_room_option_reaches_every_stage_ledger() -> void:
+	assert_false(director.world.ledger.allow_prohibition_to_player, "off by default")
+	director.allow_prohibition_to_player = true
+	await _enter_intro()
+	assert_true(director.world.ledger.allow_prohibition_to_player, "the new stage keeps the option")

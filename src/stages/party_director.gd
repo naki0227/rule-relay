@@ -36,6 +36,11 @@ var stage_run_id: String = ""
 var last_clear_text: String = ""
 ## ステージの島を置く親（既定は自分。物理の世界を分けたいときは SubViewport を渡す）。
 var world_parent: Node
+## ハブの入口を最初から全部開けておく（試遊の版。本人が全部を順に試せるように）。
+## 製品版では false にして、目安時間の短い順に、前のステージをクリアしたら次が開く（2026-11-20 本人の判断）。
+var all_stages_open: bool = true
+## 部屋のオプション: 禁止をプレイヤーへ直接渡せる（ホストが部屋を作るときに選ぶ。既定は渡せない）。
+var allow_prohibition_to_player: bool = false
 
 ## チェックポイント ID → その時点の記録 {"world": WorldSnapshot, "loadout": StageLoadout の状態}
 var _snapshots: Dictionary = {}
@@ -122,6 +127,7 @@ func _build(new_stage_id: String, run_id: String) -> void:
 	world.setup(StageCatalog.by_id(new_stage_id))
 	world.vote_request = request_vote
 	world.restart_request = request_restart
+	world.ledger.allow_prohibition_to_player = allow_prohibition_to_player
 	(world_parent if world_parent != null else self).add_child(world)
 	world.player.player_id = me
 	world.ledger_actions.player_id = me
@@ -149,8 +155,23 @@ func _present_players() -> PackedInt32Array:
 
 
 func _on_entrance_chosen(_player_id: int, chosen: String) -> void:
-	if not in_stage():
-		enter_stage(chosen)
+	if in_stage():
+		return
+	var before := previous_stage(chosen)
+	if not all_stages_open and before != null and not progress.has_cleared(before.stage_id):
+		world.message_posted.emit("「%s」をクリアすると開きます" % before.display_name)
+		return
+	enter_stage(chosen)
+
+
+## 目安時間の順で、このステージの1つ前のステージ（最初なら null）。
+## 協力中は、ホストの記録で開いているかを決める（仮）。
+static func previous_stage(chosen: String) -> StageDef:
+	var stages := StageCatalog.all_stages()
+	for i in stages.size():
+		if stages[i].stage_id == chosen:
+			return stages[i - 1] if i > 0 else null
+	return null
 
 
 # --- 毎フレーム（権威） --------------------------------------------------------
@@ -443,6 +464,7 @@ func export_state() -> Dictionary:
 		"lifecycle": lifecycle.to_dict(),
 		"snapshots": _snapshots,
 		"tracker": tracker.to_dict(),
+		"allow_prohibition_to_player": allow_prohibition_to_player,
 		"activated": world.activated.duplicate(),
 		"runs": runs,
 		"host_id": local_id(),
@@ -454,6 +476,7 @@ func export_state() -> Dictionary:
 ## 前のホストは「通信が切れた人」になる（戻ってくれば同じプレイヤーに戻る）。
 func adopt_state(state: Dictionary) -> void:
 	var here := world.player.global_position if world != null else Vector3.ZERO
+	allow_prohibition_to_player = bool(state.get("allow_prohibition_to_player", false))
 	_build(String(state["stage_id"]), String(state["run_id"]))
 	WorldSnapshot.apply(world, state["world"] as Dictionary)
 	world.player.global_position = here
