@@ -21,9 +21,13 @@ var _title: TitleMenu
 var _hud: Hud
 var _input: PlayerInput
 var _banner: PartyBanner
+## 操作の案内の「慣れた」記録（記録の名前ごと。島が変わっても引き継ぐ）。
+var _hints: HintMemory = HintMemory.new()
 
 
 func _ready() -> void:
+	# 設定（文字の大きさ・視点の速さ・キー割り当て）は、タイトルより先に反映する
+	GameSettings.load_and_apply(get_tree())
 	sounds = SoundBank.new()
 	sounds.name = "Sounds"
 	add_child(sounds)
@@ -100,6 +104,7 @@ func _make_director(profile: String) -> void:
 		_title = null
 	director = PartyDirector.new()
 	director.profile = profile
+	_hints = HintMemory.for_profile(profile)
 	add_child(director)
 	director.world_changed.connect(_on_world_changed)
 	_banner = PartyBanner.new()
@@ -138,6 +143,7 @@ func _on_world_changed(world: StageWorld) -> void:
 	_hud.name = "Hud"
 	_hud.world = world
 	_hud.sounds = sounds
+	_hud.hints = _hints
 	add_child(_hud)
 	if _banner.get_parent() != null:
 		_banner.get_parent().remove_child(_banner)

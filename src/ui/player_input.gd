@@ -16,6 +16,7 @@ const ACTION_KEYS: Dictionary[StringName, RuleAction.Kind] = {
 }
 
 ## 右スティックでカメラを回す速さ（マウスの移動量に換算して 1 秒あたり。仮値）。
+## 遊ぶ人は設定画面の「視点の速さ（パッド）」で倍率を変えられる（GameSettings.pad_sensitivity）。
 const PAD_LOOK_SPEED: float = 800.0
 
 var world: GameWorld
@@ -66,7 +67,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		_handle_radial(event)
 	elif motion != null:
 		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-			world.camera_rig.rotate_by(motion.relative)
+			var mouse_scale := GameSettings.get_current().mouse_sensitivity
+			world.camera_rig.rotate_by(motion.relative * mouse_scale)
 	elif event.is_action_pressed(&"release_mouse"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event.is_action_pressed(&"inventory") and hud != null:
@@ -200,7 +202,8 @@ func _look_with_stick(delta: float) -> void:
 		if look.length() > 0.3:
 			hud.radial_menu.point(look)
 	elif look != Vector2.ZERO and not (hud != null and hud.is_inventory_open()):
-		world.camera_rig.rotate_by(look * PAD_LOOK_SPEED * delta)
+		var speed := PAD_LOOK_SPEED * GameSettings.get_current().pad_sensitivity
+		world.camera_rig.rotate_by(look * speed * delta)
 
 
 ## Esc は検索欄に入力中でも持ち物画面を閉じる（世界は戻さない）。GUI より先に受け取る。
