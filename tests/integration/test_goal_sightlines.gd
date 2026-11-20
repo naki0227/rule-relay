@@ -36,6 +36,21 @@ const CASES: Array = [
 		[Vector3(6.5, 2.0, -14.5), Vector3(0.5, 0.0, -4.5)],
 		Vector3(4.8, 4.0, -14.5),
 	],
+	[
+		StageCatalog.NEST_ID,
+		[Vector3(3.5, 2.0, -8.5), Vector3(3.5, 0.0, -3.5), Vector3(-9.5, 0.0, -1.5)],
+		Vector3(3.5, 4.0, -10.2),
+	],
+	[
+		StageCatalog.GARDEN_ID,
+		[Vector3(4.5, 2.0, -13.5), Vector3(-2.5, 0.0, -5.5)],
+		Vector3(4.5, 4.0, -15.2),
+	],
+	[
+		StageCatalog.EXPEDITION_ID,
+		[Vector3(0.5, 5.0, -40.5), Vector3(-2.5, 3.0, -28.5), Vector3(5.5, 1.0, -19.5)],
+		Vector3(0.5, 7.0, -42.2),
+	],
 ]
 const CHEST := Vector3(0.0, 1.0, 0.0)
 
