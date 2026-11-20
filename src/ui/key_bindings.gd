@@ -147,6 +147,7 @@ func apply() -> void:
 			var event := InputNames.decode(descriptor)
 			if event != null:
 				InputMap.action_add_event(action, event)
+	InputMode.notify_changed()
 
 
 func save_to(config: ConfigFile, section: String) -> void:

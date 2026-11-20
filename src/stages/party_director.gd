@@ -153,7 +153,7 @@ func _build(new_stage_id: String, run_id: String) -> void:
 		(
 			"%s に来ました" % world.def.display_name
 			if in_stage()
-			else "ハブ: 入口で %s を押すとステージへ" % InputMode.key(&"interact")
+			else "ハブ: 入口で %s を押すとステージへ" % InputMode.token(&"interact")
 		)
 	)
 	world_changed.emit(world)
@@ -251,7 +251,7 @@ func _check_checkpoints() -> bool:
 		if cp != "" and lifecycle.activate_checkpoint(player_id, cp):
 			_snapshots[cp] = _capture()
 			world.message_posted.emit(
-				"チェックポイントがチーム共通になりました（台座で %s: 全員復活）" % InputMode.key(&"interact")
+				"チェックポイントがチーム共通になりました（台座で %s: 全員復活）" % InputMode.token(&"interact")
 			)
 			world.sound_requested.emit(&"save", Vector3.ZERO, false)
 			changed = true
@@ -367,7 +367,7 @@ func _vote_as(player_id: int, seen_resets: int) -> void:
 				% [
 					lifecycle.yes_vote_count(),
 					lifecycle.required_votes(),
-					InputMode.key(&"vote_reset")
+					InputMode.token(&"vote_reset")
 				]
 			)
 		)
@@ -740,6 +740,6 @@ func _leave() -> void:
 	world.message_posted.emit(_name(sender) + "が部屋を出ました（持っていた物はその場に落ちています）")
 	if in_stage():
 		world.message_posted.emit(
-			"人数が変わりました。%s 長押しで、今の人数に合わせてやり直せます" % InputMode.key(&"vote_reset")
+			"人数が変わりました。%s 長押しで、今の人数に合わせてやり直せます" % InputMode.token(&"vote_reset")
 		)
 	_broadcast_party()

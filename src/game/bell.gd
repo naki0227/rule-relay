@@ -105,8 +105,9 @@ func _build() -> void:
 	model.name = "Model"
 	add_child(model)
 	_cup = model.find_child("BellCup", true, false) as Node3D
-	var label := Label3D.new()
-	label.text = "鐘（%s で鳴らす）" % InputMode.key(&"interact")
+	# 割り当てを変えたら描き直す（KeyLabel3D）
+	var label := KeyLabel3D.new()
+	label.template = "鐘（%s で鳴らす）" % InputMode.token(&"interact")
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position.y = HEIGHT + 0.35
 	label.pixel_size = 0.004
