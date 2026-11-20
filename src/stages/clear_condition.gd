@@ -21,6 +21,11 @@ enum Kind { NONE, REACH_HEIGHT, ALL_AT_GOAL, CARRY_OBJECT, ACTIVATE, ALL_OF }
 
 ## 足もとの高さの誤差（物理で 2.999 のように少し沈むため）。仮値。
 const HEIGHT_TOLERANCE: float = 0.05
+## ゴールの箱を水平（x・z）に内側へ縮める幅（プレイヤーのカプセルの半径と同じ 0.3）。
+## 窪みの縁の角に乗ったまま、体の中心が窪みの上へ少し（実測 0.22 m まで）出た人を、ゴールに数えない
+## （docs/reports/2026-11-20-goal-probes.md G3。2026-11-20 決定）。床に立つ人の中心は壁から 0.3 より
+## 近づけないので、窪みの中の人はこれまでどおり数えられる。ルールは足さず、箱の形だけで決める。
+const GOAL_INSET: float = 0.3
 
 var kind: Kind = Kind.NONE
 ## REACH_HEIGHT は水平（x・z）の範囲だけ、ALL_AT_GOAL / CARRY_OBJECT は箱の中を見る。
@@ -46,12 +51,19 @@ static func reach_height(p_area: AABB, p_height: float) -> ClearCondition:
 	return c
 
 
-## 操作中の正式参加者が全員、ゴールの箱の中にいる。
+## 操作中の正式参加者が全員、ゴールの箱の中にいる。goal は窪み（床の広さ）の箱で、数える範囲は
+## 水平に GOAL_INSET だけ内側へ縮める（全ステージ共通。goal_area() も縮めた箱を返す）。
 static func all_at_goal(goal: AABB) -> ClearCondition:
 	var c := ClearCondition.new()
 	c.kind = Kind.ALL_AT_GOAL
-	c.area = goal
+	c.area = inset_goal(goal)
 	return c
+
+
+## ゴールの箱を水平（x・z）に GOAL_INSET だけ内側へ縮める（高さはそのまま）。
+static func inset_goal(goal: AABB) -> AABB:
+	var shrink := Vector3(GOAL_INSET, 0.0, GOAL_INSET)
+	return AABB(goal.position + shrink, goal.size - shrink * 2.0)
 
 
 ## 物体（key）が箱の中にある。
@@ -113,6 +125,28 @@ func goal_area() -> AABB:
 	return AABB()
 
 
+## ゴールにまだ来ていない人（試遊 G5、2026-11-20 本人の判断）。HUD に出す情報だけで、誰も止めない・外さない。
+## 生きている人（active）のうち、ゴールの箱に入っていない人を ID 昇順で返す。
+## 出すのは「島の条件（ゴール以外の部分）がそろった」か「生きている誰かがゴールにいる」ときだけ。
+## それ以外・ゴールの無い条件・全員そろっているときは空。
+func goal_stragglers(snapshot: Dictionary) -> PackedInt32Array:
+	var goal := goal_area()
+	var missing := PackedInt32Array()
+	if not goal.has_volume():
+		return missing
+	var positions := snapshot.get("positions", {}) as Dictionary
+	var someone_in := false
+	for id in _active(snapshot):
+		if positions.has(id) and goal.has_point(positions[id] as Vector3):
+			someone_in = true
+		else:
+			missing.append(id)
+	if not someone_in and not _stage_parts_met(snapshot):
+		return PackedInt32Array()
+	missing.sort()
+	return missing
+
+
 func describe() -> String:
 	if kind == Kind.ALL_OF:
 		var texts := PackedStringArray()
@@ -161,3 +195,18 @@ func _everyone_in_goal(snapshot: Dictionary) -> bool:
 
 func _active(snapshot: Dictionary) -> PackedInt32Array:
 	return snapshot.get("active", PackedInt32Array()) as PackedInt32Array
+
+
+## ALL_OF の、ゴールに集まる以外の部分（鐘・運ぶ物など）が全部成り立っているか。
+## そういう部分が無い条件（ゴールだけ）は false（ステージに入っただけで一覧を出さないため）。
+func _stage_parts_met(snapshot: Dictionary) -> bool:
+	if kind != Kind.ALL_OF:
+		return false
+	var found := false
+	for c in parts:
+		if c.kind == Kind.ALL_AT_GOAL:
+			continue
+		if not c.is_met(snapshot):
+			return false
+		found = true
+	return found

@@ -94,6 +94,11 @@ func test_checkpoint_puts_promoted_cells_back_into_the_terrain() -> void:
 
 func test_restoring_a_save_with_a_promoted_cell_promotes_it_again() -> void:
 	var cell := Vector3i(-3, -1, 1)
+	# 自分のジャンプを全部貸したままだと保存できない（F8）ので、手元にもう1つ持っておく
+	for slot in RuleLedger.HOTBAR_SIZE:
+		if island.ledger.hotbar_vessel(slot) == null:
+			island.ledger.give_player_item(JUMP, false, slot)
+			break
 	await stand_near(cell)
 	island.select_slot(JUMP_SLOT)
 	island.set_lend_mode(TriggerMode.Kind.REPEAT)

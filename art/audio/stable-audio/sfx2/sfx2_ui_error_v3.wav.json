@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_ui_error",
+  "original_idea": "ui_error 作り直し（2回目の試し）: こもっている → アタックをはっきり（机を2回「とん、とん」）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a knuckle rapping twice on a hard wooden tabletop, two quick dry clacks in succession, each with a crisp click at the start, gentle not alarming, hard maple, articulate, present, woody knock, no buzzer, no beep, close-miked, dry, no reverb.",
+  "sound_fields": {
+    "source": "a knuckle rapping twice on a hard wooden tabletop",
+    "action": "two quick dry clacks in succession, each with a crisp click at the start, gentle not alarming",
+    "material": "hard maple, articulate, present, woody knock, no buzzer, no beep",
+    "space": "close-miked, dry, no reverb"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": "muffled, dull, boomy, distant, reverb, soft thud, low-pass filtered, buzzer, beep",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4342,
+  "candidate": 3,
+  "file": "sfx2_ui_error_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:23:39",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 2.65,
+  "ceiling_gain_db": -3.65
+}

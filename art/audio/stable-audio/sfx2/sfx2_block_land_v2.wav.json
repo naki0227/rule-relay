@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_block_land",
+  "original_idea": "block_land 作り直し（2回目の試し）: こもっている → アタックをはっきり（木箱を地面に置く「ゴトン」）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a hollow wooden crate dropped onto hard packed earth, a crisp dry woody clack at the moment of impact, then a heavy short hollow thunk and a tiny rattle, pine boards, hollow box body, articulate, present, woody, close-miked, outdoors, dry.",
+  "sound_fields": {
+    "source": "a hollow wooden crate dropped onto hard packed earth",
+    "action": "a crisp dry woody clack at the moment of impact, then a heavy short hollow thunk and a tiny rattle",
+    "material": "pine boards, hollow box body, articulate, present, woody",
+    "space": "close-miked, outdoors, dry"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": "muffled, dull, boomy, distant, reverb, soft thud, low-pass filtered, sub bass rumble",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4381,
+  "candidate": 2,
+  "file": "sfx2_block_land_v2.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:24:13",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 5.94,
+  "ceiling_gain_db": -6.94
+}

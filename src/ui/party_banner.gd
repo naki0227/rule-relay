@@ -1,6 +1,7 @@
 class_name PartyBanner
 extends Control
-## 画面上部の小さな札: いまの場所・仲間の数・観戦中・全員リセットの投票・クリア。
+## 画面上部の小さな札: いまの場所・仲間の数・観戦中・全員リセットの投票（残り秒数）・クリア。
+## 協力中にゴールにまだ来ていない人がいれば、2行目に名前を出す（試遊 G5。情報だけ）。
 ## 文字だけで伝え、色だけに頼らない（企画書 8）。
 
 var director: PartyDirector
@@ -14,7 +15,7 @@ func _ready() -> void:
 	_label = Label.new()
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_label.position = Vector2(-360, 14)
-	_label.size = Vector2(720, 40)
+	_label.size = Vector2(720, 72)
 	_label.add_theme_font_override("font", UiTheme.font(700))
 	_label.add_theme_font_size_override("font_size", UiTheme.SIZE_BODY)
 	_label.add_theme_color_override("font_color", UiTheme.INK)
@@ -42,18 +43,24 @@ static func describe(d: PartyDirector) -> String:
 		elif state == PartyLifecycle.State.WAITING_SPECTATOR:
 			parts.append("観戦中（次の全員リセットで合流）")
 		if d.lifecycle.is_vote_open():
-			parts.append(
-				(
-					"全員リセットの投票 %d / %d（%s 長押しで賛成）"
-					% [
-						d.lifecycle.yes_vote_count(),
-						d.lifecycle.required_votes(),
-						InputMode.key(&"vote_reset")
-					]
+			(
+				parts
+				. append(
+					(
+						"全員リセットの投票 %d / %d（%s 長押しで賛成・残り %d 秒）"
+						% [
+							d.lifecycle.yes_vote_count(),
+							d.lifecycle.required_votes(),
+							InputMode.key(&"vote_reset"),
+							ceili(d.lifecycle.vote_seconds_left()),
+						]
+					)
 				)
 			)
 		else:
 			parts.append("%s 長押し: 全員リセットの投票" % InputMode.key(&"vote_reset"))
 	if d.last_clear_text != "" and d.in_stage():
 		parts.append(d.last_clear_text)
-	return "　".join(parts)
+	var text := "　".join(parts)
+	var missing := d.goal_missing_text()
+	return text if missing == "" else text + "\n" + missing

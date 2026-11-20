@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_player_land",
+  "original_idea": "player_land 作り直し（2回目の試し）: シャーっと鳴る → 高域を抑える。生成は既定の cfg、高域は加工のローパス",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a small person landing on short grass after a hop, one clear soft thud of both feet with a short crunch of grass, soft shoes, packed earth and grass blades, warm low body with a clear leafy edge, close-up, outdoors, dry.",
+  "sound_fields": {
+    "source": "a small person landing on short grass after a hop",
+    "action": "one clear soft thud of both feet with a short crunch of grass",
+    "material": "soft shoes, packed earth and grass blades, warm low body with a clear leafy edge",
+    "space": "close-up, outdoors, dry"
+  },
+  "bpm": null,
+  "seconds": 1.0,
+  "negative_prompt": null,
+  "cfg": 1.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4472,
+  "candidate": 3,
+  "file": "sfx2_player_land_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:25:08",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -11.68,
+  "raw_peak_dbfs": -11.68,
+  "ceiling_gain_db": 0.0
+}

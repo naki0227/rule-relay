@@ -12,8 +12,22 @@
   - ゴールへ歩いて入れることは、`test_goal_sightlines`・`test_open_islands` で確かめ済み。
   - 「窪みの中から渡せる」と判定したものは、どれも歩いて入る通しの操作でも再現した。
 - 実行: `timeout 900 godot --headless --fixed-fps 60 --script res://tests/run_tests.gd -- --filter=goal_probes` で 13 件成功（約 16 秒）。`timeout 1200 tools/check.sh` は「all checks passed」（411 件）。
-- `test_gate_*` は守られていた関所、`test_finding_*` は**試遊した時点の挙動**。
+- `test_gate_*` は守られていた関所、`test_finding_*` は**試遊した時点の挙動**、`test_accepted_*` は本人の判断で受け入れた挙動。G1・G3 は直して `test_gate_*` に、G2 は `test_accepted_*` にした（「決定」の節）。以下の G1〜G3 の本文は、直す前に測った記録。
 - `src/` は変えていない。数値はすべてヘッドレス・60fps の自動プレイで測った。
+
+## 決定（2026-11-20 本人）
+
+| # | 決定 | 実装 |
+|---|---|---|
+| G4 | **投票に時間切れを付ける**（仮 30 秒） | `PartyLifecycle.VOTE_TIME_LIMIT`・`tick_vote`。権威が `PartyDirector._check_vote_timeout` で閉じ、「全員リセットの投票は時間切れになりました」と出す。札に残り秒数を出す。残り秒数はホスト移譲で引き継ぐ |
+| G5 | **ゴールにまだ来ていない人を HUD に出す**（情報だけ。外す・強制する仕組みは足さない） | `ClearCondition.goal_stragglers`・`PartyDirector.goal_missing`。島の条件がそろうか誰かがゴールに入ると、札の2行目に「ゴールにまだ来ていない: プレイヤー2」。ひとり・クリア後は出さない。クリアの条件（生きている全員がゴール）は変えない |
+
+- G4 の `test_finding_bell_griefing_recall_vote_and_the_dead_partner` は `test_gate_lone_vote_expires_and_a_later_death_does_not_reset` に書き換えた。1 票だけの投票が時間切れになり、そのあと A が落ちても全員リセットは決まらない。B が新しく V を押すと、新しい投票として成立する。
+- G5 の `test_finding_one_player_outside_blocks_the_clear_until_they_die` は `test_accepted_one_player_outside_blocks_the_clear_but_is_named` にした。クリアが止まるのは設計どおり（受け入れた挙動）で、札に名前が出ることを確かめる。2 人ともゴールに入れば一覧は出ずにクリアする（`test_gate_both_in_the_goal_show_no_list_and_clear`）。
+- 単体テスト: 投票の時間切れ・新しい投票の残り秒数・ホスト移譲での引き継ぎ（`test_party_lifecycle.gd`）、2 人の一覧の中身（`test_stage_rules.gd`）。
+- 決定の実装後、`--filter=goal_probes` は 14 件成功、`timeout 1200 tools/check.sh` は「all checks passed」（497 件）。
+- 設計の記録は ADR 0010 決定 8。G1〜G3 は未決のまま。
+- 下の各節は、試遊した時点（決定の前）の記録として残す。
 
 ## まとめ
 
@@ -43,6 +57,22 @@
 - **死亡と途中参加**:
   - 仲間が死亡観戦なら、ゴールにいる生存者だけでクリアした。死亡観戦の人も報酬を受け取った。
   - 途中で入って待機観戦している人は、クリアを止めなかった。待機観戦の人は報酬の対象外。
+
+## 決定（2026-11-20。G1・G2・G3）
+
+本人の方針「妨害をシステムのルールで止めない」（ADR 0011 決定 10）のまま、地形とゴールの箱の形だけで決めた。G4・G5 はこの節の対象外。
+
+| # | 決定 | 変えたもの | テスト |
+|---|---|---|---|
+| G1 | 直す（地形だけ） | 導入の岩棚を北へ 1 マス広げ（z = -10〜-6）、窪みを奥へ寄せた（z = -9〜-8）。南（登り口の側）の縁が 2 マス（z = -7〜-6）、北 1 マス（下に誰も立てない）、東西 3 マス。持ち上げ台と南の道は動かしていない | `test_gate_intro_hollow_floor_cannot_give_down`。床の 27 点で 0 点になった（`test_gate_camera_from_*` の導入も 0 点の関所に変えた） |
+| G2 | 受け入れる | なし。窪みの中で跳び、頂点で縁越しに狙うのは上手な人の技として認める。「ゴールの中・空中からは渡せない」のようなルールは足さない | `test_accepted_jumping_in_the_hollow_aims_over_the_rim`・`test_accepted_hill_top_jump_and_give_from_inside_the_goal`（数は上の表のまま。導入は縁を 2 マスにしても跳べば 5 / 5） |
+| G3 | 直す（箱の形だけ。全ステージ共通） | `ClearCondition.all_at_goal` が、ゴールの箱を水平（x・z）に 0.3（カプセルの半径。`ClearCondition.GOAL_INSET`）内側へ縮める。高さは変えない（跳んでいる間も数える。G2 と同じ扱い）。窪みでない「みんなで回す」「鐘の谷」のゴールも同じく縮む | `test_gate_standing_on_the_rim_lip_is_not_in_the_goal`。縁の角で窪みの上へ 0.22 m 出ても数えず、落ちて床に立つと数える。`GOAL_INSET` を 0 に戻すと失敗することを確かめた |
+
+- 床に立つ人の中心は、もともと壁から 0.3 より近づけない。縮めても、窪みの中に立つ人が数えられなくなることはない。
+- 余裕: 縁の角に乗れるのは中心が 0.22 m 出るまで（実測）で、箱の端は 0.30 m。差は約 8 cm。カプセルの半径と同じ幅なので、理屈の上でも、中心が 0.3 出た人は縁の角に乗っていられない。
+- 床の見通しを測る点（`_floor_points`・`test_goal_sightlines` の `_points_in`）は、縮めた箱の端（壁から 0.3）を使うように直した。測る範囲は前と同じ。
+- 通しの操作（`test_party_director`・`test_net_four_players`・`test_net_director`・G5 の 2 件）は、導入のゴールへ歩く先を窪みの真ん中（z = -8.0）に直した。
+- 導入の南の縁 2 マスの余裕（計算）: 窪みの南端（z = -7.3）の回転の中心（y = 2.5）から、地面の仲間の頭（y = 1.58）へ引いた線は、縁の端（z = -5）で y ≒ 1.89〜1.94（仲間が z = -4.7〜-3.5 のとき）。縁の上面 2.0 の下を通る。仲間がもっと南（z = -2 など）にいれば縁の上を通るが、触る届き 4.0 の外（導入に「投げる」はない）。
 
 ## 窪みの中から下へ渡す
 

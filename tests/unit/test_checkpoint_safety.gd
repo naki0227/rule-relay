@@ -84,3 +84,34 @@ func test_policy_counts_prohibited_directions_as_unusable() -> void:
 func test_every_blocker_has_a_message() -> void:
 	for b: int in CheckpointPolicy.Blocker.values():
 		assert_ne(CheckpointPolicy.describe(b as CheckpointPolicy.Blocker), "?")
+
+
+## F8（2026-11-20）: 自分のジャンプを遠くへ貸したまま（登るも無い）では保存しない。
+## 禁止の札で跳べないだけ・仲間が持っているときは保存してよい。
+func _walk_and_jump_ledger() -> RuleLedger:
+	var ledger := RuleLedger.new()
+	for action: RuleAction.Kind in CheckpointPolicy.MOVE_ACTIONS:
+		ledger.give_player_item(action, false, int(action))
+	ledger.give_player_item(RuleAction.Kind.JUMP, false, 4)
+	ledger.register_entity(100, EntityKind.Kind.BLOCK)
+	return ledger
+
+
+func test_policy_refuses_while_the_own_jump_is_lent_away() -> void:
+	var ledger := _walk_and_jump_ledger()
+	var jump := ledger.hotbar_vessel(4).token_id
+	ledger.lend(jump, PackedInt32Array([100]), TriggerMode.Kind.REPEAT)
+	var blockers := CheckpointPolicy.save_blockers(ledger, true, 0)
+	assert_eq(blockers, [CheckpointPolicy.Blocker.JUMP_AWAY] as Array[CheckpointPolicy.Blocker])
+	ledger.recall(jump)
+	assert_eq(CheckpointPolicy.save_blockers(ledger, true, 0).size(), 0, "back in hand")
+
+
+func test_policy_allows_a_jump_ban_and_a_teammate_holding_it() -> void:
+	var ledger := _walk_and_jump_ledger()
+	ledger.give_player_item(RuleAction.Kind.JUMP, true, 5)
+	assert_false(ledger.player_can(RuleAction.Kind.JUMP), "banned")
+	assert_false(CheckpointPolicy.jump_is_away(ledger), "a ban is not 'away'")
+	ledger.register_player(2)
+	ledger.give_to_player(ledger.hotbar_vessel(4).token_id, RuleLedger.PLAYER_ID, 2)
+	assert_false(CheckpointPolicy.jump_is_away(ledger), "a teammate can give it back")

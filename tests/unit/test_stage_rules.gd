@@ -89,6 +89,29 @@ func test_all_at_goal_does_not_wait_for_dead_spectators() -> void:
 	assert_false(c.is_met(_snapshot(positions, [C, D])), "a living player outside")
 
 
+## ゴールにまだ来ていない人（試遊 G5。HUD の情報だけ）。2人で1人がゴールにいれば、もう1人の ID。
+## 2人ともいれば空。ゴールだけの条件で誰も入っていなければ出さない。島の条件がそろえば出す。
+func test_goal_stragglers_for_two_players() -> void:
+	var goal := AABB(Vector3(0, 0, 0), Vector3(4, 3, 4))
+	var c := ClearCondition.all_at_goal(goal)
+	var inside := Vector3(1, 1, 1)
+	var outside := Vector3(8, 0, 8)
+	assert_eq(c.goal_stragglers(_snapshot({A: inside, B: outside}, [A, B])), _ids([B]))
+	assert_eq(c.goal_stragglers(_snapshot({A: inside, B: inside}, [A, B])), _ids([]))
+	assert_eq(c.goal_stragglers(_snapshot({A: outside, B: outside}, [A, B])), _ids([]))
+	assert_eq(c.goal_stragglers(_snapshot({A: inside, B: outside}, [A])), _ids([]), "B is dead")
+	var bell := ClearCondition.all_of([ClearCondition.activate("bell"), c] as Array[ClearCondition])
+	var snap := _snapshot({A: outside, B: outside}, [A, B])
+	assert_eq(bell.goal_stragglers(snap), _ids([]), "bell not rung, nobody in the goal")
+	snap["activated"] = PackedStringArray(["bell"])
+	assert_eq(bell.goal_stragglers(snap), _ids([A, B]), "the island part is done")
+	assert_eq(ClearCondition.activate("bell").goal_stragglers(snap), _ids([]), "no goal")
+
+
+func _ids(values: Array[int]) -> PackedInt32Array:
+	return PackedInt32Array(values)
+
+
 func test_carry_object_and_activate() -> void:
 	var carry := ClearCondition.carry_object("crate", AABB(Vector3(0, 0, 0), Vector3(2, 2, 2)))
 	assert_true(carry.is_met({"entities": {"crate": Vector3(1, 0.5, 1)}}))
@@ -142,8 +165,10 @@ func test_goal_area_is_found_inside_all_of() -> void:
 	var parts: Array[ClearCondition] = [
 		ClearCondition.activate("bell"), ClearCondition.all_at_goal(goal)
 	]
-	assert_eq(ClearCondition.all_of(parts).goal_area(), goal)
-	assert_eq(ClearCondition.all_at_goal(goal).goal_area(), goal)
+	# 数える箱は、水平にカプセルの半径（0.3）だけ内側へ縮める（goal-probes G3）
+	var counted := AABB(Vector3(0.3, 0, 0.3), Vector3(1.4, 3, 1.4))
+	assert_eq(ClearCondition.all_of(parts).goal_area(), counted)
+	assert_eq(ClearCondition.all_at_goal(goal).goal_area(), counted)
 	assert_false(ClearCondition.activate("bell").goal_area().has_volume())
 
 
@@ -423,14 +448,19 @@ func test_intro_geometry_teaches_lending_jump() -> void:
 	# ゴールは岩棚の上の窪み（1 段下げ、まわりに縁が残る）。全員がここに集まればクリア
 	assert_eq(def.clear_condition.kind, ClearCondition.Kind.ALL_AT_GOAL)
 	var goal := def.clear_condition.area
-	var hollow := _top_at(def, 0, -7)
+	var hollow := _top_at(def, 0, -8)
 	assert_eq(hollow, ledge - 1.0, "the goal is one step below the ledge")
 	assert_lt(ledge - hollow, Tuning.PLAYER_JUMP_HEIGHT, "own jump climbs out of the hollow")
 	assert_gt(ledge - hollow, Tuning.STEP_ASSIST_HEIGHT, "not a mere step")
-	for edge: Vector2i in [Vector2i(0, -9), Vector2i(-3, -7), Vector2i(3, -7)]:
+	# 南（登り口の側）の縁は 2 マス（goal-probes G1）。北・東西にも縁が残る
+	for edge: Vector2i in [
+		Vector2i(0, -10), Vector2i(-3, -8), Vector2i(3, -8), Vector2i(0, -7), Vector2i(0, -6)
+	]:
 		assert_eq(_top_at(def, edge.x, edge.y), ledge, "lip at %s" % edge)
-	assert_true(goal.has_point(Vector3(0.5, hollow, -7.5)), "standing in the hollow")
+	assert_true(goal.has_point(Vector3(0.5, hollow, -8.0)), "standing in the hollow")
 	assert_false(goal.has_point(Vector3(0.5, ledge, -5.5)), "the lip is outside the goal")
+	# 縁の角に乗って体の中心が窪みの上へ 0.22 出ても、ゴールに数えない（goal-probes G3）
+	assert_false(goal.has_point(Vector3(0.5, ledge, -7.22)), "the rim corner is outside the goal")
 	# 2人以上: ジャンプ×2 で自分で届く（到達高度は数に比例して 2.6）
 	assert_gt(Tuning.PLAYER_JUMP_HEIGHT * 2.0, ledge - ground)
 	var spawn := def.spawn_point(0)
