@@ -49,7 +49,7 @@ func reaches(at: Vector3) -> bool:
 func _physics_process(delta: float) -> void:
 	if _cup != null:
 		_swing = maxf(0.0, _swing - delta * 0.35)
-		_cup.rotation.z = sin(Time.get_ticks_msec() * 0.012) * 0.35 * _swing
+		_cup.rotation.x = sin(Time.get_ticks_msec() * 0.012) * 0.35 * _swing  # 梁（東西）を軸に揺れる
 	if not is_ringing():
 		return
 	remaining = maxf(0.0, remaining - delta)
@@ -100,26 +100,11 @@ func _build() -> void:
 	shape.shape = box
 	shape.position.y = HEIGHT * 0.5
 	add_child(shape)
-	# 仮の見た目: 木の枠に吊るした金色の鐘。世界観が決まったら作り直す
-	var wood := _material(Color("#a47552"))
-	var gold := _material(Color("#e2b04a"))
-	gold.metallic = 0.6
-	gold.roughness = 0.35
-	for x: float in [-0.38, 0.38]:
-		add_child(_box(Vector3(0.12, HEIGHT, 0.12), Vector3(x, HEIGHT * 0.5, 0.0), wood))
-	add_child(_box(Vector3(0.95, 0.12, 0.16), Vector3(0.0, HEIGHT - 0.06, 0.0), wood))
-	_cup = Node3D.new()
-	_cup.position.y = HEIGHT - 0.12
-	add_child(_cup)
-	var cup := MeshInstance3D.new()
-	var cone := CylinderMesh.new()
-	cone.top_radius = 0.12
-	cone.bottom_radius = 0.3
-	cone.height = 0.45
-	cup.mesh = cone
-	cup.material_override = gold
-	cup.position.y = -0.3
-	_cup.add_child(cup)
+	# 見た目は Blender のモデル（art/scripts/build_contraptions.py）。鐘の本体 BellCup は吊り下げ点が原点
+	var model := ModelLibrary.instantiate("bell")
+	model.name = "Model"
+	add_child(model)
+	_cup = model.find_child("BellCup", true, false) as Node3D
 	var label := Label3D.new()
 	label.text = "鐘（F で鳴らす）"
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -131,20 +116,3 @@ func _build() -> void:
 	label.outline_modulate = Color(UiTheme.CREAM, 0.95)
 	label.outline_size = 12
 	add_child(label)
-
-
-func _box(size: Vector3, at: Vector3, mat: Material) -> MeshInstance3D:
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
-	mesh.position = at
-	mesh.material_override = mat
-	return mesh
-
-
-func _material(color: Color) -> StandardMaterial3D:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.8
-	return mat

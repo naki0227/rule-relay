@@ -35,10 +35,12 @@ class Entry:
 
 ## ホットバー（スロット順）→ 装備欄（頭・体・手・足）→ 通常インベントリ（入手順）の順に、条件に合う持ち物を返す。
 ## text は空白区切りの全語を含むものだけを残す（AND）。大文字小文字・全角半角・カタカナとひらがなは区別しない。
-static func search(ledger: RuleLedger, text: String, category: Category) -> Array[Entry]:
+static func search(
+	ledger: RuleLedger, text: String, category: Category, player_id: int = RuleLedger.PLAYER_ID
+) -> Array[Entry]:
 	var words := normalize(text).split(" ", false)
 	var result: Array[Entry] = []
-	for v in _all_vessels(ledger):
+	for v in _all_vessels(ledger, player_id):
 		var entry := describe(ledger, v)
 		if not _in_category(entry, category):
 			continue
@@ -174,19 +176,19 @@ static func _in_category(entry: Entry, category: Category) -> bool:
 	return true
 
 
-static func _all_vessels(ledger: RuleLedger) -> Array[RuleVessel]:
+static func _all_vessels(ledger: RuleLedger, player_id: int) -> Array[RuleVessel]:
 	var result: Array[RuleVessel] = []
 	for slot in RuleLedger.HOTBAR_SIZE:
-		var v := ledger.hotbar_vessel(slot)
+		var v := ledger.hotbar_vessel(slot, player_id)
 		if v != null:
 			result.append(v)
 	for part: RuleVessel.Part in [
 		RuleVessel.Part.HEAD, RuleVessel.Part.BODY, RuleVessel.Part.HANDS, RuleVessel.Part.FEET
 	]:
-		var equipped := ledger.equipped_vessel(part)
+		var equipped := ledger.equipped_vessel(part, player_id)
 		if equipped != null:
 			result.append(equipped)
-	result.append_array(ledger.inventory_vessels())
+	result.append_array(ledger.inventory_vessels(player_id))
 	return result
 
 
