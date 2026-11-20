@@ -48,6 +48,7 @@ func _ready() -> void:
 	_title = TitleMenu.new()
 	_title.name = "Title"
 	add_child(_title)
+	_title.settings_menu.play_sound = func(event: StringName) -> void: sounds.play_ui(event)
 	_title.solo_chosen.connect(start_solo)
 	_title.host_chosen.connect(start_host)
 	_title.prohibition_option_toggled.connect(func(on: bool) -> void: room_allow_prohibition = on)

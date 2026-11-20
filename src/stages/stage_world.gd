@@ -60,13 +60,13 @@ func _ready() -> void:
 	for i in def.checkpoints.size():
 		_add_pad(def.checkpoints[i], "チェックポイント")
 	for pad in def.return_pads:
-		_add_pad(pad, "広場へ戻る（%s）" % InputMode.key(&"interact"))
+		_add_pad(pad, "広場へ戻る（%s）" % InputMode.token(&"interact"))
 	for e in def.entrances:
 		var stage := StageCatalog.by_id(e.stage_id)
 		var caption := "%s\n目安 %d 分（仮）・%s"
 		_add_pad(
 			e.position,
-			caption % [stage.display_name, stage.target_minutes, InputMode.key(&"interact")]
+			caption % [stage.display_name, stage.target_minutes, InputMode.token(&"interact")]
 		)
 	var goal := def.clear_condition.goal_area()
 	if goal.has_volume():

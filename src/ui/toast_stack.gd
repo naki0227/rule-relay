@@ -2,6 +2,8 @@ class_name ToastStack
 extends VBoxContainer
 ## 知らせ: 画面左上に、生成りの小さな吹き出しで出す。ふわっと現れて、しばらくしたら消える。
 ## 多すぎるときは古いものから消す（1か所の列で順に出す）。
+## 文の `{key:操作}` は、この画面の人の割り当てと入力の種類で描く（ホストが作った知らせでも、
+## 自分のキー名が出る）。出ている間に割り当てや入力の種類が変わったら描き直す。
 
 const MAX_TOASTS: int = 3
 const LIFETIME: float = 3.2
@@ -10,6 +12,16 @@ const LIFETIME: float = 3.2
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_theme_constant_override("separation", 8)
+
+
+func _enter_tree() -> void:
+	if not InputMode.notifier.changed.is_connected(_rerender):
+		InputMode.notifier.changed.connect(_rerender)
+
+
+func _exit_tree() -> void:
+	if InputMode.notifier.changed.is_connected(_rerender):
+		InputMode.notifier.changed.disconnect(_rerender)
 
 
 func push(text: String) -> void:
@@ -29,7 +41,8 @@ func push(text: String) -> void:
 	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(dot)
 	var label := Label.new()
-	label.text = text
+	label.set_meta(&"template", text)
+	label.text = InputMode.resolve(text)
 	label.theme_type_variation = &"Body"
 	label.add_theme_font_size_override("font_size", UiTheme.SIZE_SMALL + 1)
 	row.add_child(label)
@@ -52,3 +65,10 @@ func messages() -> PackedStringArray:
 		if label != null:
 			out.append(label.text)
 	return out
+
+
+func _rerender() -> void:
+	for child: Node in get_children():
+		var label := child.get_child(0).get_child(1) as Label
+		if label != null and label.has_meta(&"template"):
+			label.text = InputMode.resolve(String(label.get_meta(&"template")))
