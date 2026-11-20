@@ -49,8 +49,9 @@ Secrets が登録されるまでは、このジョブは何もせずに通る（
 5. GitHub の Actions で「CI」を手動実行する（Run workflow）。
    - `macos-notarize` が緑になれば、`rule-relay-macos-signed` が警告なしで開ける版。
 
-## 別のやり方
+## 別のやり方: enludus-daily の組織へ移す
 
-rule-relay を enludus-daily の組織へ移すと、組織の Secrets を共有できる。
-- 移しても、Developer ID の証明書は別に作る必要がある。
-- 組織の Secrets を非公開リポジトリから使えるかは、組織のプランによる（未確認）。
+rule-relay は公開リポジトリなので、enludus-daily の組織へ移せば、組織の Secrets（`ASC_*`）をそのまま共有できる。
+- 共有するには、組織の Secrets の「Repository access」を「All repositories」にするか、選んだリポジトリに rule-relay を入れる。
+- Developer ID の証明書は、移しても新しく作る必要がある（組織の Secrets に `MACOS_DEVELOPER_ID_*` として足せば、組織の他のリポジトリでも使える）。
+- 移すと URL が `enludus-daily/rule-relay` に変わる（古い URL からは GitHub が転送する）。
