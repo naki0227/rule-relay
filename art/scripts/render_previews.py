@@ -1,6 +1,8 @@
 """art/source の .blend を1枚ずつ斜め上から描画し、確認用の PNG を書き出す（Cycles・CPU）。
 
-    blender -b --factory-startup --python art/scripts/render_previews.py -- <出力先ディレクトリ>
+    blender -b --factory-startup --python art/scripts/render_previews.py -- <出力先ディレクトリ> [名前 ...]
+
+名前（.blend の stem）を並べると、それだけを描画する。
 """
 
 import math
@@ -49,10 +51,13 @@ def render(blend: Path, out_dir: Path) -> None:
 
 
 def main() -> None:
-    out_dir = Path(sys.argv[sys.argv.index("--") + 1])
+    args = sys.argv[sys.argv.index("--") + 1 :]
+    out_dir = Path(args[0])
+    names = set(args[1:])
     out_dir.mkdir(parents=True, exist_ok=True)
     for blend in sorted((ROOT / "art" / "source").glob("*.blend")):
-        render(blend, out_dir)
+        if not names or blend.stem in names:
+            render(blend, out_dir)
 
 
 main()

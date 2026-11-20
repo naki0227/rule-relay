@@ -10,6 +10,8 @@
 - 地形・ブロックは中心が原点の 1x1x1。当たり判定はゲーム側の箱で、モデルは見た目だけ。
 - 乱数は固定シードで、何度実行しても同じ形になる。
 - 世界観は未定のため、特定の設定に寄せない中立的な形・色にしている（仮）。
+- プレイヤー・生き物は build_cast.py、目印と拾える物は build_markers.py、広場の置物は
+  build_hub_props.py、発射台と鐘は build_contraptions.py。色は palette.py にまとめている。
 """
 
 import math
@@ -290,7 +292,7 @@ def build_ability_block():
     save_and_export("ability_block", [obj])
 
 
-# --- キャラクター -------------------------------------------------------------
+# --- 共通の部品（build_cast.py などからも使う） ------------------------------
 
 
 def _join_as(name, objs, pivot):
@@ -307,92 +309,6 @@ def _join_as(name, objs, pivot):
     bpy.context.scene.cursor.location = pivot
     bpy.ops.object.origin_set(type="ORIGIN_CURSOR")
     return obj
-
-
-def _part(name, build, mats, smooth=40):
-    bm = bmesh.new()
-    build(bm)
-    return mesh_object(name, bm, mats, smooth_angle=smooth)
-
-
-def build_traveler():
-    """プレイヤー（仮）: フード付きの小柄な旅人。世界観未定のため装飾は控えめ。
-    手足・頭は別オブジェクトで、原点を関節に置く（ゲーム側でコードから振る）。"""
-    reset_scene()
-    cloak = material("Cloak", "#5b8fd1", 0.8)
-    cloak_dark = material("CloakLining", "#3f6aa6", 0.85)
-    scarf = material("Scarf", "#f09a45", 0.75)
-    skin = material("Skin", "#f1d2b4", 0.6)
-    eye = material("Eye", "#2a2430", 0.3)
-    shine = material("EyeShine", "#ffffff", 0.2, emission="#ffffff", strength=0.6)
-    pants = material("Pants", "#6b5a4c", 0.85)
-    boot = material("Boot", "#8b5e3c", 0.7)
-    mats = [cloak, cloak_dark, scarf, skin, eye, shine, pants, boot]
-    objects = []
-
-    # 胴体（ポンチョ）
-    def body(bm):
-        add_cylinder(bm, 0.33, 0.15, 0.62, 14, (0, 0, 0.73), 0)
-        add_cylinder(bm, 0.335, 0.335, 0.04, 14, (0, 0, 0.43), 1)  # 裾の折り返し
-        # マフラー
-        torus = bmesh.ops.create_cone(
-            bm, cap_ends=False, segments=14, radius1=0.17, radius2=0.17, depth=0.09
-        )
-        bmesh.ops.translate(bm, vec=Vector((0, 0, 1.04)), verts=torus["verts"])
-        set_material({f for v in torus["verts"] for f in v.link_faces}, 2)
-        add_cube(bm, (0.1, 0.04, 0.32), (0.07, -0.17, 0.9), 2)  # 背中に垂れる端
-
-    objects.append(_join_as("Body", [_part("Body", body, mats)], (0, 0, 0.42)))
-
-    # 頭（顔は +Y 向き）とフード
-    def head(bm):
-        add_sphere(bm, 0.25, (0, 0, 1.3), subdiv=3, material_index=3)
-        for sx in (-1, 1):
-            add_sphere(bm, 0.045, (sx * 0.09, 0.225, 1.31), (1, 0.5, 1.3), 2, 4)
-            add_sphere(bm, 0.014, (sx * 0.09 + 0.015, 0.247, 1.34), (1, 0.5, 1), 1, 5)
-        # フード: 少し大きい球から顔の前を抜き、厚みを付ける
-        verts, faces = add_sphere(bm, 0.29, (0, -0.02, 1.33), uv=(20, 12), material_index=0)
-        front = [f for f in faces if f.calc_center_median().y > 0.06 and f.calc_center_median().z < 1.5]
-        bmesh.ops.delete(bm, geom=front, context="FACES")
-        rest = [f for f in bm.faces if f.material_index == 0]
-        ext = bmesh.ops.extrude_face_region(bm, geom=rest)
-        inner = [e for e in ext["geom"] if isinstance(e, bmesh.types.BMVert)]
-        for v in inner:
-            v.co = Vector((0, -0.02, 1.33)) + (v.co - Vector((0, -0.02, 1.33))) * 0.93
-        new_faces = {f for v in inner for f in v.link_faces}
-        set_material(new_faces, 1)
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-        # フードの先（後ろに垂れる小さな角）
-        add_cylinder(
-            bm, 0.08, 0.0, 0.22, 8, (0, -0.27, 1.5), 0,
-            matrix=Matrix.Rotation(math.radians(-120), 4, "X"),
-        )
-
-    objects.append(_join_as("Head", [_part("Head", head, mats)], (0, 0, 1.06)))
-
-    for side, sx in (("L", -1), ("R", 1)):
-        def arm(bm, sx=sx):
-            add_cylinder(bm, 0.065, 0.055, 0.34, 10, (sx * 0.22, 0, 0.82), 0)
-            add_sphere(bm, 0.06, (sx * 0.22, 0.01, 0.62), subdiv=2, material_index=3)
-
-        objects.append(_join_as("Arm" + side, [_part("Arm" + side, arm, mats)], (sx * 0.2, 0, 0.98)))
-
-        def leg(bm, sx=sx):
-            add_cylinder(bm, 0.07, 0.065, 0.32, 10, (sx * 0.11, 0, 0.3), 6)
-            verts, faces = add_cube(bm, (0.13, 0.2, 0.12), (sx * 0.11, 0.035, 0.06), 7)
-            bmesh.ops.bevel(
-                bm, geom=list(verts) + list({e for v in verts for e in v.link_edges}),
-                offset=0.04, segments=3, affect="EDGES", clamp_overlap=True, material=7,
-            )
-
-        objects.append(_join_as("Leg" + side, [_part("Leg" + side, leg, mats)], (sx * 0.11, 0, 0.44)))
-
-    root = bpy.data.objects.new("Traveler", None)
-    bpy.context.collection.objects.link(root)
-    for obj in objects:
-        obj.parent = root
-        obj.matrix_parent_inverse = root.matrix_world.inverted()
-    save_and_export("traveler", [root] + objects)
 
 
 # --- 置物 ---------------------------------------------------------------------
@@ -455,60 +371,17 @@ def build_props():
     save_and_export("flower", [mesh_object("Flower", bm, [stem, petal, center], smooth_angle=50)])
 
 
-def build_checkpoint_pad():
-    reset_scene()
-    stone = material("PadStone", "#e2c08f", 0.8)
-    glow = material("PadGlow", "#b6e59a", 0.4, emission="#b6e59a", strength=1.2)
-    bm = bmesh.new()
-    verts, _ = add_cylinder(bm, 0.95, 0.9, 0.12, 24, (0, 0, 0.06), 0)
-    top = [f for f in bm.faces if f.calc_center_median().z > 0.11 and f.normal.z > 0.9]
-    bmesh.ops.inset_individual(bm, faces=top, thickness=0.12, depth=0.0)
-    ring = bmesh.ops.inset_individual(bm, faces=top, thickness=0.08, depth=-0.02)
-    set_material(ring["faces"], 1)
-    bmesh.ops.inset_individual(bm, faces=top, thickness=0.05, depth=0.02)
-    for i in range(4):
-        a = math.tau * i / 4 + math.pi / 4
-        add_cube(bm, (0.14, 0.14, 0.22), (math.cos(a) * 0.82, math.sin(a) * 0.82, 0.16), 0)
-        add_sphere(bm, 0.05, (math.cos(a) * 0.82, math.sin(a) * 0.82, 0.32), subdiv=1, material_index=1)
-    save_and_export("checkpoint_pad", [mesh_object("CheckpointPad", bm, [stone, glow])])
-
-
-def build_goal_beacon():
-    """到達目標の目印: 石の台と、上に浮かぶ光る結晶（結晶は別オブジェクトでゲーム側が回す）。"""
-    reset_scene()
-    stone = material("BeaconStone", "#e6d8bd", 0.85)
-    glow = material("BeaconGlow", "#ffd98a", 0.4, emission="#ffd98a", strength=2.0)
-    bm = bmesh.new()
-    add_cylinder(bm, 0.32, 0.22, 1.1, 4, (0, 0, 0.55), 0, matrix=Matrix.Rotation(math.pi / 4, 4, "Z"))
-    add_cylinder(bm, 0.42, 0.42, 0.12, 4, (0, 0, 0.06), 0, matrix=Matrix.Rotation(math.pi / 4, 4, "Z"))
-    pillar = mesh_object("BeaconPillar", bm, [stone])
-    bm = bmesh.new()
-    add_cylinder(bm, 0.18, 0.0, 0.26, 4, (0, 0, 0.13), 0)
-    add_cylinder(bm, 0.0, 0.18, 0.26, 4, (0, 0, -0.13), 0)
-    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
-    crystal = mesh_object("Crystal", bm, [glow])
-    crystal.location = (0, 0, 1.55)
-    root = bpy.data.objects.new("GoalBeacon", None)
-    bpy.context.collection.objects.link(root)
-    pillar.parent = root
-    crystal.parent = root
-    save_and_export("goal_beacon", [root, pillar, crystal])
-
-
 BUILDERS = {
     "grass": build_grass_cell,
     "rock": build_rock_cell,
     "sandstone": build_sandstone_cell,
     "island": build_island_base,
     "block": build_ability_block,
-    "traveler": build_traveler,
     "tree": lambda: (
         build_tree("TreeRound", "tree_round", 31, 1.3),
         build_tree("TreeTall", "tree_tall", 47, 1.9),
     ),
     "props": build_props,
-    "checkpoint": build_checkpoint_pad,
-    "goal": build_goal_beacon,
 }
 
 

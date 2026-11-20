@@ -3,22 +3,24 @@ extends Node3D
 ## 世界に落ちている器の見た目（F で拾うと通常インベントリへ入る）。台帳の状態を映すだけで、
 ## 拾う処理は GameWorld が台帳に対して行う。当たり判定はない。
 
+## 装備・ダッシュの道具を、手に持つ大きさより少し大きく見せる倍率。
+const TOOL_SCALE: float = 1.3
+
 var vessel_id: int = -1
 
-var _medal: Sprite3D
+## 浮かんで回る見た目（メダル・装備）。
+var _visual: Node3D
 var _time: float = 0.0
 
 
 func setup(v: RuleVessel, t: RuleToken) -> void:
 	vessel_id = v.id
 	name = "WorldItem%d" % v.id
-	_medal = Sprite3D.new()
-	_medal.texture = ItemIcons.for_token(t)
-	_medal.pixel_size = 0.0045
-	_medal.billboard = BaseMaterial3D.BILLBOARD_FIXED_Y
-	_medal.shaded = false
-	_medal.position.y = 0.7
-	add_child(_medal)
+	_visual = Node3D.new()
+	_visual.name = "Visual"
+	_visual.position.y = 0.7
+	_visual.add_child(_make_model(t))
+	add_child(_visual)
 	var shadow := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
 	disc.top_radius = 0.28
@@ -49,9 +51,48 @@ func setup(v: RuleVessel, t: RuleToken) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	if _medal != null:
-		_medal.position.y = 0.7 + sin(_time * 2.2) * 0.07
-		_medal.rotation.y = _time * 1.4
+	if _visual != null:
+		_visual.position.y = 0.7 + sin(_time * 2.2) * 0.07
+		_visual.rotation.y = _time * 1.4
+
+
+## 見た目のモデルの名前（art/scripts/build_markers.py）。装備とダッシュは道具の形、
+## ほかの能力ははちみつ色のメダル、禁止は灰の地に赤い輪と斜線のメダル。
+static func model_for(t: RuleToken) -> String:
+	if t.is_prohibition:
+		return "ban_medal"
+	match t.action:
+		RuleAction.Kind.HIGH_JUMP:
+			return "jump_boots"
+		RuleAction.Kind.CLIMB:
+			return "climbing_gloves"
+		RuleAction.Kind.DASH:
+			return "dash_feather"
+	return "vessel_medal"
+
+
+static func _make_model(t: RuleToken) -> Node3D:
+	var model_name := model_for(t)
+	var model := ModelLibrary.instantiate(model_name)
+	model.name = "Model"
+	if not model_name.ends_with("_medal"):
+		# 道具は足もとが原点なので、メダルと同じ高さに中心をそろえ、遠くから形が分かるよう少し大きく
+		model.position.y = -0.3
+		model.scale = Vector3.ONE * TOOL_SCALE
+		return model
+	# メダルの両面に、行動の記号を重ねる（矢印・山形など。禁止は赤い斜線の下に見える）
+	for side: float in [1.0, -1.0]:
+		var glyph := Sprite3D.new()
+		glyph.name = "GlyphFront" if side > 0.0 else "GlyphBack"
+		glyph.texture = ItemIcons.glyph(t.action)
+		glyph.pixel_size = 0.0036
+		glyph.alpha_cut = SpriteBase3D.ALPHA_CUT_DISCARD
+		glyph.shaded = false
+		glyph.modulate = ArtPalette.GLYPH_BAN if t.is_prohibition else ArtPalette.GLYPH_ABILITY
+		glyph.position.z = 0.03 * side
+		glyph.rotation.y = 0.0 if side > 0.0 else PI
+		model.add_child(glyph)
+	return model
 
 
 ## 台帳に合わせて、世界に落ちている器と能力（単発成功時に付与者が退出していた）の見た目をそろえる。

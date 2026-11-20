@@ -83,6 +83,8 @@ class CreatureSpec:
 	var key: String
 	var position: Vector3
 	var held_item: String = ""
+	## 見た目のモデル（Creature.MODEL_WISH / MODEL_KIT）。
+	var look: String = Creature.MODEL_WISH
 	var tokens: Array[TokenSpec] = []
 
 	func _init(p_key: String, p_position: Vector3) -> void:
