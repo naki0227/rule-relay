@@ -9,6 +9,7 @@
 - 足音: 柔らかい「ぽふっ」。保存: オルゴール。到達: カリンバの旋律と和音。鐘: 温かい村の鐘
 - キーはハ長調の五音（主に C4〜E5）でそろえ、高すぎる音（C6 以上）は使わない
 - 仕上げ: 低域・シャリつきの整理、端の処理、RMS で音量をそろえる
+- 2026-11-20: 6種は Stable Audio 3 medium で生成した候補に置き換えた（ADOPTED。合成の関数は戻せるように残す）
 """
 
 import wave
@@ -20,6 +21,19 @@ from scipy import signal
 SR = 44100
 OUT = Path(__file__).resolve().parents[2] / "assets" / "audio" / "sfx"
 RNG = np.random.default_rng(20261118)
+CANDIDATES = Path(__file__).resolve().parents[2] / "art" / "audio" / "stable-audio" / "sfx"
+
+# Stable Audio 3 medium の候補から採用した音（docs/sound-design.md、docs/sound-candidates-2026-11-20.md）。
+# イベント名: (候補のファイル, 置き換え前の合成音の RMS dBFS)。候補はピークでそろえてあるので、
+# ゲームの中の音量の釣り合いを変えないよう、置き換え前の RMS に合わせる（ピークは -3dBFS を超えない）
+ADOPTED = {
+    "ui_hover": ("ui_hover_1.wav", -37.0),  # E01
+    "receive_stone": ("receive_stone_2.wav", -32.8),  # E32
+    "block_jump": ("block_jump_2.wav", -27.6),  # E38
+    "block_step": ("block_step_2.wav", -22.0),  # E42
+    "player_jump": ("player_jump_1.wav", -28.0),  # E45
+    "save": ("save_1.wav", -21.3),  # E51
+}
 
 # ハ長調の五音（Hz）。C4=261.63
 NOTE = {
@@ -195,6 +209,21 @@ def mix(length, *parts):
     for sound, at, gain in parts:
         out = place(out, sound * gain, at)
     return out
+
+
+def adopted(name):
+    """採用した候補（tools/sfx/stable_audio_candidates.py で加工済みの 16bit モノラル 44.1kHz）を読み、
+    音量だけを置き換え前にそろえる。音色（フィルター・長さ）はそのまま使う。"""
+    file, rms_db = ADOPTED[name]
+    with wave.open(str(CANDIDATES / file)) as w:
+        assert w.getframerate() == SR and w.getnchannels() == 1 and w.getsampwidth() == 2
+        x = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(float) / 32768
+    x = x * 10 ** (rms_db / 20) / (np.sqrt(np.mean(x**2)) + 1e-12)
+    limit = 10 ** (-3 / 20)
+    peak = np.max(np.abs(x))
+    if peak > limit:
+        x *= limit / peak
+    return x
 
 
 # --- 楽器（世界観: ゆるふわの木のおもちゃの箱庭） -----------------------------
@@ -721,7 +750,7 @@ def bell():
 
 
 SOUNDS = {
-    "ui_hover": ui_hover,
+    "ui_hover": lambda: adopted("ui_hover"),  # 合成版は ui_hover()
     "ui_select": ui_select,
     "ui_confirm": ui_confirm,
     "ui_cancel": ui_cancel,
@@ -736,18 +765,18 @@ SOUNDS = {
     "recall": recall,
     "prohibit": prohibit,
     "receive_wood": receive_wood,
-    "receive_stone": receive_stone,
+    "receive_stone": lambda: adopted("receive_stone"),  # 合成版は receive_stone()
     "receive_grass": receive_grass,
     "receive_creature": receive_creature,
-    "block_jump": block_jump,
+    "block_jump": lambda: adopted("block_jump"),  # 合成版は block_jump()
     "block_land": block_land,
-    "block_step": block_step,
-    "player_jump": player_jump,
+    "block_step": lambda: adopted("block_step"),  # 合成版は block_step()
+    "player_jump": lambda: adopted("player_jump"),  # 合成版は player_jump()
     "player_land": player_land,
     "footstep_1": lambda: footstep(1),
     "footstep_2": lambda: footstep(2),
     "footstep_3": lambda: footstep(3),
-    "save": save,
+    "save": lambda: adopted("save"),  # 合成版は save()
     "goal": goal,
     "bell": bell,
 }
