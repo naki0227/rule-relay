@@ -22,6 +22,7 @@ static func capture(w: GameWorld) -> Dictionary:
 	for bell in w.bells:
 		bell_states.append(bell.capture_state())
 	return {
+		"promoted": w.promoted.duplicate(),
 		"ledger": w.ledger.snapshot(),
 		"creatures": creature_states,
 		"bells": bell_states,
@@ -35,6 +36,14 @@ static func capture(w: GameWorld) -> Dictionary:
 
 
 static func apply(w: GameWorld, snapshot: Dictionary) -> void:
+	# 地形から動くブロックにしたセル: 保存時に地形だったものは地形へ戻し、保存時にブロックだったものはブロックにする
+	var saved := snapshot.get("promoted", {}) as Dictionary
+	for cell: Vector3i in w.promoted.keys():
+		if not saved.has(cell):
+			TerrainPromotion.demote(w, cell)
+	for cell: Vector3i in saved:
+		if not w.promoted.has(cell):
+			TerrainPromotion.promote(w, cell)
 	w.ledger.restore(snapshot["ledger"] as Dictionary)
 	w.player.global_position = snapshot["player_position"] as Vector3
 	w.player.velocity = Vector3.ZERO

@@ -51,3 +51,32 @@ func _process(delta: float) -> void:
 	if _medal != null:
 		_medal.position.y = 0.7 + sin(_time * 2.2) * 0.07
 		_medal.rotation.y = _time * 1.4
+
+
+## 台帳の「世界に落ちている器」と、見た目のノード（vessel_id → WorldItem）を合わせる。
+static func sync(parent: GameWorld, nodes: Dictionary[int, WorldItem]) -> void:
+	var present := {}
+	for v in parent.ledger.world_vessels():
+		present[v.id] = true
+		if not nodes.has(v.id):
+			var node := WorldItem.new()
+			node.setup(v, parent.ledger.token(v.token_id))
+			parent.add_child(node)
+			nodes[v.id] = node
+		nodes[v.id].position = v.world_position
+	for id: int in nodes.keys():
+		if not present.has(id):
+			nodes[id].queue_free()
+			nodes.erase(id)
+
+
+## 拾える距離にある、いちばん近い器（無ければ null）。
+static func nearest(ledger: RuleLedger, from: Vector3) -> RuleVessel:
+	var best: RuleVessel = null
+	var best_distance := Tuning.PICKUP_REACH
+	for v in ledger.world_vessels():
+		var d := from.distance_to(v.world_position)
+		if d <= best_distance:
+			best = v
+			best_distance = d
+	return best

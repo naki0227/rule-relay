@@ -19,7 +19,7 @@
 
 | # | 要件 | 状態 | 実装 | テスト |
 |---|---|---|---|---|
-| 5.1 | ブロック: 単体・範囲。生き物: 単体のみ。プレイヤー: 対象外 | 実装＋テスト | `rule_ledger.gd` `_validate_targets`、`game_world.gd` `lend_to` | `test_rule_ledger`、`test_creature` |
+| 5.1 | ブロック: 単体・範囲（2026-11-19 本人の判断: 地形を含むどのブロックにも渡せる）。生き物: 単体のみ。プレイヤー: 対象外 | 実装＋テスト（`test_any_block`） | `rule_ledger.gd` `_validate_targets`、`game_world.gd` `lend_to` | `test_rule_ledger`、`test_creature` |
 | 5.1 | C で触る／投げる、左クリック＝単体、右クリック＝範囲 | 実装＋テスト | `player_input.gd`、`game_world.gd` `toggle_reach` | `test_throw_pickup_shuttle` |
 | 5.1 | 投げるも譲渡可能。貸すと遠距離付与できないが、触るとFの回収は残す | 実装＋テスト | `RuleAction.THROW`、`game_world.gd` `reach`／`_within_touch` | `test_throw_and_pickup`、`test_throw_pickup_shuttle` |
 | 5.2 | 単発: 対応キーで1回だけ試み、成功で自動返還。付与直後に勝手に実行しない | 実装＋テスト | `input_router.gd`、`rule_ledger.gd` `complete_single_shot` | `test_acceptance` 4 |
