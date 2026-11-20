@@ -1,0 +1,53 @@
+{
+  "kind": "process",
+  "input_audio": "/Users/ibukinagase/AudioStudio/bgm_hub_v1.wav",
+  "source": {
+    "kind": "generate",
+    "title": "bgm_hub",
+    "original_idea": "箱庭のハブ・探索（のんびり、温かい、木と手で鳴らす楽器中心。90〜120秒のループ）",
+    "audio_type": "music",
+    "prompt": "Warm, gentle acoustic folk track with fingerpicked nylon guitar and soft wooden marimba melody, light hand percussion of shakers, wooden blocks and frame drum, mellow upright bass, relaxed and cozy for wandering a small sunny island.",
+    "prompt_used": "TrackType: Music, VocalType: Instrumental, Warm, gentle acoustic folk track with fingerpicked nylon guitar and soft wooden marimba melody, light hand percussion of shakers, wooden blocks and frame drum, mellow upright bass, relaxed and cozy for wandering a small sunny island. BPM: 96.",
+    "sound_fields": {
+      "source": "",
+      "action": "",
+      "material": "",
+      "space": ""
+    },
+    "bpm": 96,
+    "seconds": 112.0,
+    "negative_prompt": null,
+    "cfg": 1.0,
+    "steps": 8,
+    "variations": 2,
+    "seed": 20261120,
+    "candidate": 1,
+    "file": "bgm_hub_v1.wav",
+    "sample_rate": 44100,
+    "bit_depth": 24,
+    "created": "2026-11-20T22:38:44",
+    "backend": "sa3-mlx",
+    "model": "medium + same-l",
+    "peak_dbfs": -1.0,
+    "raw_peak_dbfs": 1.05,
+    "ceiling_gain_db": -2.05
+  },
+  "created": "2026-11-20T22:41:25",
+  "format": "ogg",
+  "sample_rate": 44100,
+  "channels": 2,
+  "seconds": 106.5,
+  "steps": [
+    "trim 0.5–108.5",
+    "loudnorm -16.0 LUFS",
+    "loop xfade 1500.0 ms"
+  ],
+  "peak": 0.89,
+  "peak_dbfs": -1.02,
+  "rms": 0.1332,
+  "input_lufs": -16.53,
+  "input_true_peak_db": -1.0,
+  "output_lufs": -15.98,
+  "loudnorm_mode": "dynamic",
+  "file": "hub_1.ogg"
+}

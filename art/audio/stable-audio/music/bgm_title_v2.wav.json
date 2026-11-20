@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "bgm_title",
+  "original_idea": "タイトル画面（短い、期待感。30〜45秒のループ）",
+  "audio_type": "music",
+  "prompt": "Whimsical light chamber orchestra opening with bouncy pizzicato strings, playful clarinet and bassoon melody, soft celesta sparkles and gentle timpani swells, hopeful and full of anticipation, warm and charming.",
+  "prompt_used": "TrackType: Music, VocalType: Instrumental, Whimsical light chamber orchestra opening with bouncy pizzicato strings, playful clarinet and bassoon melody, soft celesta sparkles and gentle timpani swells, hopeful and full of anticipation, warm and charming. BPM: 108.",
+  "sound_fields": {
+    "source": "",
+    "action": "",
+    "material": "",
+    "space": ""
+  },
+  "bpm": 108,
+  "seconds": 42.0,
+  "negative_prompt": null,
+  "cfg": 1.0,
+  "steps": 8,
+  "variations": 2,
+  "seed": 20261141,
+  "candidate": 2,
+  "file": "bgm_title_v2.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T22:40:38",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 1.88,
+  "ceiling_gain_db": -2.88
+}
