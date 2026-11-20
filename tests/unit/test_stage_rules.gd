@@ -89,6 +89,29 @@ func test_all_at_goal_does_not_wait_for_dead_spectators() -> void:
 	assert_false(c.is_met(_snapshot(positions, [C, D])), "a living player outside")
 
 
+## ゴールにまだ来ていない人（試遊 G5。HUD の情報だけ）。2人で1人がゴールにいれば、もう1人の ID。
+## 2人ともいれば空。ゴールだけの条件で誰も入っていなければ出さない。島の条件がそろえば出す。
+func test_goal_stragglers_for_two_players() -> void:
+	var goal := AABB(Vector3(0, 0, 0), Vector3(4, 3, 4))
+	var c := ClearCondition.all_at_goal(goal)
+	var inside := Vector3(1, 1, 1)
+	var outside := Vector3(8, 0, 8)
+	assert_eq(c.goal_stragglers(_snapshot({A: inside, B: outside}, [A, B])), _ids([B]))
+	assert_eq(c.goal_stragglers(_snapshot({A: inside, B: inside}, [A, B])), _ids([]))
+	assert_eq(c.goal_stragglers(_snapshot({A: outside, B: outside}, [A, B])), _ids([]))
+	assert_eq(c.goal_stragglers(_snapshot({A: inside, B: outside}, [A])), _ids([]), "B is dead")
+	var bell := ClearCondition.all_of([ClearCondition.activate("bell"), c] as Array[ClearCondition])
+	var snap := _snapshot({A: outside, B: outside}, [A, B])
+	assert_eq(bell.goal_stragglers(snap), _ids([]), "bell not rung, nobody in the goal")
+	snap["activated"] = PackedStringArray(["bell"])
+	assert_eq(bell.goal_stragglers(snap), _ids([A, B]), "the island part is done")
+	assert_eq(ClearCondition.activate("bell").goal_stragglers(snap), _ids([]), "no goal")
+
+
+func _ids(values: Array[int]) -> PackedInt32Array:
+	return PackedInt32Array(values)
+
+
 func test_carry_object_and_activate() -> void:
 	var carry := ClearCondition.carry_object("crate", AABB(Vector3(0, 0, 0), Vector3(2, 2, 2)))
 	assert_true(carry.is_met({"entities": {"crate": Vector3(1, 0.5, 1)}}))
