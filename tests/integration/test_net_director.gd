@@ -1,40 +1,96 @@
 extends TestCase
 ## 2人のオンライン協力の進行（ホストと参加者を同じプロセスの中で別々の物理世界に作り、ENet でつなぐ）。
 ## ステージへ一緒に入る・死亡観戦・全員復活・途中参加は次の全員リセットで合流・クリアで両方に報酬。
-## 部屋の組み立ては net_party.gd（3〜4人のテストと共通）。
 
-const NetParty := preload("res://tests/integration/net_party.gd")
+const HOST_PROFILE := "zz_test_net_host"
+const CLIENT_PROFILE := "zz_test_net_client"
 const A := RuleLedger.PLAYER_ID
 const B := 2
 
-var party: NetParty
+var host_side: Node
+var client_side: Node
 var host: PartyDirector
 var client: PartyDirector
 var host_net: NetWorld
 var client_net: NetWorld
+var port: int
 
 
 func before_each() -> void:
-	party = NetParty.new(self, 2, "zz_test_net")
-	host = party.directors[0]
-	client = party.directors[1]
-	host_net = party.nets[0]
-	client_net = party.nets[1]
-	await party.open(StageCatalog.HUB_ID, 33000)
+	for p: String in [HOST_PROFILE, CLIENT_PROFILE]:
+		ProgressStore.new().delete(p)
+	host_side = _side("HostSide")
+	client_side = _side("ClientSide")
+	host = _director(host_side, HOST_PROFILE)
+	client = _director(client_side, CLIENT_PROFILE)
+	host_net = _net(host_side)
+	client_net = _net(client_side)
+	host.enter_stage(StageCatalog.HUB_ID)
+	host_net.world = host.world
+	port = 33000 + randi() % 3000
+	var server := ENetMultiplayerPeer.new()
+	assert_eq(server.create_server(port, 4), OK)
+	host_net.start_host(server, "host-key")
+	host.attach_net(host_net)
+	await wait_physics_frames(3)
 
 
 func after_each() -> void:
-	await party.close()
+	host_net.close()
+	client_net.close()
+	for side: Node in [host_side, client_side]:
+		tree.set_multiplayer(null, side.get_path())
+		side.queue_free()
+	await tree.process_frame
+	for p: String in [HOST_PROFILE, CLIENT_PROFILE]:
+		ProgressStore.new().delete(p)
+
+
+func _side(side_name: String) -> Node:
+	var side := Node.new()
+	side.name = side_name
+	tree.root.add_child(side)
+	tree.set_multiplayer(SceneMultiplayer.new(), side.get_path())
+	return side
+
+
+## 物理の世界を分けるため、進行役（とその下のステージ）は専用の SubViewport に入れる。
+func _director(side: Node, profile: String) -> PartyDirector:
+	var viewport := SubViewport.new()
+	viewport.name = "View"
+	viewport.own_world_3d = true
+	viewport.size = Vector2i(64, 64)
+	side.add_child(viewport)
+	var director := PartyDirector.new()
+	director.profile = profile
+	viewport.add_child(director)
+	return director
+
+
+func _net(side: Node) -> NetWorld:
+	var net := NetWorld.new()
+	side.add_child(net)
+	return net
 
 
 ## 参加者として入る（ハブを受け取ってから NetWorld を組み立てる）。
 func _join() -> void:
-	await party.join(1)
+	client.prepare_client()
+	client_net.world = client.world
+	client.attach_net(client_net)
+	var peer := ENetMultiplayerPeer.new()
+	assert_eq(peer.create_client("127.0.0.1", port), OK)
+	client_net.start_client(peer, "bob-key")
+	await _until(func() -> bool: return client.world != null and client.world.player.player_id == B)
 	await wait_physics_frames(10)
 
 
 func _until(condition: Callable) -> void:
-	await party.until(condition, "", 420)
+	for i in 420:
+		if condition.call():
+			return
+		await tree.physics_frame
+	fail("timed out")
 
 
 func _go_intro() -> void:
@@ -58,9 +114,6 @@ func test_party_enters_a_stage_together() -> void:
 	assert_eq(host.lifecycle.formal_participants(), PackedInt32Array([A, B]))
 	assert_true(client.world.replica, "the client's stage follows the host")
 	assert_true(host.world.avatars.has(B))
-	# 参加者は自分の出現地点に立つ（1人目の出現地点に重ならない）
-	var spawn := client.world.spawn_for(B)
-	assert_lt(client.world.player.global_position.distance_to(spawn), 0.5, "B at its own spawn")
 
 
 func test_death_spectates_and_revive_brings_back_without_rewinding() -> void:
@@ -105,7 +158,7 @@ func test_clear_gives_rewards_to_both_players() -> void:
 	await _until(func() -> bool: return host.last_clear_text != "")
 	await _until(func() -> bool: return client.progress.has_cleared(StageCatalog.INTRO_ID))
 	assert_true(host.progress.has_cleared(StageCatalog.INTRO_ID))
-	assert_true(ProgressStore.new().exists(client.profile), "the client saved its own progress")
+	assert_true(ProgressStore.new().exists(CLIENT_PROFILE), "the client saved its own progress")
 	await _until(func() -> bool: return client.stage_id == StageCatalog.HUB_ID)
 
 

@@ -131,8 +131,8 @@
 | 15 | 途中入室は観戦、次の全員リセットで合流 | 実装＋テスト | `PartyDirector._on_player_joined` | `test_net_director` |
 | 16 | ホスト移譲: 停止→選出中→新ホストで再開、二重所有なし、失敗は失敗と出す | 実装＋テスト（ENet・同じ PC 内の3人） | `HostMigration`、`PartyDirector.export_state`／`adopt_state` | `test_host_migration` |
 | 17〜21 | 報酬資格の真理値表、切断者は部屋があるうちに戻れば受け取る、初回と周回、複数の記録 | 実装＋テスト | `src/progress/`、`PartyDirector._on_clear`／`deliver_rewards` | `test_stage_run_rewards`、`test_player_progress`、`test_net_director` |
-| 22 | 再送・競合で状態・報酬が一意 | 実装＋テスト（依頼の再送・報酬の再送・投票の重複に加え、2026-11-20 に4人の同時操作を確認: 参加者3人が同じフレームに同じブロックへ F 回収／同じ回収依頼／同じ世界の器や落ちている能力を拾う／借りている同じ能力を2人が渡す、で勝つのは1人だけ・トークンの増減なし（全員の `validate()` が空）・全員の台帳がホストと一致。4人同時の投票はリセット1回で、余った票が次の投票を開かない（同日修正）） | `NetSession`、`StageRunRewards`、`PartyLifecycle`、`PartyDirector.request_vote`（見ていたリセット回数を票に添える） | `test_net_session`、`test_stage_run_rewards`、`test_party_lifecycle`、`test_net_races` |
-| 23 | 導入ステージをソロでも2〜4人でも攻略できる | 実装＋テスト（ソロは `test_party_director`。2026-11-20 に2・3・4人の通しプレイを確認: 出現地点から歩いて、ジャンプを集めて岩棚へ上がり、上から次の人へ渡して全員が窪みに入るとクリア。丘の上の旗も2人・4人で同じ道でクリア。持ち上げ台を使う解法の多人数版は未確認） | `StageCatalog.intro_jump_lend` | `test_party_director`、`test_stage_rules`、`test_net_four_players` |
+| 22 | 再送・競合で状態・報酬が一意 | 一部（依頼の再送・報酬の再送・投票の重複はテスト済み。同時 F 回収の競合はホストが順に処理する作りで、専用テストなし） | `NetSession`、`StageRunRewards`、`PartyLifecycle` | `test_net_session`、`test_stage_run_rewards`、`test_party_lifecycle` |
+| 23 | 導入ステージをソロでも2〜4人でも攻略できる | 一部（ソロのクリアは結合テスト。2人とも岩棚の窪みに集まるとクリアするのは `test_net_director`。2〜4人の別解の通しプレイは未確認） | `StageCatalog.intro_jump_lend` | `test_party_director`、`test_stage_rules` |
 | クリア | どのステージも「島の条件＋生きている全員がゴールに集まる」（2026-11-20 本人。ゴールは縁より 1 段低い窪みで、窪みの中からは下の仲間を狙えない。渡すのをルールで禁止はしない） | 実装＋テスト | `ClearCondition.goal_area`、`OpenIslands.goal_hollow`、`StageWorld._add_goal_marker`、ADR 0011 決定 9〜11 | `test_net_director`（1人ではクリアしない・2人でクリア）、`test_goal_sightlines`、各島の通しプレイ |
 | ハブ | ハブを歩いて入口を見つけ、F でステージへ。クリア後はハブへ戻る | 実装＋テスト（見た目は仮） | `StageCatalog.hub`、`StageWorld`、`PartyDirector` | `test_party_director` |
 | 入口 | タイトル（ひとりで／部屋を作る／部屋に入る） | 実装（起動確認のみ） | `TitleMenu`、`GameRoot` | `tools/check.sh` の起動確認 |

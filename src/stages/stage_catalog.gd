@@ -14,6 +14,9 @@ const THREE_BELLS_ID := "three_bells"
 const FLOATING_ID := "floating_isles"
 const WINDY_ID := "windy_ridge"
 const FORT_ID := "ruined_fort"
+const NEST_ID := "creature_nest"
+const GARDEN_ID := "ban_garden"
+const EXPEDITION_ID := "long_expedition"
 
 ## 導入: 岩棚（上面 y = 2）と、その手前の窪みに収まったブロック（上面が地面と同じ y = 0）。
 const INTRO_LEDGE_MIN := Vector3i(-5, 0, -9)
@@ -47,6 +50,9 @@ static func all_stages() -> Array[StageDef]:
 		OpenIslands.floating_isles(),
 		OpenIslandsMore.windy_ridge(),
 		OpenIslandsMore.ruined_fort(),
+		OpenIslandsExtra.creature_nest(),
+		OpenIslandsExtra.ban_garden(),
+		OpenIslandsLong.long_expedition(),
 	]
 	stages.sort_custom(
 		func(a: StageDef, b: StageDef) -> bool: return a.target_minutes < b.target_minutes
