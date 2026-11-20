@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx4_footstep",
+  "original_idea": "footstep 4回目（2回目の試し）: cfg 4 ではかかとの音がこもった → 2回目で合格した cfg 1.0＋加工のローパスのやり方で、1打だけ切り出す",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a single footstep of a soft shoe on short grass over firm soil, one light heel step, a clear short pat with a tiny crunch of grass, single hit, very short, grass blades over packed soil, warm, gentle and natural, close-up, outdoors, dry.",
+  "sound_fields": {
+    "source": "a single footstep of a soft shoe on short grass over firm soil",
+    "action": "one light heel step, a clear short pat with a tiny crunch of grass, single hit, very short",
+    "material": "grass blades over packed soil, warm, gentle and natural",
+    "space": "close-up, outdoors, dry"
+  },
+  "bpm": null,
+  "seconds": 1.0,
+  "negative_prompt": null,
+  "cfg": 1.0,
+  "steps": 8,
+  "variations": 4,
+  "seed": 6102,
+  "candidate": 3,
+  "file": "sfx4_footstep_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-21T00:33:11",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -5.53,
+  "raw_peak_dbfs": -5.53,
+  "ceiling_gain_db": 0.0
+}
