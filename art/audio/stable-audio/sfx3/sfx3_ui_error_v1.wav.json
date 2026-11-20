@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx3_ui_error",
+  "original_idea": "ui_error 3回目: 指で机をたたくは使わない。やさしいが輪郭のある2打（two soft dry clacks, rounded but clear attack）。ブザー・ビープは避ける",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a small hardwood block tapped twice with a felt-tipped wooden stick, two soft dry clacks in quick succession, the second slightly lower, rounded but clear attack, gentle not alarming, dense maple block, dry, warm woody mid tone, articulate, close-miked, dry, no reverb.",
+  "sound_fields": {
+    "source": "a small hardwood block tapped twice with a felt-tipped wooden stick",
+    "action": "two soft dry clacks in quick succession, the second slightly lower, rounded but clear attack, gentle not alarming",
+    "material": "dense maple block, dry, warm woody mid tone, articulate",
+    "space": "close-miked, dry, no reverb"
+  },
+  "bpm": null,
+  "seconds": 1.0,
+  "negative_prompt": "muffled, dull, boomy, distant, reverb, thud, low-pass filtered, buzzer, beep, electronic, metallic",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 4,
+  "seed": 5010,
+  "candidate": 1,
+  "file": "sfx3_ui_error_v1.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:52:40",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": -0.71,
+  "ceiling_gain_db": -0.29
+}

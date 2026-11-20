@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx3_ui_open",
+  "original_idea": "ui_open 3回目（2回目の試し）: 1回目の試しはこもった → 乾いた硬い木の「カチッ」から開ける",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a small hardwood box with a wooden latch being opened, a crisp dry wooden click as the latch flips open, then the lid lifts with a short soft creak, dense maple box and lid, dry, articulate woody tone, no paper rustle, close-miked, dry, no reverb.",
+  "sound_fields": {
+    "source": "a small hardwood box with a wooden latch being opened",
+    "action": "a crisp dry wooden click as the latch flips open, then the lid lifts with a short soft creak",
+    "material": "dense maple box and lid, dry, articulate woody tone, no paper rustle",
+    "space": "close-miked, dry, no reverb"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": "paper rustle, page flip, hiss, sizzle, airy noise, squeaky door, metal hinge, muffled, dull, thud, boomy, reverb",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 4,
+  "seed": 5323,
+  "candidate": 4,
+  "file": "sfx3_ui_open_v4.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:54:55",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 2.94,
+  "ceiling_gain_db": -3.94
+}

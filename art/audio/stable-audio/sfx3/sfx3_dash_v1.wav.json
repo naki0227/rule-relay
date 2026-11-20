@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx3_dash",
+  "original_idea": "dash（新しい音）: 3マスまっすぐ突進。0.3〜0.5 秒、風を切る感じ＋軽い踏み込み、高域のシャーは控えめ（short soft whoosh with a light push-off thump, warm, no hiss）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a small character dashing forward quickly across grass, a light push-off thump of a foot at the start, then a short soft whoosh of air moving past, quick and over in half a second, soft shoe on earth and moving air, warm, rounded, no hiss, close-up, outdoors, dry.",
+  "sound_fields": {
+    "source": "a small character dashing forward quickly across grass",
+    "action": "a light push-off thump of a foot at the start, then a short soft whoosh of air moving past, quick and over in half a second",
+    "material": "soft shoe on earth and moving air, warm, rounded, no hiss",
+    "space": "close-up, outdoors, dry"
+  },
+  "bpm": null,
+  "seconds": 1.0,
+  "negative_prompt": "hiss, sizzle, white noise, harsh, shrill, jet, sword swing, laser, sci-fi, reverb, long tail",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 4,
+  "seed": 5040,
+  "candidate": 1,
+  "file": "sfx3_dash_v1.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:59:01",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -9.58,
+  "raw_peak_dbfs": -9.58,
+  "ceiling_gain_db": 0.0
+}

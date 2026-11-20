@@ -14,6 +14,7 @@
 | 2026-11-20 | Claude Code（Anthropic） | 効果音 | 上の候補の測定と選定、取り込みのスクリプト（`tools/sfx/stable_audio_candidates.py`・`build_sfx.py`）と記録の作成 | PR でレビュー予定 |
 | 2026-11-20 | Audio Studio MCP（Stable Audio 3 medium、Stability AI、ローカル生成。Stability AI Community License） | BGM | 上の候補のうち BGM の B1（ハブ）・B3（島）・B5（タイトル）を、加工せずにゲームへ取り込んだ（`assets/audio/music/`、鳴らすのは `src/audio/music_player.gd`）。AI は音を聴けないので仮の選曲 | 本人の試聴待ち |
 | 2026-11-20 | Audio Studio MCP 1.2.0（Stable Audio 3 medium、Stability AI、`stabilityai/stable-audio-3-optimized` MLX 版 rev `30cb264`、ローカル生成） | 効果音 | 1回目で基準を外れた21イベントを作り直し、3つずつ計63個の候補を生成（`art/audio/stable-audio/sfx2/`、一覧は `docs/sound-candidates-2026-11-20-round2.md`）。ゲームの音は置き換えていない | 本人の試聴待ち |
+| 2026-11-20 | Audio Studio MCP 1.2.0（Stable Audio 3 medium、Stability AI、`stabilityai/stable-audio-3-optimized` MLX 版 rev `30cb264`、ローカル生成） | 効果音 | 3回目: 2回目でも合格が無かった4イベントと新しい音2つ（dash、ui_notice）を4つずつ、計24個の候補を生成（`art/audio/stable-audio/sfx3/`、一覧は `docs/sound-candidates-2026-11-20-round3.md`）。ゲームの音は置き換えていない | 本人の試聴待ち |
 
 - モデル名・バージョンは、提出時に本人が各サービスの表示で確認して記入する。
 - 生成 AI（音声）: ツールとモデルは Stable Audio 3 medium（Stability AI）。このMacでローカルに生成し、外部のサービスには送っていない。ライセンスは Stability AI Community License（年間収入 100 万ドル未満は商用利用可）。使った工程は効果音の候補の生成（採用は上の 6 種）。使った期間は 2026-11-20
