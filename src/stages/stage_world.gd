@@ -9,6 +9,8 @@ extends GameWorld
 signal checkpoint_interacted(player_id: int, checkpoint_id: String)
 ## ハブの入口で F を押したとき。
 signal entrance_chosen(player_id: int, stage_id: String)
+## 帰り道の台座で F を押したとき（広場へ戻す）。
+signal return_chosen(player_id: int)
 
 const CHECKPOINT_RADIUS: float = 1.3
 
@@ -53,8 +55,11 @@ func _ready() -> void:
 		bell.rang.connect(func() -> void: _mark_activated(spec.key))
 	for i in def.checkpoints.size():
 		_add_pad(def.checkpoints[i], "チェックポイント")
+	for pad in def.return_pads:
+		_add_pad(pad, "広場へ戻る（F）")
 	for e in def.entrances:
-		_add_pad(e.position, "入口: %s（F）" % StageCatalog.by_id(e.stage_id).display_name)
+		var stage := StageCatalog.by_id(e.stage_id)
+		_add_pad(e.position, "%s\n目安 %d 分（仮）・F" % [stage.display_name, stage.target_minutes])
 	spawn_player(def.spawn_point(0))
 
 
@@ -90,8 +95,9 @@ func entrance_at(at: Vector3) -> String:
 
 
 ## 1人用の「F で保存」の代わり: 台座の上の F は全員復活、入口の F はステージに入る。
+## 足もとに拾える物があるとき・手の届く物を狙っているときは、そちらを優先する（台座より先）。
 func interact(target: Node3D) -> void:
-	if replica or player == null:
+	if replica or player == null or _has_something_to_handle(target):
 		super.interact(target)
 		return
 	var cp := checkpoint_at(player.global_position)
@@ -101,6 +107,9 @@ func interact(target: Node3D) -> void:
 	var entrance := entrance_at(player.global_position)
 	if entrance != "":
 		entrance_chosen.emit(acting_id(), entrance)
+		return
+	if _near_any(def.return_pads, player.global_position):
+		return_chosen.emit(acting_id())
 		return
 	super.interact(target)
 
@@ -145,6 +154,23 @@ func clear_snapshot(players: PackedInt32Array, active: PackedInt32Array) -> Dict
 		elif creatures.has(id):
 			entities[key] = creatures[id].global_position
 	return {"positions": positions, "active": active, "entities": entities, "activated": activated}
+
+
+func _has_something_to_handle(target: Node3D) -> bool:
+	if nearest_world_item() != null:
+		return true
+	if WorldQueries.nearest_dropped(ledger, player.global_position) != -1:
+		return true
+	return target != null and is_within_reach(target)
+
+
+func _near_any(points: Array[Vector3], at: Vector3) -> bool:
+	for p in points:
+		var flat := at - p
+		flat.y = 0.0
+		if flat.length() <= CHECKPOINT_RADIUS and absf(at.y - p.y) < 1.0:
+			return true
+	return false
 
 
 func _mark_activated(key: String) -> void:

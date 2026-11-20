@@ -128,6 +128,9 @@ func _build(new_stage_id: String, run_id: String) -> void:
 	if is_authority():
 		world.checkpoint_interacted.connect(_on_checkpoint_interacted)
 		world.entrance_chosen.connect(_on_entrance_chosen)
+		world.return_chosen.connect(
+			func(player_id: int) -> void: _teleport(player_id, world.spawn_for(player_id))
+		)
 		world.ledger.changed.connect(func() -> void: tracker.observe(world.ledger))
 	world.message_posted.emit(
 		"%s に来ました" % world.def.display_name if in_stage() else "ハブ: 入口で F を押すとステージへ"
@@ -295,9 +298,16 @@ func _on_clear() -> void:
 	rewards.settle(statuses, tracker.metrics(), int(Time.get_unix_time_from_system()))
 	_runs.append(rewards)
 	_clear_timer = RETURN_DELAY
+	var seconds := int(tracker.seconds)
 	var text := (
-		"クリア！ %.0f 秒・付与 %d 回・受け渡し %d 回"
-		% [tracker.seconds, tracker.abilities_used, tracker.hand_offs]
+		"クリア！ %d 分 %02d 秒（目安 %d 分）・付与 %d 回・受け渡し %d 回"
+		% [
+			seconds / 60,
+			seconds % 60,
+			world.def.target_minutes,
+			tracker.abilities_used,
+			tracker.hand_offs,
+		]
 	)
 	_show_clear(text)
 	if _online():

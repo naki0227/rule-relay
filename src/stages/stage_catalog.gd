@@ -8,6 +8,10 @@ const HUB_ID := "hub"
 const INTRO_ID := "intro_jump_lend"
 const RELAY_ID := "relay_carry"
 const BELL_ID := "bell_valley"
+const BAN_ID := "let_go_of_ban"
+const GEAR_ID := "gear_path"
+const THREE_BELLS_ID := "three_bells"
+const ISLAND_TOUR_ID := "island_tour"
 
 ## 導入: 岩棚（上面 y = 2）と、その手前の窪みに収まったブロック（上面が地面と同じ y = 0）。
 const INTRO_LEDGE_MIN := Vector3i(-5, 0, -9)
@@ -26,8 +30,21 @@ const _MOVES: Array[RuleAction.Kind] = [
 ]
 
 
+## すべてのステージ（目安のクリア時間の短い順）。ハブの入口もこの順に並ぶ。
 static func all_stages() -> Array[StageDef]:
-	return [intro_jump_lend(), relay_carry(), bell_valley()]
+	var stages: Array[StageDef] = [
+		intro_jump_lend(),
+		bell_valley(),
+		relay_carry(),
+		let_go_of_ban(),
+		gear_path(),
+		three_bells(),
+		island_tour(),
+	]
+	stages.sort_custom(
+		func(a: StageDef, b: StageDef) -> bool: return a.target_minutes < b.target_minutes
+	)
+	return stages
 
 
 ## stage_id から定義を作る（ハブも含む）。無ければ null。
@@ -51,6 +68,7 @@ static func intro_jump_lend() -> StageDef:
 	var def := StageDef.new()
 	def.stage_id = INTRO_ID
 	def.display_name = "跳ぶ力を貸す"
+	def.target_minutes = 3
 	def.terrain_boxes = [
 		# 地面（窪みの1マスだけ抜く）と窪みの底
 		[Vector3i(-5, -1, -9), Vector3i(5, -1, -6), "grass"],
@@ -84,6 +102,7 @@ static func relay_carry() -> StageDef:
 	var def := StageDef.new()
 	def.stage_id = RELAY_ID
 	def.display_name = "みんなで回す"
+	def.target_minutes = 5
 	var goal_min := Vector3i(-5, 0, -6)
 	var goal_max := Vector3i(5, 0, -4)
 	def.terrain_boxes = [
@@ -110,6 +129,7 @@ static func bell_valley() -> StageDef:
 	var def := StageDef.new()
 	def.stage_id = BELL_ID
 	def.display_name = "鐘の谷"
+	def.target_minutes = 4
 	def.terrain_boxes = [
 		[Vector3i(-5, -1, -3), Vector3i(BELL_SHORE_MAX_X, -1, 5), "grass"],
 		[Vector3i(6, -1, -1), Vector3i(8, -1, 1), "grass"],
@@ -131,14 +151,86 @@ static func hub() -> StageDef:
 	var def := StageDef.new()
 	def.stage_id = HUB_ID
 	def.display_name = "ハブ"
-	def.terrain_boxes = [[Vector3i(-9, -1, -9), Vector3i(9, -1, 9), "grass"]]
 	def.spawn_points = _spawn_row(Vector3(0.0, 0.0, 3.5))
 	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP]))
-	def.entrances = [
-		_entrance(INTRO_ID, Vector3(0.5, 0.0, -6.5)),
-		_entrance(RELAY_ID, Vector3(-6.5, 0.0, 0.5)),
-		_entrance(BELL_ID, Vector3(7.5, 0.0, 0.5)),
+	# 入口は目安のクリア時間の短い順に、西から東へ一列（本人が順番に試して比べられるように）
+	var stages := all_stages()
+	def.terrain_boxes = [[Vector3i(-12, -1, -9), Vector3i(12, -1, 9), "grass"]]
+	for i in stages.size():
+		var x := -10.5 + 3.5 * i
+		def.entrances.append(_entrance(stages[i].stage_id, Vector3(x, 0.0, -6.5)))
+	return def
+
+
+## 禁止の手放し方（8 分・仮）: ブロックの禁止を回収すると自分が跳べなくなる → 別のブロックへ渡して手放す。
+static func let_go_of_ban() -> StageDef:
+	var def := StageDef.new()
+	def.stage_id = BAN_ID
+	def.display_name = "禁止の手放し方"
+	def.target_minutes = 8
+	var rooms: Array[StageModules.Room] = [
+		StageModules.Room.LET_GO_OF_BAN, StageModules.Room.GOAL_PODIUM
 	]
+	StageModules.build(def, rooms)
+	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP, RuleAction.Kind.THROW]))
+	return def
+
+
+## 装備の小道（12 分・仮）: 拾ったジャンプブーツで跳び、クライミンググローブで登り、最後は台へ。
+static func gear_path() -> StageDef:
+	var def := StageDef.new()
+	def.stage_id = GEAR_ID
+	def.display_name = "装備の小道"
+	def.target_minutes = 12
+	var rooms: Array[StageModules.Room] = [
+		StageModules.Room.BOOTS, StageModules.Room.GLOVES, StageModules.Room.GOAL_PODIUM
+	]
+	StageModules.build(def, rooms)
+	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP, RuleAction.Kind.THROW]))
+	return def
+
+
+## 三つの鐘（20 分・仮）: 広場から北・東・西の3本の枝道。奥の鐘を全部鳴らすとクリア。協力なら手分けできる。
+static func three_bells() -> StageDef:
+	var def := StageDef.new()
+	def.stage_id = THREE_BELLS_ID
+	def.display_name = "三つの鐘"
+	def.target_minutes = 20
+	var r := StageModules.Room
+	(
+		StageModules
+		. build_arms(
+			def,
+			{
+				StageModules.Arm.NORTH: [r.JUMP_LEND, r.ARM_BELL],
+				StageModules.Arm.EAST: [r.BOOTS, r.ARM_BELL],
+				StageModules.Arm.WEST: [r.BELL_LIFT, r.ARM_BELL],
+			}
+		)
+	)
+	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP, RuleAction.Kind.THROW]))
+	return def
+
+
+## 島めぐり（30 分・仮）: 3本の枝道がそれぞれ3部屋。これまでの仕組みを全部使う。
+static func island_tour() -> StageDef:
+	var def := StageDef.new()
+	def.stage_id = ISLAND_TOUR_ID
+	def.display_name = "島めぐり"
+	def.target_minutes = 30
+	var r := StageModules.Room
+	(
+		StageModules
+		. build_arms(
+			def,
+			{
+				StageModules.Arm.NORTH: [r.LET_GO_OF_BAN, r.BELL_LIFT, r.ARM_BELL],
+				StageModules.Arm.EAST: [r.BOOTS, r.GLOVES, r.ARM_BELL],
+				StageModules.Arm.WEST: [r.JUMP_LEND, r.LET_GO_OF_BAN, r.ARM_BELL],
+			}
+		)
+	)
+	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP, RuleAction.Kind.THROW]))
 	return def
 
 

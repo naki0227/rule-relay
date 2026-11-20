@@ -60,6 +60,10 @@ static func provisional() -> RewardTable:
 				"intro_jump_lend": _stage_rewards("intro", "tmp_hub_lantern_intro"),
 				"relay_carry": _stage_rewards("relay", "tmp_hub_bridge_relay"),
 				"bell_valley": _stage_rewards("bell", "tmp_hub_bell_tower"),
+				"let_go_of_ban": _stage_rewards("ban", "tmp_hub_signpost"),
+				"gear_path": _stage_rewards("gear", "tmp_hub_workshop"),
+				"three_bells": _stage_rewards("bells3", "tmp_hub_belfry"),
+				"island_tour": _stage_rewards("tour", "tmp_hub_lighthouse"),
 			}
 		)
 	)
