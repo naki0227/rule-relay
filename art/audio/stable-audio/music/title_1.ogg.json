@@ -1,0 +1,53 @@
+{
+  "kind": "process",
+  "input_audio": "/Users/ibukinagase/AudioStudio/bgm_title_v1.wav",
+  "source": {
+    "kind": "generate",
+    "title": "bgm_title",
+    "original_idea": "タイトル画面（短い、期待感。30〜45秒のループ）",
+    "audio_type": "music",
+    "prompt": "Whimsical light chamber orchestra opening with bouncy pizzicato strings, playful clarinet and bassoon melody, soft celesta sparkles and gentle timpani swells, hopeful and full of anticipation, warm and charming.",
+    "prompt_used": "TrackType: Music, VocalType: Instrumental, Whimsical light chamber orchestra opening with bouncy pizzicato strings, playful clarinet and bassoon melody, soft celesta sparkles and gentle timpani swells, hopeful and full of anticipation, warm and charming. BPM: 108.",
+    "sound_fields": {
+      "source": "",
+      "action": "",
+      "material": "",
+      "space": ""
+    },
+    "bpm": 108,
+    "seconds": 42.0,
+    "negative_prompt": null,
+    "cfg": 1.0,
+    "steps": 8,
+    "variations": 2,
+    "seed": 20261140,
+    "candidate": 1,
+    "file": "bgm_title_v1.wav",
+    "sample_rate": 44100,
+    "bit_depth": 24,
+    "created": "2026-11-20T22:40:37",
+    "backend": "sa3-mlx",
+    "model": "medium + same-l",
+    "peak_dbfs": -1.0,
+    "raw_peak_dbfs": 1.71,
+    "ceiling_gain_db": -2.71
+  },
+  "created": "2026-11-20T22:41:41",
+  "format": "ogg",
+  "sample_rate": 44100,
+  "channels": 2,
+  "seconds": 37.0,
+  "steps": [
+    "trim 0.5–38.5",
+    "loudnorm -16.0 LUFS",
+    "loop xfade 1000.0 ms"
+  ],
+  "peak": 0.852,
+  "peak_dbfs": -1.39,
+  "rms": 0.1189,
+  "input_lufs": -15.61,
+  "input_true_peak_db": -0.98,
+  "output_lufs": -16.17,
+  "loudnorm_mode": "linear",
+  "file": "title_1.ogg"
+}
