@@ -69,7 +69,9 @@ func _ready() -> void:
 	checkpoint_center = SPAWN
 	goal_box = AABB(Vector3(2.0, 2.9, -11.0), Vector3(6.0, 3.0, 6.0))
 	_add_model("checkpoint_pad", checkpoint_center)
-	_add_label(checkpoint_center + Vector3(0.0, 1.9, 0.0), "チェックポイント（F で保存）")
+	_add_label(
+		checkpoint_center + Vector3(0.0, 1.9, 0.0), "チェックポイント（%s で保存）" % InputMode.key(&"interact")
+	)
 	_goal_crystal = _add_model("goal_beacon", Vector3(6.6, 3.0, -10.4)).find_child("Crystal")
 	_add_label(Vector3(5.0, 4.9, -8.5), "目標: 高台")
 	set_initial_checkpoint()

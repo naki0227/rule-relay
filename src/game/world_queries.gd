@@ -10,7 +10,7 @@ static func describe(t: RuleToken, result: RuleLedger.LendResult, use_range: boo
 			var mode := "" if t.mode == TriggerMode.Kind.NONE else "・%s" % TriggerMode.label(t.mode)
 			return "%s を%s%sで付与しました" % [t.describe(), how, mode]
 		RuleLedger.LendResult.ALREADY_LENT:
-			return "%s は貸出中です（F で回収）" % t.describe()
+			return "%s は貸出中です（%s で回収）" % [t.describe(), InputMode.key(&"interact")]
 		RuleLedger.LendResult.EQUIPPED_CANNOT_LEND:
 			return "装備しているものは渡せません（外してホットバーに置くと渡せます）"
 		RuleLedger.LendResult.NO_TARGETS:
@@ -41,7 +41,7 @@ static func throw_unavailable_reason(ledger: RuleLedger, player_id: int) -> Stri
 		var t := ledger.token(v.token_id)
 		var mine := v.owner_id == player_id and v.location != RuleVessel.Location.WORLD
 		if mine and t.action == RuleAction.Kind.THROW and not t.is_in_vessel():
-			return "貸出中です（F で回収）"
+			return "貸出中です（%s で回収）" % InputMode.key(&"interact")
 	return "ホットバーにありません"
 
 

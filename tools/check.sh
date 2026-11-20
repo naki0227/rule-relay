@@ -2,6 +2,7 @@
 # ローカルとCIで同じ品質ゲートを実行する。
 #   tools/check.sh            format / lint / import / static / test / smoke
 #   tools/check.sh --build    上記に加えて Windows・macOS・Linux（Steam Deck）向けにエクスポート
+#                             （提出版の書き出しに Steam が入っていないことも確かめる。docs/adr/0012）
 #   tools/check.sh --fix      gdformat で整形してから検査
 # 環境変数 GODOT で Godot 実行ファイルを指定できる（既定: godot）。
 set -euo pipefail
@@ -52,6 +53,9 @@ gdformat --check "${GD_FILES[@]}"
 step "lint"
 gdlint "${GD_FILES[@]}"
 
+step "no steam in the contest build (source)"
+python3 tools/check_no_steam.py --source
+
 step "sound budget (tools/sfx)"
 python3 -m unittest discover -s tools/sfx -p 'test_*.py'
 
@@ -87,6 +91,9 @@ if [ "$BUILD" -eq 1 ]; then
   run_godot export_linux --headless --export-release "Linux" build/linux/rule-relay.x86_64
   test -s build/linux/rule-relay.x86_64
   ls -la build/linux
+  step "no steam in the contest build (exported files)"
+  python3 tools/check_no_steam.py build/windows/rule-relay.exe build/macos/rule-relay.zip \
+    build/linux/rule-relay.x86_64
   step "smoke (exported Linux build, solo, 300 frames)"
   GODOT="build/linux/rule-relay.x86_64" run_godot smoke_linux_build --headless --quit-after 300 \
     -- --solo --profile=zz_smoke

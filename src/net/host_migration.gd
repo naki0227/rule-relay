@@ -9,7 +9,9 @@ extends Node
 ## - 新しいホスト: 同じポートで部屋を開き直し、受け取っていた最後の状態から続ける（「あなたがホストになりました」）
 ## - だれにもつながらなければ、成功したふりをせず「ホストが見つかりません」と出す
 ## ENet の直接接続では、新しいホストの PC にも外からつながる必要がある（ポート開放など）。
-## Steam 版ではロビーが持ち主を自動で移すので、つなぎ直し先はロビーから分かる。
+## Steam 版（link に Steam 版の通信を入れたとき。docs/adr/0012）は、ID の小さい人を選ぶ代わりに
+## 「Steam が決めた新しいロビーの持ち主 = 新しいホスト」にする。全員が同じロビーの持ち主を見るので、
+## これも話し合いは要らない。P2P は Valve の中継を通るので、新しいホストのポート開放も要らない（未検証）。
 ## 子ノード名は固定（"Migration"）。RPC のパスを両側でそろえるため。
 
 signal status_changed(text: String)
@@ -19,11 +21,15 @@ const PACKAGE_PERIOD: float = 1.5
 const REJOIN_TIMEOUT: float = 12.0
 ## 新しいホストが部屋を開き直すのを待ってからつなぐ。
 const REJOIN_DELAY: float = 1.0
+## Steam 版: ロビーの持ち主が移るのを待つ時間（落ちた人を Steam が抜けたと判断するまで少しかかる）。
+const OWNER_TIMEOUT: float = 30.0
 
 var director: PartyDirector
 var net: NetWorld
 var port: int = 0
 var session_key: String = ""
+## Steam 版の通信（src/steam/steam_transport.gd）。null なら ENet の直接接続（今までどおり）。
+var link: Node = null
 ## 移譲の途中か。
 var migrating: bool = false
 ## 最後に受け取ったホストの状態。
@@ -32,6 +38,7 @@ var package: Dictionary = {}
 var _timer: float = 0.0
 var _rejoin_left: float = -1.0
 var _rejoin_address: String = ""
+var _owner_left: float = -1.0
 
 
 func _ready() -> void:
@@ -55,15 +62,20 @@ func _physics_process(delta: float) -> void:
 			_receive.rpc(_make_package())
 	elif _rejoin_left >= 0.0:
 		_wait_for_rejoin(delta)
+	elif _owner_left >= 0.0:
+		_wait_for_owner(delta)
 
 
 func _make_package() -> Dictionary:
-	return {
+	var made := {
 		"director": director.export_state(),
 		"roster": net.session.public_roster(),
 		"addresses": net.session.peer_addresses(),
 		"generation": net.session.generation,
 	}
+	if link != null:
+		made["steam_ids"] = link.call(&"steam_ids_by_player", net.session, director.local_id())
+	return made
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -80,6 +92,16 @@ static func elect(addresses: Dictionary, old_host: int) -> int:
 	return best
 
 
+## Steam 版: 新しいロビーの持ち主がどのプレイヤーか（前のホストのまま・知らない人なら -1 で、まだ待つ）。
+static func elect_by_owner(steam_ids: Dictionary, owner_steam_id: int, old_host: int) -> int:
+	if owner_steam_id == 0:
+		return -1
+	for player_id: int in steam_ids:
+		if player_id != old_host and int(steam_ids[player_id]) == owner_steam_id:
+			return player_id
+	return -1
+
+
 func _on_host_lost() -> void:
 	if migrating or net == null or net.is_host():
 		return
@@ -89,7 +111,10 @@ func _on_host_lost() -> void:
 	if package.is_empty():
 		_fail("ホストの状態を受け取る前に切れました。部屋を作り直してください")
 		return
-	var old_host := int((package["director"] as Dictionary).get("host_id", RuleLedger.PLAYER_ID))
+	if link != null:
+		_owner_left = OWNER_TIMEOUT
+		return
+	var old_host := _old_host()
 	var addresses := package["addresses"] as Dictionary
 	var next := elect(addresses, old_host)
 	if next == -1:
@@ -102,11 +127,44 @@ func _on_host_lost() -> void:
 		_say("ホスト選出中…（プレイヤー%d が新しいホストになります）" % next)
 
 
+func _old_host() -> int:
+	return int((package["director"] as Dictionary).get("host_id", RuleLedger.PLAYER_ID))
+
+
 func _become_host() -> void:
 	var server := ENetMultiplayerPeer.new()
 	if server.create_server(port, PartyRoster.MAX_PLAYERS) != OK:
 		_fail("新しいホストとして部屋を開けませんでした（ポート %d）" % port)
 		return
+	_open_as_host(server)
+
+
+## Steam 版: ロビーの持ち主が前のホストから移るまで待ち、持ち主がホストになる・ほかの人は持ち主へつなぐ。
+func _wait_for_owner(delta: float) -> void:
+	_owner_left -= delta
+	var owner := int(link.call(&"lobby_owner"))
+	var next := elect_by_owner(package.get("steam_ids", {}) as Dictionary, owner, _old_host())
+	if next == -1:
+		if _owner_left < 0.0:
+			_fail("新しいホストが決まりませんでした（Steam のロビー）")
+		return
+	_owner_left = -1.0
+	if next == director.local_id():
+		var server := link.call(&"make_host_peer") as MultiplayerPeer
+		if server == null:
+			_fail("新しいホストとして Steam の P2P で待ち受けられませんでした")
+			return
+		_open_as_host(server)
+		return
+	_say("ホスト選出中…（プレイヤー%d が新しいホストになります）" % next)
+	var peer := link.call(&"make_client_peer", owner) as MultiplayerPeer
+	if peer == null:
+		_fail("新しいホストへ Steam の P2P でつなげませんでした")
+		return
+	_rejoin_with(peer)
+
+
+func _open_as_host(server: MultiplayerPeer) -> void:
 	net.become_host(
 		server,
 		session_key,
@@ -127,10 +185,16 @@ func _wait_for_rejoin(delta: float) -> void:
 		if peer.create_client(_rejoin_address, port) != OK:
 			_fail("新しいホストへつなげませんでした")
 			return
-		net.session.joined.connect(_on_rejoined, CONNECT_ONE_SHOT)
-		net.session.join(peer, session_key, director.world.ledger)
+		_rejoin_with(peer)
 	elif _rejoin_left < 0.0:
 		_fail("新しいホストへつなげませんでした（時間切れ）")
+
+
+func _rejoin_with(peer: MultiplayerPeer) -> void:
+	if _rejoin_left < 0.0:
+		_rejoin_left = REJOIN_TIMEOUT  # Steam 版はここから時間切れを数える
+	net.session.joined.connect(_on_rejoined, CONNECT_ONE_SHOT)
+	net.session.join(peer, session_key, director.world.ledger)
 
 
 func _on_rejoined(_player_id: int) -> void:
@@ -148,6 +212,7 @@ func _finish(text: String) -> void:
 func _fail(text: String) -> void:
 	migrating = false
 	_rejoin_left = -1.0
+	_owner_left = -1.0
 	_say(text)
 
 

@@ -6,6 +6,8 @@ extends Node
 ## コマンドラインでタイトルを飛ばせる（試すとき用。`--` の後ろに書く）:
 ##   --solo / --host[=ポート] / --join=IPアドレス[:ポート] / --profile=名前
 ##   --allow-prohibition-give（部屋のオプション: 禁止をプレイヤーへ直接渡せる）
+## Steam 版（機能タグ "steam" か `--steam`、かつ GodotSteam があるときだけ）は SteamGate が Steam 版の通信を作り、
+## タイトルに Steam の項目が増える。それ以外（提出版・CI）は Steam に一切触れない（docs/adr/0012）。
 ## テストは PrototypeIsland や PartyDirector だけを木に追加し、HUD と入力なしで操作する。
 
 const SESSION_KEY_DIR := "user://session"
@@ -16,17 +18,24 @@ var sounds: SoundBank
 var migration: HostMigration
 ## 部屋のオプション（部屋を作るときに使う）: 禁止をプレイヤーへ直接渡せる。
 var room_allow_prohibition: bool = false
+## Steam 版の通信（src/steam/steam_transport.gd）。提出版・CI ではいつも null。
+var steam: Node = null
 
 var _title: TitleMenu
 var _hud: Hud
 var _input: PlayerInput
 var _banner: PartyBanner
+## 操作の案内の「慣れた」記録（記録の名前ごと。島が変わっても引き継ぐ）。
+var _hints: HintMemory = HintMemory.new()
 
 
 func _ready() -> void:
+	# 設定（文字の大きさ・視点の速さ・キー割り当て）は、タイトルより先に反映する
+	GameSettings.load_and_apply(get_tree())
 	sounds = SoundBank.new()
 	sounds.name = "Sounds"
 	add_child(sounds)
+	_open_steam()
 	var args := _arguments()
 	if args.has("solo") or args.has("host") or args.has("join"):
 		_start_from_arguments(args)
@@ -38,6 +47,8 @@ func _ready() -> void:
 	_title.host_chosen.connect(start_host)
 	_title.prohibition_option_toggled.connect(func(on: bool) -> void: room_allow_prohibition = on)
 	_title.join_chosen.connect(start_join)
+	if steam != null:
+		steam.call(&"add_title_entries", _title)
 
 
 func start_solo(profile: String) -> void:
@@ -52,14 +63,7 @@ func start_host(profile: String, port: int) -> void:
 	if error != OK:
 		_show_error("部屋を作れませんでした（ポート %d が使われているかも）" % port)
 		return
-	_make_director(profile)
-	director.allow_prohibition_to_player = room_allow_prohibition
-	director.enter_stage(StageCatalog.HUB_ID)
-	net = _make_net(self)
-	net.world = director.world
-	net.start_host(server, session_key(profile))
-	director.attach_net(net)
-	_make_migration(port, profile)
+	_host_with(profile, server, port, null)
 	director.world.message_posted.emit("部屋を作りました（ポート %d）。友だちは IP アドレスとポートで入れます" % port)
 
 
@@ -68,15 +72,54 @@ func start_join(profile: String, address: String, port: int) -> void:
 	if peer.create_client(address, port) != OK:
 		_show_error("%s:%d に接続できませんでした" % [address, port])
 		return
+	_join_with(profile, peer, port, null)
+	director.world.message_posted.emit("%s:%d の部屋に入っています…" % [address, port])
+
+
+## 部屋を開く（ENet でも Steam でも同じ）。link は Steam 版の通信（ホスト移譲で使う。ENet なら null）。
+func _host_with(profile: String, server: MultiplayerPeer, port: int, link: Node) -> void:
+	_make_director(profile)
+	director.allow_prohibition_to_player = room_allow_prohibition
+	director.enter_stage(StageCatalog.HUB_ID)
+	net = _make_net(self)
+	net.world = director.world
+	net.start_host(server, session_key(profile))
+	director.attach_net(net)
+	_make_migration(port, profile, link)
+
+
+func _join_with(profile: String, peer: MultiplayerPeer, port: int, link: Node) -> void:
 	_make_director(profile)
 	director.prepare_client()
 	net = _make_net(self)
 	net.world = director.world
 	net.start_client(peer, session_key(profile))
 	director.attach_net(net)
-	_make_migration(port, profile)
+	_make_migration(port, profile, link)
 	migration.watch()
-	director.world.message_posted.emit("%s:%d の部屋に入っています…" % [address, port])
+
+
+## Steam 版のときだけ、Steam 版の通信を用意する（使えなければ何もしない）。
+func _open_steam() -> void:
+	steam = SteamGate.open(self)
+	if steam == null:
+		return
+	steam.connect(&"peer_ready", _on_steam_peer)
+	steam.connect(&"failed", _show_error)
+
+
+## Steam のロビーを作った・招待から入ったとき。
+func _on_steam_peer(peer: MultiplayerPeer, as_host: bool) -> void:
+	if director != null:
+		push_warning("もう遊んでいるので、Steam の招待は使いません")
+		return
+	var profile := _title.profile_name() if _title != null else "player"
+	if as_host:
+		_host_with(profile, peer, 0, steam)
+		director.world.message_posted.emit("Steam の部屋を作りました。フレンドを招待できます")
+	else:
+		_join_with(profile, peer, 0, steam)
+		director.world.message_posted.emit("Steam の部屋に入っています…")
 
 
 ## 再接続しても同じプレイヤーに戻れるよう、記録の名前ごとに推測できない鍵を保存しておく。
@@ -100,6 +143,7 @@ func _make_director(profile: String) -> void:
 		_title = null
 	director = PartyDirector.new()
 	director.profile = profile
+	_hints = HintMemory.for_profile(profile)
 	add_child(director)
 	director.world_changed.connect(_on_world_changed)
 	_banner = PartyBanner.new()
@@ -107,11 +151,12 @@ func _make_director(profile: String) -> void:
 
 
 ## ホスト移譲の係（ホストは状態を配り、参加者はホストが落ちたら引き継ぐ）。
-func _make_migration(port: int, profile: String) -> void:
+func _make_migration(port: int, profile: String, link: Node) -> void:
 	migration = HostMigration.new()
 	migration.director = director
 	migration.net = net
 	migration.port = port
+	migration.link = link
 	migration.session_key = session_key(profile)
 	add_child(migration)
 
@@ -138,6 +183,7 @@ func _on_world_changed(world: StageWorld) -> void:
 	_hud.name = "Hud"
 	_hud.world = world
 	_hud.sounds = sounds
+	_hud.hints = _hints
 	add_child(_hud)
 	if _banner.get_parent() != null:
 		_banner.get_parent().remove_child(_banner)

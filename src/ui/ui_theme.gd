@@ -41,6 +41,12 @@ const SIZE_BODY: int = 21
 const SIZE_LARGE: int = 26
 const SIZE_TITLE: int = 34
 
+## 和文の折り返しに使う言語の指定（ICU のロケール）。lw=phrase は文節の切れ目だけで改行し
+## （「装|備」のような単語の途中で切らない）、lb=strict は行頭に「ャ」「ー」「。」などを置かない
+## 厳格な禁則。書き出したゲームでも効くよう project.godot で
+## internationalization/locale/include_text_server_data を有効にしている（ICU の辞書と規則）。
+const WRAP_LANGUAGE := "ja@lb=strict;lw=phrase"
+
 const FONT_MEDIUM := "res://assets/fonts/ZenMaruGothic-Medium.ttf"
 const FONT_BOLD := "res://assets/fonts/ZenMaruGothic-Bold.ttf"
 
@@ -81,6 +87,12 @@ static func medium() -> Font:
 
 static func bold() -> Font:
 	return font(700)
+
+
+## 複数行に折り返す文（説明文など）。和文を文節の切れ目と禁則で折り返す。
+static func wrap_text(label: Label) -> void:
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.language = WRAP_LANGUAGE
 
 
 static func get_theme() -> Theme:
@@ -158,6 +170,7 @@ static func _build() -> Theme:
 
 	_buttons(theme)
 	_inputs(theme)
+	_sliders(theme)
 	return theme
 
 
@@ -255,3 +268,35 @@ static func _inputs(theme: Theme) -> void:
 		theme.set_stylebox(state, "VScrollBar", grabber)
 	theme.set_stylebox("scroll", "VScrollBar", track)
 	theme.set_stylebox("scroll_focus", "VScrollBar", track)
+
+
+## 設定のつまみ: 細い丸い溝と、白い丸に夕日色の輪のつまみ（灰色の既定の見た目を使わない）。
+static func _sliders(theme: Theme) -> void:
+	var track := StyleBoxFlat.new()
+	track.bg_color = Color(EDGE, 0.6)
+	track.set_corner_radius_all(999)
+	track.content_margin_top = 4
+	track.content_margin_bottom = 4
+	var filled := track.duplicate() as StyleBoxFlat
+	filled.bg_color = SUN
+	theme.set_stylebox("slider", "HSlider", track)
+	theme.set_stylebox("grabber_area", "HSlider", filled)
+	theme.set_stylebox("grabber_area_highlight", "HSlider", filled)
+	theme.set_icon("grabber", "HSlider", _knob(SUN))
+	theme.set_icon("grabber_highlight", "HSlider", _knob(SUN))
+	theme.set_icon("grabber_disabled", "HSlider", _knob(INK_FAINT))
+	theme.set_constant("center_grabber", "HSlider", 1)
+
+
+static func _knob(ring: Color) -> Texture2D:
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.5, 0.56, 0.86, 0.92])
+	gradient.colors = PackedColorArray([Color.WHITE, Color.WHITE, ring, ring, Color(ring, 0.0)])
+	var knob := GradientTexture2D.new()
+	knob.gradient = gradient
+	knob.fill = GradientTexture2D.FILL_RADIAL
+	knob.fill_from = Vector2(0.5, 0.5)
+	knob.fill_to = Vector2(1.0, 0.5)
+	knob.width = 30
+	knob.height = 30
+	return knob
