@@ -58,7 +58,7 @@ var _time: float = 0.0
 
 func _ready() -> void:
 	super._ready()
-	_build_environment()
+	build_environment(self)
 	# 当たり判定は直方体ごとの箱。見た目は、全部のセルをつないで外に出た角を丸めた1つのモデル
 	# （art/scripts/build_terrain.py。地形を変えたら tools/export_terrain.gd → Blender で作り直す）
 	for box: Array in terrain_boxes():
@@ -139,14 +139,15 @@ func _give_starting_items() -> void:
 	)
 
 
-func _build_environment() -> void:
+## 空・日の光・霧（ステージの島でも同じものを使う）。
+static func build_environment(parent: Node) -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation = Vector3(deg_to_rad(-48.0), deg_to_rad(-35.0), 0.0)
 	sun.light_color = Color(1.0, 0.93, 0.8)
 	sun.light_energy = 1.15
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 60.0
-	add_child(sun)
+	parent.add_child(sun)
 	var sky_material := ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.4, 0.64, 0.9)
 	sky_material.sky_horizon_color = Color(0.86, 0.92, 0.93)
@@ -172,7 +173,7 @@ func _build_environment() -> void:
 	env.fog_density = 0.004
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
-	add_child(world_env)
+	parent.add_child(world_env)
 
 
 ## 島の見た目: 浮かぶ岩の底、外周の木、草・花・小石（固定シードで毎回同じ配置）。
@@ -234,6 +235,11 @@ func _process(delta: float) -> void:
 
 
 func _add_label(at: Vector3, text: String) -> void:
+	add_label(self, at, text)
+
+
+## 空中に浮かぶ案内の文字（ステージの島でも使う）。
+static func add_label(parent: Node, at: Vector3, text: String) -> Label3D:
 	var label := Label3D.new()
 	label.text = text
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -244,4 +250,5 @@ func _add_label(at: Vector3, text: String) -> void:
 	label.modulate = UiTheme.INK
 	label.outline_modulate = Color(UiTheme.CREAM, 0.95)
 	label.outline_size = 14
-	add_child(label)
+	parent.add_child(label)
+	return label

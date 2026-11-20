@@ -19,6 +19,8 @@ var world: GameWorld
 var session: NetSession
 ## ホスト: 新しい参加者に配るはじめの持ち物 func(player_id)。空なら配らない。
 var give_starting_items: Callable = Callable()
+## 落ちた自分のアバターを出現地点へ戻すか（PartyDirector がいるときは死亡として扱うので false）。
+var manage_falls: bool = true
 
 var _send_timer: float = 0.0
 var _ledger_dirty: bool = false
@@ -38,26 +40,39 @@ func is_host() -> bool:
 
 ## 部屋を作る。peer は ENet なら create_server 済みのもの。
 func start_host(peer: MultiplayerPeer, session_key: String) -> void:
-	world.networked = true
 	session.host(peer, world.ledger, session_key)
 	session.player_joined.connect(_on_player_joined)
-	world.ledger.changed.connect(func() -> void: _ledger_dirty = true)
-	world.sound_requested.connect(_relay_sound)
-	_sync_avatars()
+	bind(world)
 
 
 ## 部屋に入る。peer は ENet なら create_client 済みのもの。
 func start_client(peer: MultiplayerPeer, session_key: String) -> void:
-	world.networked = true
-	world.replica = true
-	for block: RuleBlock in world.blocks.values():
-		block.remote = true
-	for creature: Creature in world.creatures.values():
-		creature.remote = true
 	session.joined.connect(_on_joined)
-	session.state_changed.connect(func(_g: int) -> void: _sync_avatars())
-	world.action_requested.connect(_send_action)
+	session.state_changed.connect(func(_g: int) -> void: sync_avatars())
+	bind(world)
 	session.join(peer, session_key, world.ledger)
+
+
+## 世界（島・ステージ）を差し替えたときに、通信をその世界へつなぎ直す。
+func bind(new_world: GameWorld) -> void:
+	world = new_world
+	world.networked = true
+	session.ledger = world.ledger
+	if is_host():
+		world.ledger.changed.connect(func() -> void: _ledger_dirty = true)
+		world.sound_requested.connect(_relay_sound)
+		_ledger_dirty = true
+	else:
+		world.replica = true
+		for block: RuleBlock in world.blocks.values():
+			block.remote = true
+		for creature: Creature in world.creatures.values():
+			creature.remote = true
+		world.action_requested.connect(_send_action)
+		if session.player_id != -1:
+			_adopt_local_id(session.player_id)
+	_ball_ghosts.clear()
+	sync_avatars()
 
 
 func close() -> void:
@@ -70,10 +85,15 @@ func close() -> void:
 func _physics_process(delta: float) -> void:
 	if world == null or multiplayer.multiplayer_peer == null:
 		return
-	if world.player != null and world.player.global_position.y < Tuning.FALL_LIMIT_Y:
+	if (
+		manage_falls
+		and world.player != null
+		and world.player.global_position.y < Tuning.FALL_LIMIT_Y
+	):
 		_respawn_local()
 	if is_host() and _ledger_dirty:
 		_ledger_dirty = false
+		sync_avatars()
 		session.publish()
 	_send_timer += delta
 	if _send_timer < SEND_PERIOD:
@@ -93,6 +113,8 @@ func _respawn_local() -> void:
 
 ## プレイヤーごとの出現地点（ずらして重ならないようにする）。
 func spawn_point(player_id: int) -> Vector3:
+	if world.has_method(&"spawn_for"):
+		return world.call(&"spawn_for", player_id)
 	var offset := float(player_id - RuleLedger.PLAYER_ID) * SPAWN_SPACING
 	return world._spawn_point + Vector3(offset, 0.5, 0.0)
 
@@ -108,7 +130,7 @@ func _on_player_joined(player_id: int) -> void:
 		)
 	):
 		give_starting_items.call(player_id)
-	_sync_avatars()
+	sync_avatars()
 	if world.avatars.has(player_id):
 		world.avatars[player_id].global_position = spawn_point(player_id)
 	player_joined.emit(player_id)
@@ -165,13 +187,17 @@ func _relay_sound(event: StringName, at: Vector3, positional: bool) -> void:
 
 
 func _on_joined(player_id: int) -> void:
+	_adopt_local_id(player_id)
+	world.player.global_position = spawn_point(player_id)
+	world.player.velocity = Vector3.ZERO
+	sync_avatars()
+	world.state_changed.emit()
+
+
+func _adopt_local_id(player_id: int) -> void:
 	world.player.player_id = player_id
 	world.ledger_actions.player_id = player_id
 	world.ledger_actions.remote = func(command: Dictionary) -> void: session.send(command)
-	world.player.global_position = spawn_point(player_id)
-	world.player.velocity = Vector3.ZERO
-	_sync_avatars()
-	world.state_changed.emit()
 
 
 func _send_action(op: Dictionary) -> void:
@@ -200,7 +226,7 @@ func _sound(event: StringName, at: Vector3) -> void:
 
 
 ## 台帳の参加中のプレイヤーに合わせて、仲間のアバターを出し入れする。
-func _sync_avatars() -> void:
+func sync_avatars() -> void:
 	var me := world.player.player_id if world.player != null else -1
 	var present := world.ledger.players()
 	for player_id in present:

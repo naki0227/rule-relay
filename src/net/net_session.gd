@@ -9,6 +9,8 @@ extends Node
 signal joined(player_id: int)
 ## ホスト: 参加者が入った（再接続も含む）。
 signal player_joined(player_id: int)
+## ホスト: 参加者の通信が切れた（明示的な退出とは別）。
+signal player_disconnected(player_id: int)
 signal join_refused
 signal state_changed(generation: int)
 signal result_received(seq: int, result: Dictionary)
@@ -191,4 +193,7 @@ func _broadcast() -> void:
 
 func _on_peer_disconnected(peer: int) -> void:
 	if is_host():
+		var gone := _roster.player_of_peer(peer)
 		_roster.disconnect_peer(peer)
+		if gone != -1:
+			player_disconnected.emit(gone)
