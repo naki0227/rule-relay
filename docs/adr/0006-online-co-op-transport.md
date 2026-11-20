@@ -23,6 +23,7 @@
 ## 確かめていないこと・後で決めること
 
 - GodotSteam の `SteamMultiplayerPeer` は GodotSteam が配る Godot の専用ビルドを前提にする形式がある。CI の公式 Godot 4.6.3 と合うビルドがあるかは、導入時に確かめる。
+  - 2026-11-20 追記: GodotSteam の GDExtension 版（4.24、Godot 4.4 以上）に `SteamMultiplayerPeer` が入っていて、公式 Godot 4.6.3 で読み込めた。専用ビルドは要らない。提出版との分け方は `docs/adr/0012-steam-build-separation.md`。
 - Steamworks の登録料（1作品ごと）。配信を決めたときに本人が確認する。
 - 切断の猶予時間、切断中のトークンの扱い（引き継ぎ仕様 7-1・7-5）。いまは「明示的な退出」だけを台帳の退出として扱い、通信の切断では台帳を動かさない。
 

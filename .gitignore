@@ -23,3 +23,9 @@ Thumbs.db
 # Blender の自動バックアップ（履歴は Git で持つ）
 *.blend1
 *.blend2
+
+# Steam 版（応募後に使う。docs/steam-build.md・docs/adr/0012）。
+# GodotSteam と Steam の再頒布ファイルは tools/fetch_godotsteam.sh で取り、コミットしない。
+# steam_appid.txt（開発用の App ID）も書き出し・コミットに入れない。
+/addons/godotsteam/
+steam_appid.txt
