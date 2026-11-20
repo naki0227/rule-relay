@@ -1,12 +1,14 @@
-"""効果音を、CC0 の実録音（art/audio/*.wav）から作って assets/audio/sfx/*.wav に書き出す（決定的）。
+"""効果音を合成して assets/audio/sfx/*.wav に書き出す（決定的・固定シード）。
 
     python3 tools/sfx/build_sfx.py
 
-本人の要望（2026-11-19）: 合成した音は毎回似ている。フリーの音源の波形や音程を見て、本当の音のようにしてほしい。
-そこで合成をやめ、CC0 の録音から選んで、切り出し・音程の微調整・重ね・音量合わせだけをする。
-- 素材と出典は art/audio/CREDITS.md（すべて CC0）。選んだ理由と測った値は docs/sound-design.md
-- 素材は使う部分だけを 44.1kHz・モノラルの WAV にしてリポジトリに置く（CI でも同じ音を作り直せるように）
-- 仕上げ（finish）は前と同じ: 低域・シャリつきの整理、端の処理、RMS で音量をそろえる
+世界観（ゆるふわの木のおもちゃの箱庭）に合わせて、役割ごとに楽器を分ける（2026-11-20、docs/sound-design.md）:
+- UI の選ぶ・決定・取り消し: カリンバ（親指ピアノ）。開く・閉じる: オカリナ風の息。つまむ: 泡の「ポッ」
+- 置く・ブロック: 木のおもちゃ（木魚・拍子木）。跳ぶ: おもちゃのばね。動く: ぜんまいの「カタタン」
+- 円形 UI・範囲: ハープのつまびき（Karplus-Strong）。禁止・できない: 弱音のフェルトピアノ
+- 足音: 柔らかい「ぽふっ」。保存: オルゴール。到達: カリンバの旋律と和音。鐘: 温かい村の鐘
+- キーはハ長調の五音（主に C4〜E5）でそろえ、高すぎる音（C6 以上）は使わない
+- 仕上げ: 低域・シャリつきの整理、端の処理、RMS で音量をそろえる
 """
 
 import wave
@@ -170,27 +172,6 @@ def write(name, x):
         w.writeframes(pcm.tobytes())
 
 
-# --- 録音の扱い ---------------------------------------------------------------
-
-SOURCE = Path(__file__).resolve().parents[2] / "art" / "audio"
-
-
-def rec(name, start=0.0, end=None):
-    """art/audio/<name>.wav を読み、start〜end 秒を切り出す（float、-1〜1）。"""
-    with wave.open(str(SOURCE / f"{name}.wav")) as w:
-        data = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(float) / 32768
-    a = int(start * SR)
-    b = len(data) if end is None else min(len(data), int(end * SR))
-    return data[a:b].copy()
-
-
-def repitch(x, factor):
-    """音程を factor 倍にする（長さは 1/factor 倍。テープを速く・遅く回すのと同じ）。"""
-    if abs(factor - 1.0) < 1e-6:
-        return x
-    return signal.resample_poly(x, int(round(1000 / factor)), 1000)
-
-
 def fade(x, fade_in=0.002, fade_out=0.03):
     n_in = max(1, int(fade_in * SR))
     n_out = max(1, min(len(x), int(fade_out * SR)))
@@ -198,12 +179,6 @@ def fade(x, fade_in=0.002, fade_out=0.03):
     x[:n_in] *= np.linspace(0.0, 1.0, n_in)
     x[-n_out:] *= np.linspace(1.0, 0.0, n_out) ** 2
     return x
-
-
-def trim_silence(x, threshold=0.02):
-    """頭の無音を切る（叩いた瞬間から始める）。"""
-    loud = np.where(np.abs(x) > threshold * np.max(np.abs(x)))[0]
-    return x[max(0, loud[0] - int(0.002 * SR)):] if len(loud) else x
 
 
 def norm(x):
@@ -218,95 +193,228 @@ def mix(length, *parts):
     return out
 
 
+# --- 楽器（世界観: ゆるふわの木のおもちゃの箱庭） -----------------------------
+#
+# 本人の要望（2026-11-20）: 実録音はリアルに寄りすぎる。合成でよいので、楽器を変えるなどして、世界観に合った音の出し方に。
+# 前の合成（2026-11-18）は全部が同じ仕組み（木を叩くモデル）だったので、どの音も似ていた。
+# そこで役割ごとに楽器を分け、キー（ハ長調の五音、主に C4〜E5）だけはそろえて、ひとつの曲のようにまとめる。
+
+NOTE.update({"C3": 130.81, "G3": 196.00, "A4": 440.00, "G5": 783.99, "A5": 880.00})
+
+
+def kalimba(freq, seconds=0.6, bright=0.6):
+    """カリンバ（親指ピアノ）: 金属の舌の基音＋片持ちの棒の倍音（6.27倍、すぐ消える）＋木の箱の響き＋はじく音。"""
+    x = t(seconds)
+    tone = np.sin(2 * np.pi * freq * x) * np.exp(-x / 0.5)
+    tone += 0.12 * np.sin(2 * np.pi * 2 * freq * x) * np.exp(-x / 0.12)
+    if freq * 6.27 < 9000:
+        tone += 1.0 * bright * np.sin(2 * np.pi * freq * 6.27 * x) * np.exp(-x / 0.035)
+    body = band(tone, 250, 900) * 0.35  # 共鳴箱
+    n = int(0.008 * SR)
+    click = band(RNG.standard_normal(n), 1500, 5000) * np.exp(-np.arange(n) / (0.003 * SR))
+    out = tone + body
+    out[:n] += click * 3.5 * bright
+    return fade(out, 0.001, 0.05)
+
+
+def music_box(freq, seconds=0.9):
+    """オルゴール: 櫛の歯（片持ちの棒）。カリンバより金属的で、上の倍音が少し長く残る。低めの音域だけ使う。"""
+    x = t(seconds)
+    tone = np.sin(2 * np.pi * freq * x) * np.exp(-x / 0.6)
+    if freq * 6.27 < 9000:
+        tone += 0.25 * np.sin(2 * np.pi * freq * 6.27 * x) * np.exp(-x / 0.12)
+    n = int(0.004 * SR)
+    tone[:n] += band(RNG.standard_normal(n), 2500, 7000) * 0.3
+    return fade(tone, 0.001, 0.08)
+
+
+def pluck(freq, seconds=0.8, damping=0.996, brightness=0.55):
+    """ハープのつまびき（Karplus-Strong）。木の弦の、やわらかい減衰。"""
+    period = max(2, int(round(SR / freq)))
+    buf = lowpass(RNG.standard_normal(period), 1500 + 6000 * brightness, order=1)
+    n = int(seconds * SR)
+    out = np.zeros(n)
+    for i in range(n):
+        j = i % period
+        out[i] = buf[j]
+        buf[j] = damping * 0.5 * (buf[j] + buf[(j + 1) % period])
+    return fade(out / (np.max(np.abs(out)) + 1e-9), 0.001, 0.06)
+
+
+def ocarina(f0, f1, seconds, vibrato=5.5, breath=0.12):
+    """オカリナ風の息の音: ほぼ純粋な音に息のかすれ。音程を f0 から f1 へなめらかに動かす。"""
+    x = t(seconds)
+    glide = f0 + (f1 - f0) * (0.5 - 0.5 * np.cos(np.pi * np.clip(x / (seconds * 0.7), 0, 1)))
+    vib = 1.0 + 0.006 * np.sin(2 * np.pi * vibrato * x) * np.clip((x - 0.08) / 0.1, 0, 1)
+    phase = 2 * np.pi * np.cumsum(glide * vib) / SR
+    tone = np.sin(phase) + 0.08 * np.sin(2 * phase)
+    air = band(colored_noise(seconds, "pink"), 900, 3500) * breath
+    n = len(x)
+    out = (tone + air) * envelope(n, 0.05, seconds * 0.45)
+    # 吹き始めの「チッ」（笛の息の立ち上がり）。これが無いと、ぼやけた音になる
+    m = int(0.03 * SR)
+    out[:m] += band(RNG.standard_normal(m), 1500, 6000) * np.exp(-np.arange(m) / (0.008 * SR)) * 0.9
+    return out
+
+
+def bubble(f0, f1, seconds=0.07):
+    """泡がはじける「ポッ」: 音程が急に上がる短い正弦波。"""
+    x = t(seconds)
+    f = f0 * (f1 / f0) ** (x / seconds)
+    phase = 2 * np.pi * np.cumsum(f) / SR
+    out = np.sin(phase) * np.exp(-x / (seconds * 0.4))
+    m = int(0.01 * SR)
+    out[:m] += band(RNG.standard_normal(m), 2000, 6000) * np.exp(-np.arange(m) / (0.003 * SR)) * 3.5
+    return fade(out, 0.001, 0.01)
+
+
+def felt_piano(freq, seconds=0.5, hardness=0.5):
+    """フェルトピアノ（弱音器をかけた柔らかいピアノ）: 少し伸びた倍音列、フェルトのハンマーで高い倍音が弱い。
+    2本の弦をわずかにずらして、温かいうなりを出す。"""
+    x = t(seconds)
+    out = np.zeros_like(x)
+    for detune in (0.9995, 1.0005):
+        for k in range(1, 7):
+            fk = k * freq * detune * np.sqrt(1 + 0.0004 * k * k)
+            if fk > 8000:
+                break
+            amp = (1.0 / k ** 1.4) * np.exp(-(k - 1) * (1.0 - hardness) * 0.8)
+            out += amp * np.sin(2 * np.pi * fk * x) * np.exp(-x / (1.0 / (1 + 0.6 * k)))
+    n = int(0.012 * SR)
+    hit = band(RNG.standard_normal(n), 1500, 5000) * np.exp(-np.arange(n) / (0.004 * SR))
+    out[:n] += hit * 7.0  # フェルトのハンマーが弦に当たる音
+    return fade(out * 0.5, 0.001, 0.06)
+
+
+def toy_wood(freq, seconds=0.12, hardness=0.8):
+    """木のおもちゃの「コッ」（木魚・拍子木。前のモーダル合成を、硬めに短く。大きさを 1 にそろえる）。"""
+    return norm(modal(freq, WOOD1, seconds, hardness=hardness))
+
+
+def boing(f0, f1, seconds=0.35):
+    """おもちゃのばね: 音程が上がりながら、揺れがだんだん収まる。"""
+    x = t(seconds)
+    base_f = f0 + (f1 - f0) * (1 - np.exp(-x / 0.08))
+    wobble = 1.0 + 0.12 * np.sin(2 * np.pi * 16 * x) * np.exp(-x / 0.12)
+    phase = 2 * np.pi * np.cumsum(base_f * wobble) / SR
+    tone = np.sin(phase) + 0.25 * np.sin(3 * phase)
+    return fade(tone * np.exp(-x / 0.18), 0.003, 0.05)
+
+
+def puff(seed, cutoff=1400, pitch=180):
+    """柔らかい足音「ぽふっ」: 短い息のような雑音と、小さな低い当たり。"""
+    local = np.random.default_rng(seed)
+    n = int(0.07 * SR)
+    noise = local.standard_normal(n)
+    air = band(noise, 350, cutoff) * np.exp(-np.arange(n) / (0.018 * SR))
+    tap = np.sin(2 * np.pi * pitch * np.arange(n) / SR) * np.exp(-np.arange(n) / (0.012 * SR))
+    tick = band(local.standard_normal(n), 1800, 4500) * np.exp(-np.arange(n) / (0.003 * SR)) * 1.8
+    return fade(air + tap * 0.6 + tick, 0.002, 0.02)
+
+
+def warm_pad(names, seconds):
+    """やわらかい和音（少しずらした正弦波を重ね、ゆっくり立ち上げる）。"""
+    x = t(seconds)
+    out = np.zeros_like(x)
+    for nm in names:
+        for d in (0.998, 1.002):
+            out += np.sin(2 * np.pi * NOTE[nm] * d * x)
+    return out / (2 * len(names)) * envelope(len(x), seconds * 0.3, seconds * 0.5)
+
+
 # --- UI -----------------------------------------------------------------------
 
 
 def ui_hover():
-    """指したとき: 小さなスイッチの「カチ」（rubberduck switch_01）。80ms に収める。"""
-    x = fade(trim_silence(rec("rd_switch_01"))[: int(0.075 * SR)], fade_out=0.02)
-    return finish(x, -36)
+    """指したとき: ごく小さなカリンバ（弱音）。目立たせない。"""
+    return finish(kalimba(NOTE["G4"], 0.07, bright=0.5), -36)
 
 
 def ui_select():
-    """選ぶ: 木を軽く叩く音（rubberduck RPG wood_02）。シャリつく上の方だけ弱める。"""
-    return finish(fade(lowpass(trim_silence(rec("rpg_wood_02")), 6000)), -25)
+    """ホットバーを選ぶ: カリンバの1音（枠の番号ごとの音程は鳴らす側で変える）。"""
+    return finish(kalimba(NOTE["C5"], 0.32, bright=0.7), -25)
 
 
 def ui_confirm():
-    """決定: 木の「コン」（rubberduck wooden_02）。少しだけ高くして明るく。"""
-    x = fade(repitch(trim_silence(rec("rd_wooden_02", 0.0, 0.4)), 1.06), fade_out=0.06)
-    return finish(x, -23)
+    """決定: カリンバで上がる2音（G4 → C5）。"""
+    x = mix(0.32, (kalimba(NOTE["G4"], 0.25), 0.0, 0.8), (kalimba(NOTE["C5"], 0.25), 0.07, 1.0))
+    return finish(soft_room(x, mix=0.1), -23)
 
 
 def ui_cancel():
-    """取り消し: 低めの木の「ゴツ」（rubberduck RPG wood_03）。"""
-    x = fade(trim_silence(rec("rpg_wood_03")), fade_out=0.05)
+    """取り消し: カリンバで下がる2音（E4 → C4）。はじく音を少し弱く。"""
+    x = mix(0.4, (kalimba(NOTE["E4"], 0.28, 0.5), 0.0, 0.9), (kalimba(NOTE["C4"], 0.32, 0.5), 0.07, 1.0))
     return finish(x, -26)
 
 
 def ui_open():
-    """持ち物・メニューを開く: 本を開く音（Kenney bookOpen）。"""
-    return finish(fade(trim_silence(rec("ken_bookOpen"))), -24)
+    """持ち物・メニューを開く: オカリナ風の息がふわっと上がる（C4 → G4）。"""
+    return finish(soft_room(ocarina(NOTE["C4"], NOTE["G4"], 0.32), mix=0.12), -25)
 
 
 def ui_close():
-    """閉じる: 本を置く音（Kenney bookPlace3）。"""
-    return finish(fade(trim_silence(rec("ken_bookPlace3"))), -26)
+    """閉じる: 息がふわっと下がる（G4 → C4）。"""
+    return finish(ocarina(NOTE["G4"], NOTE["C4"], 0.26), -27)
 
 
 def ui_pick():
-    """つまむ: 小さな革の持ち手をつかむ音（Kenney handleSmallLeather）。"""
-    return finish(fade(trim_silence(rec("ken_handleSmallLeather"))), -26)
+    """つまむ: 泡がはじける「ポッ」。"""
+    return finish(bubble(NOTE["G4"], NOTE["C5"] * 1.5, 0.08), -26)
 
 
 def ui_drop():
-    """置く: 本をそっと置く音（Kenney bookPlace1）。"""
-    return finish(fade(trim_silence(rec("ken_bookPlace1"))), -23)
+    """置く: 木のおもちゃを置く「コトッ」（高めと低めの2つ）。"""
+    x = mix(0.16, (toy_wood(NOTE["G4"], 0.12), 0.0, 1.0), (toy_wood(NOTE["C4"], 0.14, 0.6), 0.012, 0.8))
+    return finish(x, -23)
 
 
 def ui_error():
-    """できない: こもった「ドッ」（rubberduck hit_03）。ブザーにしない。"""
-    x = fade(trim_silence(rec("rd_hit_03")), fade_out=0.08)
-    return finish(x, -25, keep_low=True)
+    """できない: フェルトピアノの低い2音を、少しずらして「とん、とん」。ブザーにしない。"""
+    x = mix(0.4, (felt_piano(NOTE["D4"], 0.25), 0.0, 1.0), (felt_piano(NOTE["C4"], 0.3), 0.11, 1.0))
+    return finish(x, -25)
 
 
 def radial_open():
-    """円形 UI を開く: 紙をはじく音（rubberduck paper_02）を短く。"""
-    x = fade(trim_silence(rec("rd_paper_02"))[: int(0.3 * SR)], fade_out=0.08)
-    return finish(x, -29)
+    """円形 UI を開く: ハープを3本、速くつまびく（C4 E4 G4）。"""
+    x = silence(0.4)
+    for i, nm in enumerate(["C4", "E4", "G4"]):
+        x = place(x, pluck(NOTE[nm], 0.3, 0.994) * 0.6, i * 0.035)
+    return finish(x, -28)
 
 
 # --- 能力 ---------------------------------------------------------------------
 
 
 def lend():
-    """能力を渡す: 振った風の音（artisticdude swish-9）のあとに「ポン」（rubberduck plop_01）。"""
-    # 振った風は低い成分が多く、そのままだとこもるので 700Hz 未満を削って空気の音にする
-    swish = norm(highpass(trim_silence(rec("sw_swish-9")), 700))
-    pop = norm(trim_silence(rec("rd_plop_01")))
-    return finish(fade(mix(0.5, (swish, 0.0, 0.7), (pop, 0.12, 1.0))), -21)
+    """能力を渡す: 息がふわっと上がり（E4 → A4）、着いたところでカリンバ（E5）。"""
+    air = ocarina(NOTE["E4"], NOTE["A4"], 0.25, breath=0.2)
+    x = mix(0.6, (air, 0.0, 0.6), (kalimba(NOTE["E5"], 0.4), 0.18, 1.0))
+    return finish(soft_room(x, mix=0.15), -21)
 
 
 def lend_range():
-    """範囲に渡す: 大きめの風（pyranostudios air whoosh の一部）と、少しずつ音程を変えた「ポン」3つ。"""
-    air = fade(norm(rec("wh_whoosh2", 3.05, 3.7)), 0.05, 0.2)
-    pop = norm(trim_silence(rec("rd_plop_01")))
-    parts = [(air, 0.0, 0.6)]
-    for i, f in enumerate([0.94, 1.0, 1.06]):
-        parts.append((repitch(pop, f), 0.2 + i * 0.07, 0.8))
-    return finish(fade(mix(0.75, *parts)), -20)
+    """範囲に渡す: ハープを上へ流すように（C4 D4 E4 G4 A4 C5）。範囲に広がる感じ。"""
+    x = silence(0.66)
+    for i, nm in enumerate(["C4", "D4", "E4", "G4", "A4", "C5"]):
+        x = place(x, pluck(NOTE[nm], 0.4, 0.995, brightness=0.3), i * 0.045)
+    return finish(soft_room(x, mix=0.18), -20)
 
 
 def recall():
-    """回収: 「ポン」（plop_02）と、逆回しの風（swish-9 を逆に）で手元へ吸い込む。"""
-    swish = norm(trim_silence(rec("sw_swish-9")))[::-1].copy()
-    pop = norm(trim_silence(rec("rd_plop_02")))
-    return finish(fade(mix(0.5, (pop, 0.0, 0.9), (swish, 0.08, 0.8))), -21)
+    """回収: 息が下がって（A4 → E4）手元へ、最後に小さな「ポッ」。"""
+    air = ocarina(NOTE["A4"], NOTE["E4"], 0.25, breath=0.2)
+    x = mix(0.5, (air, 0.0, 0.6), (bubble(NOTE["C5"], NOTE["G4"], 0.07), 0.2, 0.9))
+    return finish(soft_room(x, mix=0.12), -21)
 
 
 def prohibit():
-    """禁止: 錠が掛かる「カチャ」（rubberduck RPG lock_02）。明るすぎる成分は弱める。"""
-    x = fade(lowpass(trim_silence(rec("rpg_lock_02")), 4500, order=2), fade_out=0.05)
+    """禁止: 弱音のフェルトピアノで半音ずつ下がる2音（E4 → D#4 の響き）と、木の「コッ」。怖くしない。"""
+    x = mix(
+        0.4,
+        (toy_wood(NOTE["C4"], 0.1, 0.7), 0.0, 0.8),
+        (felt_piano(NOTE["E4"], 0.2), 0.02, 0.9),
+        (felt_piano(NOTE["E4"] * 2 ** (-1 / 12), 0.28), 0.11, 0.9),
+    )
     return finish(x, -24)
 
 
@@ -314,65 +422,75 @@ def prohibit():
 
 
 def block_jump():
-    """ブロックが跳ぶ: ばねの音（rubberduck spring_05）。おもちゃの箱が跳ねる感じ。"""
-    x = fade(trim_silence(rec("rd_spring_05"))[: int(0.6 * SR)], fade_out=0.15)
-    return finish(x, -20, keep_low=True)
+    """ブロックが跳ぶ: 木の「コッ」と、おもちゃのばね（G3 → C4）。"""
+    x = mix(0.4, (toy_wood(NOTE["C4"], 0.08), 0.0, 1.0), (boing(NOTE["G3"], NOTE["C4"], 0.35), 0.01, 0.5))
+    return finish(x, -19, keep_low=True)
 
 
 def block_land():
-    """ブロックが着地: 木の箱を打ちつける「ドン」（rubberduck slam_04）。"""
-    x = fade(trim_silence(rec("rd_slam_04")), fade_out=0.08)
-    return finish(x, -19, keep_low=True)
+    """ブロックが着地: 木の積み木を置く「コトン」（低い胴鳴り＋高い当たり）。"""
+    low = modal(110.0, WOOD1, 0.22, hardness=0.5, decay_scale=2.0)
+    mid = toy_wood(NOTE["E4"], 0.1, 0.9)
+    x = mix(0.24, (low, 0.0, 6.0), (mid, 0.0, 5.0))
+    return finish(x, -18, keep_low=True, tilt_hz=7000)
 
 
 def block_step():
-    """ブロックが1マス動く: 石が地面をこする音（rubberduck RPG stones_02）を短く。"""
-    x = fade(trim_silence(rec("rpg_stones_02"))[: int(0.42 * SR)], fade_out=0.12)
-    return finish(lowpass(x, 6000), -22, keep_low=True)
+    """ブロックが1マス動く: ぜんまいの「カタタン」（木の小さな当たりを3回、だんだん弱く）。"""
+    x = silence(0.42)
+    for i, (nm, g) in enumerate([("G4", 1.0), ("E4", 0.8), ("C4", 0.9)]):
+        x = place(x, toy_wood(NOTE[nm], 0.08, 0.85) * g, 0.06 + i * 0.09)
+    return finish(x, -22)
 
 
 def player_jump():
-    """自分の跳躍: 服がこすれる音（Kenney cloth2）。"""
-    x = fade(trim_silence(rec("ken_cloth2"))[: int(0.3 * SR)], fade_out=0.1)
-    return finish(x, -27)
+    """自分の跳躍: 小さな息の「ふっ」（短く上がる）。"""
+    x = ocarina(NOTE["C4"], NOTE["E4"], 0.12, vibrato=0.0, breath=0.5) * 0.7
+    return finish(x, -28)
 
 
 def player_land():
-    """自分の着地: 柔らかい地面の足音（qubodup Fantozzi Sand）と、低い「トッ」（Kenney footstep08）。"""
-    step = norm(trim_silence(rec("fz_Fantozzi-SandR2")))
-    thud = norm(trim_silence(rec("ken_footstep08")))
-    x = lowpass(fade(mix(0.3, (step, 0.0, 0.8), (thud, 0.0, 1.0))), 6000)
-    return finish(x, -24, keep_low=True)
+    """自分の着地: 柔らかい「ぽふっ」を大きめに。"""
+    return finish(puff(7, cutoff=1200, pitch=140), -24, keep_low=True)
 
 
-FOOTSTEPS = ["fz_Fantozzi-SandL2", "fz_Fantozzi-SandL1", "fz_Fantozzi-SandR3"]
-
-
-def footstep(index):
-    """草の上の足音（qubodup Fantozzi Sand の3つ）。柔らかい地面の音を、少し低く・暗くして使う。"""
-    x = trim_silence(rec(FOOTSTEPS[index - 1]))[: int(0.25 * SR)]
-    x = fade(lowpass(repitch(x, 0.9), 4500), fade_out=0.08)
-    return finish(x, -31, keep_low=True)
+def footstep(seed):
+    """草の上の足音: 柔らかい「ぽふっ」（3種類。少しずつ高さと明るさを変える）。"""
+    return finish(puff(seed, cutoff=1300 + seed * 250, pitch=170 + seed * 25), -31, keep_low=True)
 
 
 def save():
-    """保存できた: やわらかい呪文のきらめき（rubberduck RPG spell_01）。"""
-    x = fade(lowpass(trim_silence(rec("rpg_spell_01")), 7000), fade_out=0.15)
-    return finish(x, -21)
+    """保存できた: オルゴールで C4 E4 G4 C5 を上がる。"""
+    x = silence(1.0)
+    for i, nm in enumerate(["C4", "E4", "G4", "C5"]):
+        x = place(x, music_box(NOTE[nm], 0.65), i * 0.11)
+    return finish(soft_room(x, length=0.25, mix=0.2), -21)
 
 
 def goal():
-    """到達: 銅鑼（rubberduck gong_01）を少し高くして、宝石のきらめき（item_gem_03）を重ねる。"""
-    gong = norm(repitch(trim_silence(rec("rd_gong_01")), 1.05))
-    gem = norm(trim_silence(rec("rpg_item_gem_03")))
-    x = mix(1.9, (gong, 0.0, 1.0), (gem, 0.05, 0.5), (repitch(gem, 1.12), 0.25, 0.35))
-    return finish(fade(x, fade_out=0.4), -19)
+    """到達: カリンバで五音を上がる旋律と、やわらかい和音（C4 E4 G4）。"""
+    x = silence(1.9)
+    for i, nm in enumerate(["C4", "D4", "E4", "G4", "A4", "C5"]):
+        x = place(x, kalimba(NOTE[nm], 0.8, bright=0.85), i * 0.11)
+    x = place(x, warm_pad(["C4", "E4", "G4"], 1.3) * 0.6, 0.5)
+    return finish(soft_room(x, length=0.3, mix=0.22), -19)
 
 
 def bell():
-    """鐘: 銅鑼（rubberduck gong_01）を音程 0.85 倍にして、大きな鐘の重さにする。"""
-    x = fade(repitch(trim_silence(rec("rd_gong_01")), 0.85), fade_out=0.4)
-    return finish(x, -19, keep_low=True)
+    """鐘: 村の鐘。教会の鐘の倍音の比（唸り 0.5・基音 1・短三度 1.19・五度 1.5・オクターブ 2）を、
+    少しずらした2つで重ねて温かくする。基音は C4。"""
+    x = t(2.0)
+    partials = [
+        (0.5, 0.5, 1.6), (1.0, 1.0, 1.2), (1.19, 0.5, 0.8), (1.5, 0.3, 0.6),
+        (2.0, 0.45, 0.5), (2.5, 0.2, 0.3), (4.2, 1.2, 0.12), (5.4, 1.0, 0.09), (6.8, 0.7, 0.07),
+    ]
+    out = np.zeros_like(x)
+    for detune in (0.998, 1.002):
+        for ratio, gain, decay in partials:
+            out += gain * np.sin(2 * np.pi * NOTE["C4"] * ratio * detune * x) * np.exp(-x / decay)
+    n = int(0.01 * SR)
+    out[:n] += band(RNG.standard_normal(n), 2000, 6000) * np.exp(-np.arange(n) / (0.003 * SR)) * 16.0
+    return finish(soft_room(fade(out, 0.001, 0.1), length=0.3, mix=0.15), -19)
 
 
 SOUNDS = {
