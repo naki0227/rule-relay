@@ -13,8 +13,8 @@ signal entrance_chosen(player_id: int, stage_id: String)
 signal return_chosen(player_id: int)
 
 const CHECKPOINT_RADIUS: float = 1.3
-## ゴールの床の目印の色（仮。夕日の色を半透明に）。
-const GOAL_COLOR := Color(0.98, 0.62, 0.32, 0.55)
+## 入口・帰り道の門の上に浮かべる文字の高さ（門の吊り札より上）。
+const GATE_LABEL_HEIGHT: float = 2.95
 
 var def: StageDef
 ## ステージの key → 台帳の entity_id。
@@ -50,7 +50,7 @@ func _ready() -> void:
 		)
 		entity_ids[b.key] = block.entity_id
 	for c in def.creatures:
-		var creature := add_creature(c.position)
+		var creature := add_creature(c.position, c.look)
 		creature.held_item = c.held_item
 		entity_ids[c.key] = creature.entity_id
 	for spec in def.bells:
@@ -58,16 +58,24 @@ func _ready() -> void:
 		bells_by_key[spec.key] = bell
 		bell.rang.connect(func() -> void: _mark_activated(spec.key))
 	for i in def.checkpoints.size():
-		_add_pad(def.checkpoints[i], "チェックポイント")
+		_add_pad(def.checkpoints[i], "チェックポイント", "checkpoint_pad", 1.9)
 	for pad in def.return_pads:
-		_add_pad(pad, "広場へ戻る（%s）" % InputMode.key(&"interact"))
-	for e in def.entrances:
+		_add_pad(
+			pad, "広場へ戻る（%s）" % InputMode.token(&"interact"), "entrance_gate", GATE_LABEL_HEIGHT
+		)
+	for i in def.entrances.size():
+		var e := def.entrances[i]
 		var stage := StageCatalog.by_id(e.stage_id)
-		var caption := "%s\n目安 %d 分（仮）・%s"
+		# 最初の入口（いちばん短い導入）にだけ「はじめはここから」を添える。説明はしない
+		var caption := ("はじめはここから\n" if i == 0 else "") + "%s\n目安 %d 分（仮）・%s"
 		_add_pad(
 			e.position,
-			caption % [stage.display_name, stage.target_minutes, InputMode.key(&"interact")]
+			caption % [stage.display_name, stage.target_minutes, InputMode.token(&"interact")],
+			"entrance_gate",
+			GATE_LABEL_HEIGHT
 		)
+	if def.stage_id == StageCatalog.HUB_ID:
+		HubDressing.build(self, def)
 	var goal := def.clear_condition.goal_area()
 	if goal.has_volume():
 		_add_goal_marker(goal)
@@ -190,26 +198,17 @@ func _mark_activated(key: String) -> void:
 		activated.append(key)
 
 
-## ゴールの目印（仮の見た目）: 床に薄い板を敷き、看板を立てる。当たり判定は持たない（光線も遮らない）。
+## ゴールの目印（旗と四隅の灯り、床の板）。当たり判定は持たない（光線も遮らない）。
 func _add_goal_marker(goal: AABB) -> void:
-	var floor_y := goal.position.y + 0.1
-	var mesh := BoxMesh.new()
-	mesh.size = Vector3(goal.size.x - 0.2, 0.04, goal.size.z - 0.2)
-	var material := StandardMaterial3D.new()
-	material.albedo_color = GOAL_COLOR
-	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mesh.material = material
-	var plate := MeshInstance3D.new()
-	plate.name = "GoalMarker"
-	plate.mesh = mesh
-	plate.position = Vector3(goal.get_center().x, floor_y + 0.03, goal.get_center().z)
-	add_child(plate)
-	var label_at := Vector3(goal.get_center().x, floor_y + 2.2, goal.get_center().z)
+	var marker := GoalMarker.new()
+	marker.setup(goal)
+	add_child(marker)
+	var label_at := marker.position + Vector3(0.0, 3.4, 0.0)
 	PrototypeIsland.add_label(self, label_at, "ゴール（全員で集まる）")
 
 
-func _add_pad(at: Vector3, text: String) -> void:
-	var pad := ModelLibrary.instantiate("checkpoint_pad")
+func _add_pad(at: Vector3, text: String, model_name: String, label_height: float) -> void:
+	var pad := ModelLibrary.instantiate(model_name)
 	pad.position = at
 	add_child(pad)
-	PrototypeIsland.add_label(self, at + Vector3(0.0, 1.9, 0.0), text)
+	PrototypeIsland.add_label(self, at + Vector3(0.0, label_height, 0.0), text)

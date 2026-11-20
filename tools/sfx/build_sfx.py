@@ -10,6 +10,7 @@
 - キーはハ長調の五音（主に C4〜E5）でそろえ、高すぎる音（C6 以上）は使わない
 - 仕上げ: 低域・シャリつきの整理、端の処理、RMS で音量をそろえる
 - 2026-11-20: 6種は Stable Audio 3 medium で生成した候補に置き換えた（ADOPTED。合成の関数は戻せるように残す）
+- 2026-11-20: 2回目の候補からさらに 15 種を置き換えた（ADOPTED の sfx2/。docs/sound-design.md）
 """
 
 import wave
@@ -21,18 +22,36 @@ from scipy import signal
 SR = 44100
 OUT = Path(__file__).resolve().parents[2] / "assets" / "audio" / "sfx"
 RNG = np.random.default_rng(20261118)
-CANDIDATES = Path(__file__).resolve().parents[2] / "art" / "audio" / "stable-audio" / "sfx"
+CANDIDATES = Path(__file__).resolve().parents[2] / "art" / "audio" / "stable-audio"
 
-# Stable Audio 3 medium の候補から採用した音（docs/sound-design.md、docs/sound-candidates-2026-11-20.md）。
+# Stable Audio 3 medium の候補から採用した音（docs/sound-design.md、docs/sound-candidates-2026-11-20.md、
+# docs/sound-candidates-2026-11-20-round2.md）。
 # イベント名: (候補のファイル, 置き換え前の合成音の RMS dBFS)。候補はピークでそろえてあるので、
 # ゲームの中の音量の釣り合いを変えないよう、置き換え前の RMS に合わせる（ピークは -3dBFS を超えない）
 ADOPTED = {
-    "ui_hover": ("ui_hover_1.wav", -37.0),  # E01
-    "receive_stone": ("receive_stone_2.wav", -32.8),  # E32
-    "block_jump": ("block_jump_2.wav", -27.6),  # E38
-    "block_step": ("block_step_2.wav", -22.0),  # E42
-    "player_jump": ("player_jump_1.wav", -28.0),  # E45
-    "save": ("save_1.wav", -21.3),  # E51
+    # 1回目（E01〜E54）
+    "ui_hover": ("sfx/ui_hover_1.wav", -37.0),  # E01
+    "receive_stone": ("sfx/receive_stone_2.wav", -32.8),  # E32
+    "block_jump": ("sfx/block_jump_2.wav", -27.6),  # E38
+    "block_step": ("sfx/block_step_2.wav", -22.0),  # E42
+    "player_jump": ("sfx/player_jump_1.wav", -28.0),  # E45
+    "save": ("sfx/save_1.wav", -21.3),  # E51
+    # 2回目（R01〜R63）
+    "ui_close": ("sfx2/ui_close_3.wav", -26.0),  # R09
+    "ui_drop": ("sfx2/ui_drop_3.wav", -23.0),  # R12
+    "prohibit": ("sfx2/prohibit_1.wav", -24.0),  # R16
+    "receive_wood": ("sfx2/receive_wood_1.wav", -33.1),  # R19
+    "receive_creature": ("sfx2/receive_creature_1.wav", -23.0),  # R22
+    "block_land": ("sfx2/block_land_2.wav", -32.9),  # R26
+    "ui_cancel": ("sfx2/ui_cancel_2.wav", -27.0),  # R29
+    "ui_pick": ("sfx2/ui_pick_3.wav", -27.0),  # R36
+    "radial_open": ("sfx2/radial_open_2.wav", -29.0),  # R38
+    "lend": ("sfx2/lend_1.wav", -22.4),  # R40
+    "lend_range": ("sfx2/lend_range_1.wav", -20.0),  # R43
+    "recall": ("sfx2/recall_2.wav", -27.8),  # R47
+    "receive_grass": ("sfx2/receive_grass_2.wav", -29.0),  # R50
+    "player_land": ("sfx2/player_land_2.wav", -25.0),  # R53
+    "goal": ("sfx2/goal_3.wav", -20.1),  # R63
 }
 
 # ハ長調の五音（Hz）。C4=261.63
@@ -753,31 +772,31 @@ SOUNDS = {
     "ui_hover": lambda: adopted("ui_hover"),  # 合成版は ui_hover()
     "ui_select": ui_select,
     "ui_confirm": ui_confirm,
-    "ui_cancel": ui_cancel,
+    "ui_cancel": lambda: adopted("ui_cancel"),  # 合成版は ui_cancel()
     "ui_open": ui_open,
-    "ui_close": ui_close,
-    "ui_pick": ui_pick,
-    "ui_drop": ui_drop,
+    "ui_close": lambda: adopted("ui_close"),  # 合成版は ui_close()
+    "ui_pick": lambda: adopted("ui_pick"),  # 合成版は ui_pick()
+    "ui_drop": lambda: adopted("ui_drop"),  # 合成版は ui_drop()
     "ui_error": ui_error,
-    "radial_open": radial_open,
-    "lend": lend,
-    "lend_range": lend_range,
-    "recall": recall,
-    "prohibit": prohibit,
-    "receive_wood": receive_wood,
+    "radial_open": lambda: adopted("radial_open"),  # 合成版は radial_open()
+    "lend": lambda: adopted("lend"),  # 合成版は lend()
+    "lend_range": lambda: adopted("lend_range"),  # 合成版は lend_range()
+    "recall": lambda: adopted("recall"),  # 合成版は recall()
+    "prohibit": lambda: adopted("prohibit"),  # 合成版は prohibit()
+    "receive_wood": lambda: adopted("receive_wood"),  # 合成版は receive_wood()
     "receive_stone": lambda: adopted("receive_stone"),  # 合成版は receive_stone()
-    "receive_grass": receive_grass,
-    "receive_creature": receive_creature,
+    "receive_grass": lambda: adopted("receive_grass"),  # 合成版は receive_grass()
+    "receive_creature": lambda: adopted("receive_creature"),  # 合成版は receive_creature()
     "block_jump": lambda: adopted("block_jump"),  # 合成版は block_jump()
-    "block_land": block_land,
+    "block_land": lambda: adopted("block_land"),  # 合成版は block_land()
     "block_step": lambda: adopted("block_step"),  # 合成版は block_step()
     "player_jump": lambda: adopted("player_jump"),  # 合成版は player_jump()
-    "player_land": player_land,
+    "player_land": lambda: adopted("player_land"),  # 合成版は player_land()
     "footstep_1": lambda: footstep(1),
     "footstep_2": lambda: footstep(2),
     "footstep_3": lambda: footstep(3),
     "save": lambda: adopted("save"),  # 合成版は save()
-    "goal": goal,
+    "goal": lambda: adopted("goal"),  # 合成版は goal()
     "bell": bell,
 }
 

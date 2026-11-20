@@ -19,14 +19,20 @@ const GARDEN_ID := "ban_garden"
 const EXPEDITION_ID := "long_expedition"
 
 ## 導入: 岩棚（上面 y = 2）と、その手前の窪みに収まったブロック（上面が地面と同じ y = 0）。
-const INTRO_LEDGE_MIN := Vector3i(-5, 0, -9)
+const INTRO_LEDGE_MIN := Vector3i(-5, 0, -10)
 const INTRO_LEDGE_MAX := Vector3i(5, 1, -6)
 const INTRO_STEP_MIN := Vector3i(-2, 0, -1)
 const INTRO_STEP_MAX := Vector3i(2, 0, 0)
 const INTRO_LIFT_CELL := Vector3i(0, -1, -5)
-## 導入のゴール: 岩棚の真ん中の窪み（上面 y = 1。まわりの岩棚より 1 段低い）。
-const INTRO_GOAL_MIN := Vector3i(-2, 0, -8)
-const INTRO_GOAL_MAX := Vector3i(2, 0, -7)
+## 導入のゴール: 岩棚の奥の窪み（上面 y = 1。まわりの岩棚より 1 段低い）。
+## 南（登り口の側）の縁は 2 マス（z = -7〜-6）。縁が 1 マスだと、窪みの南の列に立つカメラの回転の中心
+## （足もと + 1.5）から、下の地面の仲間の頭へ照準が合った（docs/reports/2026-11-20-goal-probes.md G1）。
+## 2026-11-20 決定: ルールは足さず、岩棚を北へ 1 マス広げて窪みを奥へ寄せる（地形だけで直す）。
+const INTRO_GOAL_MIN := Vector3i(-2, 0, -9)
+const INTRO_GOAL_MAX := Vector3i(2, 0, -8)
+
+## ハブの最初の入口（導入）の x。入口は ここから東へ 3.5 ずつ並ぶ。
+const HUB_FIRST_ENTRANCE_X := -10.5
 
 ## 鐘の谷: 発射台（東向き）と、谷の向こうの小島の鐘。
 const BELL_LAUNCHER_CELL := Vector3i(0, 0, 0)
@@ -87,25 +93,28 @@ static func intro_jump_lend() -> StageDef:
 	def.target_minutes = 3
 	def.terrain_boxes = [
 		# 地面（窪みの1マスだけ抜く）と窪みの底
-		[Vector3i(-5, -1, -9), Vector3i(5, -1, -6), "grass"],
+		[Vector3i(-5, -1, -10), Vector3i(5, -1, -6), "grass"],
 		[Vector3i(-5, -1, -4), Vector3i(5, -1, 6), "grass"],
 		[Vector3i(-5, -1, -5), Vector3i(-1, -1, -5), "grass"],
 		[Vector3i(1, -1, -5), Vector3i(5, -1, -5), "grass"],
 		[INTRO_LIFT_CELL + Vector3i(0, -1, 0), INTRO_LIFT_CELL + Vector3i(0, -1, 0), "rock"],
 		# 自分で跳べる小段差（道の真ん中。横を回っても進める）
 		[INTRO_STEP_MIN, INTRO_STEP_MAX, "sand"],
-		# 跳べない岩棚（INTRO_LEDGE_MIN〜MAX）。真ん中を 1 段下げて、ゴールの窪みにする（縁が 1 マス残る）
-		[Vector3i(-5, 0, -9), Vector3i(5, 1, -9), "rock"],
-		[Vector3i(-5, 0, -6), Vector3i(5, 1, -6), "rock"],
-		[Vector3i(-5, 0, -8), Vector3i(-3, 1, -7), "rock"],
-		[Vector3i(3, 0, -8), Vector3i(5, 1, -7), "rock"],
+		# 跳べない岩棚（INTRO_LEDGE_MIN〜MAX）。奥を 1 段下げて、ゴールの窪みにする
+		# （縁は南 2 マス・北 1 マス・東西 3 マス。北の下には誰も立てない）
+		[Vector3i(-5, 0, -10), Vector3i(5, 1, -10), "rock"],
+		[Vector3i(-5, 0, -7), Vector3i(5, 1, -6), "rock"],
+		[Vector3i(-5, 0, -9), Vector3i(-3, 1, -8), "rock"],
+		[Vector3i(3, 0, -9), Vector3i(5, 1, -8), "rock"],
 		[INTRO_GOAL_MIN, INTRO_GOAL_MAX, "rock"],
 	]
 	def.spawn_points = _spawn_row(Vector3(0.0, 0.0, 4.5))
 	def.blocks = [StageDef.BlockSpec.new("lift", INTRO_LIFT_CELL)]
 	def.blocks[0].color = Color(0.7, 0.58, 0.86)
 	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP]))
-	def.checkpoints = [Vector3(3.5, 0.0, -2.5)]
+	# チェックポイントは、出現地点からブロックへ向かう道の上（小段差の先・ブロックの手前）。
+	# 初めての人も必ず踏むので、「台座に触れるとチーム共通の再開地点になる」を道なりに知る
+	def.checkpoints = [Vector3(0.5, 0.0, -2.0)]
 	var goal_size := Vector3(INTRO_GOAL_MAX - INTRO_GOAL_MIN + Vector3i.ONE)
 	var floor_y := float(INTRO_GOAL_MAX.y + 1)
 	def.clear_condition = ClearCondition.all_at_goal(
@@ -181,19 +190,21 @@ static func bell_valley() -> StageDef:
 
 
 ## ハブ（のんびり歩ける広場。クリア条件なし）。入口は歩いて見つける（引き継ぎ仕様 2-2）。
+## 出現地点は西の端、最初の入口（導入）の真正面にする。初めての人が最初に目にする入口が導入になり、
+## 次の入口はその右隣に並ぶ（docs/onboarding.md）。
 static func hub() -> StageDef:
 	var def := StageDef.new()
 	def.stage_id = HUB_ID
 	def.display_name = "ハブ"
-	def.spawn_points = _spawn_row(Vector3(0.0, 0.0, 3.5))
+	def.spawn_points = _spawn_row(Vector3(HUB_FIRST_ENTRANCE_X + 1.5, 0.0, 2.5))
 	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP]))
 	# 入口は目安のクリア時間の短い順に、西から東へ一列（本人が順番に試して比べられるように）
 	# ステージが増えても入口が広場からはみ出さないよう、広場の東端を入口の数に合わせて伸ばす
 	var stages := all_stages()
-	var east := maxi(12, ceili(-10.5 + 3.5 * (stages.size() - 1)) + 2)
-	def.terrain_boxes = [[Vector3i(-12, -1, -9), Vector3i(east, -1, 9), "grass"]]
+	var east := maxi(12, ceili(HUB_FIRST_ENTRANCE_X + 3.5 * (stages.size() - 1)) + 2)
+	def.terrain_boxes = [[Vector3i(-15, -1, -9), Vector3i(east, -1, 9), "grass"]]
 	for i in stages.size():
-		var x := -10.5 + 3.5 * i
+		var x := HUB_FIRST_ENTRANCE_X + 3.5 * i
 		def.entrances.append(_entrance(stages[i].stage_id, Vector3(x, 0.0, -6.5)))
 	return def
 

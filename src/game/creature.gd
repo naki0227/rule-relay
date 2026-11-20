@@ -17,8 +17,13 @@ const SPEED: float = 2.4
 const STUCK_TIME: float = 1.2
 ## 待っている間も、ときどき見回して判断し直す
 const LOOK_AROUND_PERIOD: float = 1.5
+## 見た目のモデル（art/scripts/build_cast.py）。当たり判定はどちらも同じカプセル。
+const MODEL_WISH := "creature_wish"
+const MODEL_KIT := "creature_kit"
 
 var entity_id: int = -1
+## 見た目のモデルの名前（add_child の前に決める）。
+var look: String = MODEL_WISH
 var ledger: RuleLedger
 ## マスごとの立てる高さを返す関数（GameWorld が地形とブロックを調べる）。
 ## (center: Vector2i, radius: int) -> {Vector2i: 高さ}
@@ -304,16 +309,15 @@ func _build() -> void:
 	shape.shape = capsule
 	shape.position.y = HEIGHT * 0.5
 	add_child(shape)
-	# 仮の見た目（丸い体・小さな羽・葉っぱの芽）。世界観が決まったら作り直す（docs/art-direction.md）
+	# 見た目: 丸いからだ・小さな羽・頭の芽（art/scripts/build_cast.py）。正面は -Z、原点は足もと
 	_body = Node3D.new()
+	_body.name = "Body"
 	_body.position.y = HEIGHT * 0.5
 	add_child(_body)
-	_body.add_child(_sphere(0.34, Vector3.ZERO, Vector3(1.0, 0.9, 1.0), UiTheme.CREAM))
-	_body.add_child(_sphere(0.12, Vector3(-0.3, 0.02, 0.05), Vector3(0.6, 0.9, 1.2), UiTheme.HONEY))
-	_body.add_child(_sphere(0.12, Vector3(0.3, 0.02, 0.05), Vector3(0.6, 0.9, 1.2), UiTheme.HONEY))
-	_body.add_child(_sphere(0.05, Vector3(-0.11, 0.08, -0.3), Vector3.ONE, UiTheme.INK))
-	_body.add_child(_sphere(0.05, Vector3(0.11, 0.08, -0.3), Vector3.ONE, UiTheme.INK))
-	_body.add_child(_sphere(0.07, Vector3(0.0, 0.36, 0.0), Vector3(0.7, 1.4, 0.7), UiTheme.LEAF))
+	var model := ModelLibrary.instantiate(look)
+	model.name = "Model"
+	model.position.y = -HEIGHT * 0.5
+	_body.add_child(model)
 	_outline = MeshInstance3D.new()
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.42

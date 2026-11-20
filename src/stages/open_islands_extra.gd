@@ -60,7 +60,9 @@ static func creature_nest() -> StageDef:
 	_lift(def, m, Vector2i(3, -10), "terrace_lift")
 	def.terrain_boxes = m.boxes()
 	_stone(def, "step_stone", Vector3i(-6, 0, -3))
-	def.creatures.append(StageDef.CreatureSpec.new("kit", Vector3(-8.5, 0.0, -1.5)))
+	var kit := StageDef.CreatureSpec.new("kit", Vector3(-8.5, 0.0, -1.5))
+	kit.look = Creature.MODEL_KIT  # 巣へ運ぶ子ども（小さく、芽がまだつぼみ）
+	def.creatures.append(kit)
 	_item(def, RuleAction.Kind.CLIMB, Vector3(9.5, 0.0, 4.5), RuleVessel.Part.HANDS, "クライミンググローブ")
 	_item(def, RuleAction.Kind.DASH, Vector3(-9.5, 0.0, 6.5))
 	_item(def, RuleAction.Kind.HIGH_JUMP, Vector3(-18.5, 0.0, 1.5), RuleVessel.Part.FEET, "ジャンプブーツ")

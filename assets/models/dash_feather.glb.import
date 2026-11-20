@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://5dm7845w3yuq"
-path="res://.godot/imported/goal_beacon.glb-4ebdaca80def040f228730be05dc2588.scn"
+uid="uid://i2tqhxd1ck4g"
+path="res://.godot/imported/dash_feather.glb-8f74099342a6f935380e5f2b548603dc.scn"
 
 [deps]
 
-source_file="res://assets/models/goal_beacon.glb"
-dest_files=["res://.godot/imported/goal_beacon.glb-4ebdaca80def040f228730be05dc2588.scn"]
+source_file="res://assets/models/dash_feather.glb"
+dest_files=["res://.godot/imported/dash_feather.glb-8f74099342a6f935380e5f2b548603dc.scn"]
 
 [params]
 

@@ -52,8 +52,6 @@ var shuttle: RuleBlock
 var creature: Creature
 var bell: Bell
 var launcher: RuleBlock
-var _goal_crystal: Node3D
-var _time: float = 0.0
 
 
 func _ready() -> void:
@@ -70,9 +68,12 @@ func _ready() -> void:
 	goal_box = AABB(Vector3(2.0, 2.9, -11.0), Vector3(6.0, 3.0, 6.0))
 	_add_model("checkpoint_pad", checkpoint_center)
 	_add_label(
-		checkpoint_center + Vector3(0.0, 1.9, 0.0), "チェックポイント（%s で保存）" % InputMode.key(&"interact")
+		checkpoint_center + Vector3(0.0, 1.9, 0.0),
+		"チェックポイント（%s で保存）" % InputMode.token(&"interact")
 	)
-	_goal_crystal = _add_model("goal_beacon", Vector3(6.6, 3.0, -10.4)).find_child("Crystal")
+	var goal_flag := GoalMarker.new()
+	goal_flag.setup(AABB(Vector3(6.6, 3.0, -10.4), Vector3.ZERO))
+	add_child(goal_flag)
 	_add_label(Vector3(5.0, 4.9, -8.5), "目標: 高台")
 	set_initial_checkpoint()
 
@@ -226,21 +227,15 @@ func _add_trunk_collision(at: Vector3) -> void:
 	add_child(body)
 
 
-func _process(delta: float) -> void:
-	_time += delta
-	if _goal_crystal != null:
-		_goal_crystal.rotation.y = _time * 1.2
-		_goal_crystal.position.y = 1.55 + sin(_time * 2.0) * 0.08
-
-
 func _add_label(at: Vector3, text: String) -> void:
 	add_label(self, at, text)
 
 
-## 空中に浮かぶ案内の文字（ステージの島でも使う）。
-static func add_label(parent: Node, at: Vector3, text: String) -> Label3D:
-	var label := Label3D.new()
-	label.text = text
+## 空中に浮かぶ案内の文字（ステージの島でも使う）。text の `{key:操作}` は、その人のいまの
+## 割り当てで描き、割り当てや入力の種類が変わったら描き直す（KeyLabel3D）。
+static func add_label(parent: Node, at: Vector3, text: String) -> KeyLabel3D:
+	var label := KeyLabel3D.new()
+	label.template = text
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position = at
 	label.pixel_size = 0.005

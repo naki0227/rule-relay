@@ -197,8 +197,9 @@ func is_receiving_signal(entity_id: int) -> bool:
 
 
 ## 願いを持つ生き物を置く（企画書 6）。
-func add_creature(at: Vector3) -> Creature:
+func add_creature(at: Vector3, look: String = Creature.MODEL_WISH) -> Creature:
 	var creature := Creature.new()
+	creature.look = look
 	var id := _next_creature_id
 	_next_creature_id += 1
 	creature.setup(id, at)
@@ -324,13 +325,13 @@ func _lend(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 	var mode := TriggerMode.Kind.NONE if t.is_prohibition else lend_mode
 	var result: RuleLedger.LendResult
 	if target is Bell:
-		_post("鐘には渡せません（%s で鳴らす）" % InputMode.key(&"interact"))
+		_post("鐘には渡せません（%s で鳴らす）" % InputMode.token(&"interact"))
 		_ui_sound(&"ui_error")
 		return RuleLedger.LendResult.UNKNOWN_TARGET
 	if target is TerrainCell:
 		target = TerrainPromotion.promote(self, (target as TerrainCell).cell)
 	if use_range and not (target is RuleBlock or target is TerrainCell):
-		_post("生き物には範囲で渡せません（左クリックで1匹に渡す）")
+		_post("生き物には範囲で渡せません（%s で1匹に渡す）" % InputMode.token(&"lend_single"))
 		_ui_sound(&"ui_error")
 		return RuleLedger.LendResult.RANGE_ONLY_FOR_BLOCKS
 	if use_range:
@@ -532,7 +533,7 @@ func _pick_up(v: RuleVessel) -> void:
 	ledger.pickup(v.id, acting_id())
 	var t := ledger.token(v.token_id)
 	var item_label := v.item_name if v.item_name != "" else t.describe()
-	_post("%s を拾いました（通常インベントリ。%s で開いて使う）" % [item_label, InputMode.key(&"inventory")])
+	_post("%s を拾いました（通常インベントリ。%s で開いて使う）" % [item_label, InputMode.token(&"inventory")])
 	_sound(&"ui_pick", at)
 
 

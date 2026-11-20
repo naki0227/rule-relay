@@ -12,6 +12,14 @@ static func for_token(t: RuleToken) -> Texture2D:
 	return _cache[key]
 
 
+## 記号だけの白い絵（世界に落ちている器の3Dメダルの面に、色を付けて重ねる）。
+static func glyph(action: RuleAction.Kind) -> Texture2D:
+	var key := "glyph_%s" % _action_key(action)
+	if not _cache.has(key):
+		_cache[key] = load("res://assets/icons/%s.png" % key) as Texture2D
+	return _cache[key]
+
+
 static func _action_key(action: RuleAction.Kind) -> String:
 	match action:
 		RuleAction.Kind.FORWARD:
@@ -29,5 +37,5 @@ static func _action_key(action: RuleAction.Kind) -> String:
 		RuleAction.Kind.CLIMB:
 			return "climb"
 		RuleAction.Kind.DASH:
-			return "forward"  # 仮: ダッシュ専用のアイコンは見た目の作業でつくる
+			return "dash"
 	return "jump"
