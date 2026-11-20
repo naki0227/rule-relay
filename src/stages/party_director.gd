@@ -325,9 +325,10 @@ func _apply_reset(decision: PartyResetDecision) -> void:
 			world.ledger.register_player(player_id)
 		elif not world.ledger.players().has(player_id):
 			world.ledger.set_player_present(player_id, true)
+	# いない人（抜けた・通信が切れたまま）の手元は、戻った先のチェックポイントに置く（拾える）
 	for player_id in world.ledger.players():
 		if not decision.active_player_ids.has(player_id):
-			world.ledger.set_player_present(player_id, false)
+			world.ledger.set_player_present(player_id, false, at)
 	for player_id in decision.joined_player_ids:
 		loadout.give_start(world.ledger, player_id, decision.active_player_ids.find(player_id))
 	if decision.headcount_changed():
@@ -546,6 +547,20 @@ func _on_player_joined(player_id: int) -> void:
 	deliver_rewards()
 
 
+## 抜けた人の手元を置く場所: 地面に立っていればその足もと、空中・谷の上なら最後のチェックポイント
+## （無ければ出発点）。誰でも歩いて拾いに行ける場所にする。
+func _drop_point(player_id: int) -> Vector3:
+	var avatar := world.avatar_of(player_id)
+	if avatar != null:
+		var on_floor := avatar.is_on_floor() if avatar == world.player else avatar.remote_on_floor
+		if on_floor and avatar.global_position.y > -0.5:
+			return avatar.global_position
+	var cp := lifecycle.latest_checkpoint()
+	if cp != "" and cp != PartyLifecycle.STAGE_START:
+		return world.checkpoint_position(cp)
+	return world.spawn_for(RuleLedger.PLAYER_ID)
+
+
 func _on_player_disconnected(player_id: int) -> void:
 	if in_stage():
 		lifecycle.disconnect_player(player_id)
@@ -653,6 +668,9 @@ func _leave() -> void:
 	for rewards in _runs:
 		if rewards.is_settled():
 			rewards.mark_left_after_clear(str(sender))
-	world.ledger.set_player_present(sender, false)
-	world.message_posted.emit(_name(sender) + "が部屋を出ました")
+	var drop_at := _drop_point(sender)
+	world.ledger.set_player_present(sender, false, drop_at)
+	world.message_posted.emit(_name(sender) + "が部屋を出ました（持っていた物はその場に落ちています）")
+	if in_stage():
+		world.message_posted.emit("人数が変わりました。V 長押しで、今の人数に合わせてやり直せます")
 	_broadcast_party()

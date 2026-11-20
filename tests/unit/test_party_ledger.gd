@@ -16,6 +16,7 @@ const BLOCK := 10
 const CREATURE := 20
 const SUCCESS: Array[BlockRules.Attempt] = [BlockRules.Attempt.SUCCESS]
 const BLOCKED: Array[BlockRules.Attempt] = [BlockRules.Attempt.NOT_READY]
+const DROP_AT := Vector3(3.0, 0.0, -2.0)
 
 var ledger: RuleLedger
 ## プレイヤー → ホットバー 0 のジャンプの器
@@ -327,3 +328,52 @@ func test_snapshot_restores_carriers_drops_and_presence() -> void:
 	assert_false(ledger.players().has(C))
 	assert_eq(ledger.ability_count(JUMP, B), 2)
 	_valid()
+
+
+# --- 抜けた人の手元を島に残す（2026-11-20 本人の判断） ------------------------------
+
+
+func test_leaving_returns_borrowed_abilities_to_their_owner() -> void:
+	assert_eq(ledger.give_to_player(_jump_token(A), A, B), OK)
+	assert_false(ledger.player_can(JUMP, A), "A lent the jump to B")
+	ledger.set_player_present(B, false, DROP_AT)
+	assert_true(ledger.player_can(JUMP, A), "B left, so the jump came back to A's vessel")
+	assert_true(ledger.token(_jump_token(A)).is_in_vessel())
+	_valid()
+
+
+func test_leaving_drops_own_vessels_where_anyone_can_pick_them_up() -> void:
+	ledger.set_player_present(B, false, DROP_AT)
+	var dropped := ledger.world_vessels()
+	assert_eq(dropped.size(), 1, "B's jump vessel lies on the ground")
+	assert_eq(dropped[0].id, jumps[B].id)
+	assert_almost(dropped[0].world_position.distance_to(DROP_AT), 0.0, 0.01)
+	assert_true(ledger.pickup(dropped[0].id, C), "C picks it up")
+	assert_eq(jumps[B].owner_id, C, "now C's (nothing is copied)")
+	_valid()
+
+
+func test_leaving_drops_what_was_borrowed_from_someone_also_gone() -> void:
+	assert_eq(ledger.give_to_player(_jump_token(D), D, B), OK)
+	ledger.set_player_present(D, false)
+	ledger.set_player_present(B, false, DROP_AT)
+	var t := ledger.token(_jump_token(D))
+	assert_true(t.dropped, "the owner D is gone too, so it falls where B left")
+	assert_true(ledger.pickup_token(t.id, C))
+	assert_true(ledger.player_can(JUMP, C) and ledger.ability_count(JUMP, C) == 2)
+	_valid()
+
+
+func test_several_items_are_spread_so_they_do_not_overlap() -> void:
+	ledger.give_player_item(FORWARD, false, 1, B)
+	ledger.set_player_present(B, false, DROP_AT)
+	var dropped := ledger.world_vessels()
+	assert_eq(dropped.size(), 2)
+	assert_gt(dropped[0].world_position.distance_to(dropped[1].world_position), 0.3)
+
+
+func test_a_plain_disconnect_moves_nothing() -> void:
+	assert_eq(ledger.give_to_player(_jump_token(A), A, B), OK)
+	ledger.set_player_present(B, false)
+	assert_false(ledger.player_can(JUMP, A), "B may come back, so nothing moved")
+	assert_true(ledger.world_vessels().is_empty())
