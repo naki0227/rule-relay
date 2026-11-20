@@ -292,6 +292,8 @@ func press_action(action: RuleAction.Kind) -> void:
 	var route := InputRouter.route_press(ledger, action, acting_id())
 	if route.player_acts and action == RuleAction.Kind.JUMP:
 		player.request_jump()
+	elif route.player_acts and action == RuleAction.Kind.DASH:
+		player.request_dash()
 	if replica:
 		action_requested.emit({"op": "press", "action": action})
 		return

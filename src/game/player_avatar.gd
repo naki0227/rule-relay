@@ -8,6 +8,7 @@ extends CharacterBody3D
 signal jumped
 signal landed(impact_speed: float)
 signal footstep
+signal dashed
 
 const HEIGHT: float = 1.6
 const RADIUS: float = 0.3
@@ -34,6 +35,11 @@ var remote_on_floor: bool = true
 var climbing: bool = false
 
 var _jump_requested: bool = false
+## ダッシュの残りの距離（m）と向き。ダッシュ中は重力を受けない（穴の上も抜けられる）。
+var _dash_left: float = 0.0
+var _dash_dir: Vector3 = Vector3.ZERO
+## 空中のダッシュは、床に着くまで1回だけ。
+var _air_dash_used: bool = false
 var _walked: float = 0.0
 var _visual: Node3D
 var _limbs: Dictionary[String, Node3D] = {}
@@ -57,6 +63,27 @@ func _ready() -> void:
 func request_jump() -> void:
 	if not puppet:
 		_jump_requested = true
+
+
+## ダッシュ（向いている方へ、まっすぐ 3 マス×持っている数）。歩く入力があればその向き。
+func request_dash() -> void:
+	if puppet or ledger == null or not ledger.player_can(RuleAction.Kind.DASH, player_id):
+		return
+	if not is_on_floor() and _air_dash_used:
+		return
+	var dir := _allowed_direction()
+	dir.y = 0.0
+	if dir.length() < 0.1:
+		dir = Vector3(-sin(_facing), 0.0, -cos(_facing))
+	_dash_dir = dir.normalized()
+	var count := ledger.ability_count(RuleAction.Kind.DASH, player_id)
+	_dash_left = float(Tuning.DASH_CELLS) * Tuning.stack_factor(count)
+	_air_dash_used = not is_on_floor()
+	dashed.emit()
+
+
+func is_dashing() -> bool:
+	return _dash_left > 0.0
 
 
 ## 通信で受け取った仲間の状態。
@@ -103,6 +130,11 @@ func _physics_process(delta: float) -> void:
 	if puppet:
 		_follow_remote(delta)
 		return
+	if _dash_left > 0.0:
+		_dash_step(delta)
+		return
+	if is_on_floor():
+		_air_dash_used = false
 	var direction := _allowed_direction()
 	velocity.x = direction.x * Tuning.PLAYER_SPEED
 	velocity.z = direction.z * Tuning.PLAYER_SPEED
@@ -132,6 +164,22 @@ func _physics_process(delta: float) -> void:
 			footstep.emit()
 	if was_on_floor and is_on_wall() and horizontal.length() > 0.0001:
 		_try_step_up(horizontal)
+
+
+## ダッシュ中: 重力を受けずにまっすぐ進む。壁に当たったらそこで止まる。
+func _dash_step(delta: float) -> void:
+	var step := minf(Tuning.DASH_SPEED * delta, _dash_left)
+	velocity = _dash_dir * (step / delta)
+	var before := global_position
+	move_and_slide()
+	var moved := Vector2(global_position.x - before.x, global_position.z - before.z).length()
+	_dash_left -= step
+	if moved < step * 0.3:
+		_dash_left = 0.0  # 壁に当たった
+	if _dash_left <= 0.0:
+		_dash_left = 0.0
+		velocity = Vector3.ZERO
+	_animate(delta, _dash_dir)
 
 
 ## 操り人形: 受け取った位置へなめらかに寄せ、歩きの見た目だけ動かす。

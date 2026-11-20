@@ -5,7 +5,9 @@ extends RefCounted
 
 ## THROW: 遠くの対象へ付与できる（企画書 5.1。渡すと自分は「触る」の距離だけになる）。
 ## HIGH_JUMP / CLIMB: 装備（ジャンプブーツ / クライミンググローブ）に宿る強化（企画書 7）。
-enum Kind { FORWARD, LEFT, BACK, RIGHT, JUMP, THROW, HIGH_JUMP, CLIMB }
+## DASH: 向いている方へ、マス単位でまっすぐ水平に突進する。途中に穴があっても落ちずに抜けられる
+## （2026-11-20 本人確定の方向。基礎 3 マス、n 個で 3n マス。数値・キーは仮）。
+enum Kind { FORWARD, LEFT, BACK, RIGHT, JUMP, THROW, HIGH_JUMP, CLIMB, DASH }
 
 ## 開始時からの基本の行動（W/A/S/D・ジャンプ）。
 const BASIC: Array[Kind] = [Kind.FORWARD, Kind.LEFT, Kind.BACK, Kind.RIGHT, Kind.JUMP]
@@ -18,6 +20,7 @@ const ALL: Array[Kind] = [
 	Kind.THROW,
 	Kind.HIGH_JUMP,
 	Kind.CLIMB,
+	Kind.DASH,
 ]
 
 
@@ -39,6 +42,8 @@ static func label(kind: Kind) -> String:
 			return "高跳び"
 		Kind.CLIMB:
 			return "登る"
+		Kind.DASH:
+			return "ダッシュ"
 	return "?"
 
 
@@ -63,10 +68,10 @@ static func is_horizontal(kind: Kind) -> bool:
 ## 法則の音の音程（半音）。能力ごとに決まっていて、渡す・回収するときに鳴らす（ハ長調の五音で上がる）。
 ## どの能力が動いたかを、耳でも分かるようにする（docs/sound-design.md）。
 static func motif_semitone(kind: Kind) -> int:
-	return [0, 2, 4, 7, 9, 12, 14, 16][int(kind)]
+	return [0, 2, 4, 7, 9, 12, 14, 16, 19][int(kind)]
 
 
 ## ブロックが自分から「1回の行動」として起こす行動（発動方式が要る）。
 ## それ以外（投げる・高跳び・登る）は持っているだけで効く／効果のない性質で、方式を持たない。
 static func is_triggered(kind: Kind) -> bool:
-	return kind in [Kind.FORWARD, Kind.LEFT, Kind.BACK, Kind.RIGHT, Kind.JUMP]
+	return kind in [Kind.FORWARD, Kind.LEFT, Kind.BACK, Kind.RIGHT, Kind.JUMP, Kind.DASH]

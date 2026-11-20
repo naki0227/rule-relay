@@ -21,6 +21,9 @@ var remote: bool = false
 var _step_from: Vector3 = Vector3.ZERO
 var _step_to: Vector3 = Vector3.ZERO
 var _step_time: float = -1.0
+var _step_duration: float = Tuning.BLOCK_STEP_DURATION
+## ダッシュ中（重力を受けずに北へまっすぐ進む）。
+var _dashing: bool = false
 var _outline: MeshInstance3D
 var _outline_material: StandardMaterial3D
 var _corner_markers: Node3D
@@ -73,7 +76,7 @@ func is_grounded() -> bool:
 func is_ready_for(action: RuleAction.Kind) -> bool:
 	if not is_grounded() or is_moving_horizontally():
 		return false
-	if action == RuleAction.Kind.JUMP:
+	if action == RuleAction.Kind.JUMP or action == RuleAction.Kind.DASH:
 		return true
 	var dir := Vector3(RuleAction.world_direction(action)) * SIZE
 	return not test_move(global_transform, dir * 0.98)
@@ -90,8 +93,16 @@ func perform(action: RuleAction.Kind, high_jump: bool = false, stack: int = 1) -
 		return
 	stepped.emit()
 	_step_from = global_position
-	_step_to = global_position + Vector3(RuleAction.world_direction(action)) * SIZE
 	_step_time = 0.0
+	if action == RuleAction.Kind.DASH:
+		# ブロックのダッシュは北（W の向き）へ 3 マス×数（仮。ブロックには向きがないため）
+		var cells := float(Tuning.DASH_CELLS) * Tuning.stack_factor(stack)
+		_step_to = global_position + Vector3(0.0, 0.0, -cells * SIZE)
+		_step_duration = cells * SIZE / Tuning.DASH_SPEED
+		_dashing = true
+		return
+	_step_to = global_position + Vector3(RuleAction.world_direction(action)) * SIZE
+	_step_duration = Tuning.BLOCK_STEP_DURATION
 
 
 ## 下から押し上げられたとき（外力）。禁止はこれを妨げない。
@@ -106,6 +117,7 @@ func teleport(target: Vector3, new_velocity_y: float) -> void:
 	sync_to_physics = true
 	velocity_y = new_velocity_y
 	_step_time = -1.0
+	_dashing = false
 
 
 ## チェックポイント用。1ブロック移動の途中で保存しても、復元後に同じ動きの続きをして
@@ -203,7 +215,7 @@ func is_climbing() -> bool:
 
 
 func _integrate_vertical(delta: float) -> void:
-	if _integrate_climb(delta):
+	if _dashing or _integrate_climb(delta):
 		return
 	velocity_y -= Tuning.GRAVITY * delta
 	var motion := Vector3(0.0, velocity_y * delta, 0.0)
@@ -246,8 +258,8 @@ func _integrate_climb(delta: float) -> bool:
 func _integrate_horizontal(delta: float) -> void:
 	if _step_time < 0.0:
 		return
-	_step_time = minf(_step_time + delta, Tuning.BLOCK_STEP_DURATION)
-	var t := _step_time / Tuning.BLOCK_STEP_DURATION
+	_step_time = minf(_step_time + delta, _step_duration)
+	var t := _step_time / _step_duration
 	var target := _step_from.lerp(_step_to, t)
 	var motion := Vector3(target.x - global_position.x, 0.0, target.z - global_position.z)
 	var hit := KinematicCollision3D.new()
@@ -255,10 +267,12 @@ func _integrate_horizontal(delta: float) -> void:
 		# 途中で塞がれたら止まる（P0 ではブロックが横に押し合わない）
 		global_position += hit.get_travel()
 		_step_time = -1.0
+		_dashing = false
 		return
 	global_position += motion
-	if _step_time >= Tuning.BLOCK_STEP_DURATION:
+	if _step_time >= _step_duration:
 		_step_time = -1.0
+		_dashing = false
 
 
 ## 範囲プレビューの対象になっているか（右クリックを押している間）。

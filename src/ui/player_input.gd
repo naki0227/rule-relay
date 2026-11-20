@@ -12,6 +12,7 @@ const ACTION_KEYS: Dictionary[StringName, RuleAction.Kind] = {
 	&"move_back": RuleAction.Kind.BACK,
 	&"move_right": RuleAction.Kind.RIGHT,
 	&"jump": RuleAction.Kind.JUMP,
+	&"dash": RuleAction.Kind.DASH,
 }
 
 ## 右スティックでカメラを回す速さ（マウスの移動量に換算して 1 秒あたり。仮値）。
