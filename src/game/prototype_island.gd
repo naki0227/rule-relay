@@ -58,7 +58,7 @@ var _time: float = 0.0
 
 func _ready() -> void:
 	super._ready()
-	_build_environment()
+	build_environment(self)
 	# 地形はどのセルにも能力を渡せる（渡したセルは動くブロックになる）。見た目はつないで角を丸めたメッシュ
 	build_terrain(terrain_boxes())
 	_build_scenery()
@@ -111,13 +111,22 @@ func _build_creature() -> void:
 		ledger.place_on_entity(action, false, creature.entity_id)
 
 
+## はじめの持ち物（W/A/S/D・ジャンプ・投げる）。オンラインで入ってきた仲間にも同じものを配る。
+func give_starting_items(player_id: int = RuleLedger.PLAYER_ID) -> void:
+	var actions: Array[RuleAction.Kind] = [
+		RuleAction.Kind.FORWARD,
+		RuleAction.Kind.LEFT,
+		RuleAction.Kind.BACK,
+		RuleAction.Kind.RIGHT,
+		RuleAction.Kind.JUMP,
+		RuleAction.Kind.THROW,
+	]
+	for i in actions.size():
+		ledger.give_player_item(actions[i], false, i, player_id)
+
+
 func _give_starting_items() -> void:
-	ledger.give_player_item(RuleAction.Kind.FORWARD, false, 0)
-	ledger.give_player_item(RuleAction.Kind.LEFT, false, 1)
-	ledger.give_player_item(RuleAction.Kind.BACK, false, 2)
-	ledger.give_player_item(RuleAction.Kind.RIGHT, false, 3)
-	ledger.give_player_item(RuleAction.Kind.JUMP, false, 4)
-	ledger.give_player_item(RuleAction.Kind.THROW, false, 5)
+	give_starting_items()
 	select_slot(4)
 	ledger.place_in_world(
 		RuleAction.Kind.HIGH_JUMP, false, BOOTS_AT, RuleVessel.Part.FEET, "ジャンプブーツ"
@@ -127,14 +136,15 @@ func _give_starting_items() -> void:
 	)
 
 
-func _build_environment() -> void:
+## 空・日の光・霧（ステージの島でも同じものを使う）。
+static func build_environment(parent: Node) -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation = Vector3(deg_to_rad(-48.0), deg_to_rad(-35.0), 0.0)
 	sun.light_color = Color(1.0, 0.93, 0.8)
 	sun.light_energy = 1.15
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 60.0
-	add_child(sun)
+	parent.add_child(sun)
 	var sky_material := ProceduralSkyMaterial.new()
 	sky_material.sky_top_color = Color(0.4, 0.64, 0.9)
 	sky_material.sky_horizon_color = Color(0.86, 0.92, 0.93)
@@ -160,7 +170,7 @@ func _build_environment() -> void:
 	env.fog_density = 0.004
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
-	add_child(world_env)
+	parent.add_child(world_env)
 
 
 ## 島の見た目: 浮かぶ岩の底、外周の木、草・花・小石（固定シードで毎回同じ配置）。
@@ -222,6 +232,11 @@ func _process(delta: float) -> void:
 
 
 func _add_label(at: Vector3, text: String) -> void:
+	add_label(self, at, text)
+
+
+## 空中に浮かぶ案内の文字（ステージの島でも使う）。
+static func add_label(parent: Node, at: Vector3, text: String) -> Label3D:
 	var label := Label3D.new()
 	label.text = text
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -232,4 +247,5 @@ func _add_label(at: Vector3, text: String) -> void:
 	label.modulate = UiTheme.INK
 	label.outline_modulate = Color(UiTheme.CREAM, 0.95)
 	label.outline_size = 14
-	add_child(label)
+	parent.add_child(label)
+	return label

@@ -60,7 +60,7 @@ static func draw_slot(ci: CanvasItem, rect: Rect2, token: RuleToken, style: Styl
 	if token == null:
 		return
 	var alpha := 1.0
-	if token.is_lent():
+	if not token.is_in_vessel():
 		alpha = 0.42
 	if style.dimmed:
 		alpha *= 0.3
@@ -71,7 +71,7 @@ static func draw_slot(ci: CanvasItem, rect: Rect2, token: RuleToken, style: Styl
 	)
 	ci.draw_texture_rect(ItemIcons.for_token(token), icon_rect, false, Color(1, 1, 1, alpha))
 	var corner := rect.position + Vector2(rect.size.x - 13, 13)
-	if token.is_lent():
+	if not token.is_in_vessel():
 		_draw_lent_band(ci, rect, style.compact)
 	elif token.is_prohibition:
 		UiGlyphs.draw_ban(ci, corner, 18.0)

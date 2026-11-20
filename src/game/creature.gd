@@ -30,6 +30,9 @@ var facing: Vector2i = Vector2i(0, -1)
 ## 持っている物（例: 木の実）。空なら何も持っていない。「投げる」があると、立ち止まったときに投げる
 ## （2026-11-19 本人の判断: 何かを持っているなら投げる）。
 var held_item: String = ""
+## 参加者の画面では、ホストから受け取った位置へ動くだけ（考えない・物理を計算しない）。
+var remote: bool = false
+var _remote_target: Vector3 = Vector3.ZERO
 
 var _blocked: Dictionary = {}
 var _stuck: float = 0.0
@@ -101,6 +104,11 @@ func replan() -> void:
 
 func _physics_process(delta: float) -> void:
 	_time += delta
+	if remote:
+		var step := _remote_target - global_position
+		global_position = global_position.lerp(_remote_target, minf(1.0, delta * 15.0))
+		_animate(Vector3(step.x, 0.0, step.z).limit_length(1.0))
+		return
 	_since_plan += delta
 	if not is_on_floor():
 		velocity.y -= Tuning.GRAVITY * delta
@@ -213,6 +221,17 @@ func capture_state() -> Dictionary:
 		"facing": facing,
 		"held_item": held_item,
 	}
+
+
+## 参加者の画面で、ホストから受け取った状態 [位置, 向き, 持ち物] を目指す。
+func set_remote_state(at: Vector3, new_facing: Vector2i, item: String) -> void:
+	if at.distance_to(global_position) > 3.0:
+		global_position = at
+	_remote_target = at
+	facing = new_facing
+	if item != held_item:
+		held_item = item
+		_update_held()
 
 
 func restore_state(state: Dictionary) -> void:

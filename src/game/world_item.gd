@@ -53,21 +53,33 @@ func _process(delta: float) -> void:
 		_medal.rotation.y = _time * 1.4
 
 
-## 台帳の「世界に落ちている器」と、見た目のノード（vessel_id → WorldItem）を合わせる。
-static func sync(parent: GameWorld, nodes: Dictionary[int, WorldItem]) -> void:
+## 台帳に合わせて、世界に落ちている器と能力（単発成功時に付与者が退出していた）の見た目をそろえる。
+## nodes はキー → ノード（器は vessel_id、落ちている能力は -token_id）。
+static func sync_all(parent: Node, ledger: RuleLedger, nodes: Dictionary[int, WorldItem]) -> void:
 	var present := {}
-	for v in parent.ledger.world_vessels():
+	for v in ledger.world_vessels():
 		present[v.id] = true
-		if not nodes.has(v.id):
-			var node := WorldItem.new()
-			node.setup(v, parent.ledger.token(v.token_id))
-			parent.add_child(node)
-			nodes[v.id] = node
-		nodes[v.id].position = v.world_position
-	for id: int in nodes.keys():
-		if not present.has(id):
-			nodes[id].queue_free()
-			nodes.erase(id)
+		_place(parent, nodes, v.id, v, ledger.token(v.token_id))
+	for t in PartyQuery.dropped_tokens(ledger):
+		var stand_in := RuleVessel.new()
+		stand_in.world_position = t.drop_position
+		present[-t.id] = true
+		_place(parent, nodes, -t.id, stand_in, t)
+	for key: int in nodes.keys():
+		if not present.has(key):
+			nodes[key].queue_free()
+			nodes.erase(key)
+
+
+static func _place(
+	parent: Node, nodes: Dictionary[int, WorldItem], key: int, v: RuleVessel, t: RuleToken
+) -> void:
+	if not nodes.has(key):
+		var node := WorldItem.new()
+		node.setup(v, t)
+		parent.add_child(node)
+		nodes[key] = node
+	nodes[key].position = v.world_position
 
 
 ## 拾える距離にある、いちばん近い器（無ければ null）。

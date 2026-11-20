@@ -6,6 +6,15 @@ extends RefCounted
 ## - トークンは「器の中」「付与先」「レベルに設置」のどれか1か所にだけある（複製しない）
 ## - 器はホットバー（9枠）・通常インベントリ（無制限）・装備欄・世界（未回収）のどこか1か所にある
 ## - 同じ行為に能力と禁止が重なれば禁止を優先する
+## - 器を持つのはプレイヤー（owner_id）。能力を仲間へ渡しても器は持ち主に残る
+##
+## 複数プレイヤー（1〜4人。2026-11-19 本人確定。Vault 提案書 15〜17・27〜30）:
+## - 能力はプレイヤー間で直接渡せる（受け手の承認なし。give_to_player）。範囲付与はブロックだけ
+## - 同じ能力を複数持つと数だけ効果が強まる（ability_count。空の器は数えない）
+## - F で回収した人が受け取る（元の持ち主へは戻さない）
+## - 単発の自動返還先は、直前にその能力を付与した人。その人が退出していたら現場に落ちる
+## - 出自（vessel_id）は書き換えない。持ち主の器に戻るのは、持ち主本人の手に渡ったときだけ
+## 1人用の呼び出しは player_id を省略すると PLAYER_ID として動き、従来どおり。
 
 signal changed
 
@@ -21,6 +30,10 @@ enum LendResult {
 	MODE_REQUIRED_FOR_BLOCK,
 	MODE_NOT_SUPPORTED,
 	EQUIPPED_CANNOT_LEND,
+	## そのプレイヤーの手元にない（他人の器・他人が持っているトークン）か、そのプレイヤーが退出している
+	NOT_HELD,
+	## 禁止をプレイヤーへ直接渡すかは未決（2026-11-20 時点）。いまは渡せない
+	PROHIBITION_TO_PLAYER,
 }
 
 enum EquipResult {
@@ -39,10 +52,13 @@ var _tokens: Dictionary[int, RuleToken] = {}
 var _vessels: Dictionary[int, RuleVessel] = {}
 var _next_token_id: int = 1
 var _next_vessel_id: int = 1
+## 参加中のプレイヤー。退出したプレイヤーは _entities に残るが、ここから外れる。
+var _present: Dictionary[int, bool] = {}
 
 
 func _init() -> void:
 	_entities[PLAYER_ID] = EntityKind.Kind.PLAYER
+	_present[PLAYER_ID] = true
 
 
 # --- 登録・初期配置 ---------------------------------------------------------
@@ -50,7 +66,34 @@ func _init() -> void:
 
 func register_entity(entity_id: int, kind: EntityKind.Kind) -> void:
 	assert(entity_id != PLAYER_ID, "PLAYER_ID is reserved")
+	assert(kind != EntityKind.Kind.PLAYER, "use register_player")
 	_entities[entity_id] = kind
+
+
+## 2人目以降のプレイヤーを参加させる（PLAYER_ID は最初からいる）。
+func register_player(player_id: int) -> void:
+	assert(not _entities.has(player_id), "entity id already used")
+	_entities[player_id] = EntityKind.Kind.PLAYER
+	_present[player_id] = true
+	changed.emit()
+
+
+## 退出・再参加。退出しても、その人がブロック等へ付与した能力は残る（2026-11-19 本人確定）。
+## 退出した人の手元の器・受け取っていた能力をどうするかは未決なので、ここでは何も動かさない。
+func set_player_present(player_id: int, present: bool) -> void:
+	assert(_entities.get(player_id, -1) == EntityKind.Kind.PLAYER, "not a player")
+	if present:
+		_present[player_id] = true
+	else:
+		_present.erase(player_id)
+	changed.emit()
+
+
+## 参加中のプレイヤー（ID 順）。
+func players() -> PackedInt32Array:
+	var ids := PackedInt32Array(_present.keys())
+	ids.sort()
+	return ids
 
 
 ## 付与先を取り除く（地形から動くブロックにしたセルを、地形へ戻すとき）。付いていたトークンは戻らないので、
@@ -69,12 +112,14 @@ func has_entity(entity_id: int) -> bool:
 
 ## プレイヤーの器を1つ作る。hotbar_slot が 0〜8 ならホットバーへ、-1 なら通常インベントリへ。
 func give_player_item(
-	action: RuleAction.Kind, is_prohibition: bool, hotbar_slot: int = -1
+	action: RuleAction.Kind, is_prohibition: bool, hotbar_slot: int = -1, player_id: int = PLAYER_ID
 ) -> RuleVessel:
+	assert(_present.has(player_id), "unknown or absent player")
 	var token := _new_token(action, is_prohibition)
 	var vessel := _new_vessel(token)
+	vessel.owner_id = player_id
 	if hotbar_slot >= 0:
-		assert(hotbar_vessel(hotbar_slot) == null, "hotbar slot already used")
+		assert(hotbar_vessel(hotbar_slot, player_id) == null, "hotbar slot already used")
 		vessel.location = RuleVessel.Location.HOTBAR
 		vessel.slot = hotbar_slot
 	changed.emit()
@@ -108,6 +153,7 @@ func place_in_world(
 	var token := _new_token(action, is_prohibition)
 	var vessel := _new_vessel(token)
 	vessel.location = RuleVessel.Location.WORLD
+	vessel.owner_id = -1
 	vessel.world_position = position
 	vessel.part = part
 	vessel.item_name = item_name
@@ -126,17 +172,17 @@ func vessel(vessel_id: int) -> RuleVessel:
 	return _vessels.get(vessel_id) as RuleVessel
 
 
-func hotbar_vessel(slot: int) -> RuleVessel:
+func hotbar_vessel(slot: int, player_id: int = PLAYER_ID) -> RuleVessel:
 	for v: RuleVessel in _vessels.values():
-		if v.location == RuleVessel.Location.HOTBAR and v.slot == slot:
+		if v.location == RuleVessel.Location.HOTBAR and v.slot == slot and v.owner_id == player_id:
 			return v
 	return null
 
 
-func inventory_vessels() -> Array[RuleVessel]:
+func inventory_vessels(player_id: int = PLAYER_ID) -> Array[RuleVessel]:
 	var result: Array[RuleVessel] = []
 	for v: RuleVessel in _vessels.values():
-		if v.location == RuleVessel.Location.INVENTORY:
+		if v.location == RuleVessel.Location.INVENTORY and v.owner_id == player_id:
 			result.append(v)
 	result.sort_custom(func(a: RuleVessel, b: RuleVessel) -> bool: return a.id < b.id)
 	return result
@@ -151,28 +197,58 @@ func world_vessels() -> Array[RuleVessel]:
 	return result
 
 
-func token_of_vessel(vessel_id: int) -> RuleToken:
-	var v := vessel(vessel_id)
-	return null if v == null else token(v.token_id)
+## すべてのトークン（ID 順。PartyQuery・LedgerValidator など読み取り専用の問い合わせ用）。
+func all_tokens() -> Array[RuleToken]:
+	var result: Array[RuleToken] = []
+	for t: RuleToken in _tokens.values():
+		result.append(t)
+	result.sort_custom(func(a: RuleToken, b: RuleToken) -> bool: return a.id < b.id)
+	return result
+
+
+## すべての器（ID 順。読み取り専用の問い合わせ用）。
+func all_vessels() -> Array[RuleVessel]:
+	var result: Array[RuleVessel] = []
+	for v: RuleVessel in _vessels.values():
+		result.append(v)
+	result.sort_custom(func(a: RuleVessel, b: RuleVessel) -> bool: return a.id < b.id)
+	return result
 
 
 ## プレイヤー自身がその行動を始められるか。
 ## 能力はホットバーにあり貸出中でないときだけ有効。禁止は手元（ホットバー・通常インベントリ）の
 ## どこにあっても有効で、能力より優先する（企画書 7）。
-func player_can(action: RuleAction.Kind) -> bool:
-	return player_has_ability(action) and not player_prohibited(action)
+func player_can(action: RuleAction.Kind, player_id: int = PLAYER_ID) -> bool:
+	return player_has_ability(action, player_id) and not player_prohibited(action, player_id)
 
 
 ## 能力が自分に効くのは、ホットバーの普通の器と、装備欄の装備だけ（企画書 7）。
 ## ホットバーに置いた装備品は、装備していないので効かない（付与の元にはできる）。
-func player_has_ability(action: RuleAction.Kind) -> bool:
-	for v: RuleVessel in _vessels.values():
-		if not _applies_to_player(v):
-			continue
-		var t := token(v.token_id)
-		if t.action == action and not t.is_prohibition and not t.is_lent():
-			return true
-	return false
+func player_has_ability(action: RuleAction.Kind, player_id: int = PLAYER_ID) -> bool:
+	return ability_count(action, player_id) > 0
+
+
+## そのプレイヤーに効いている同じ能力の数（禁止は考えない。禁止の判定は player_can）。
+## 4人のジャンプを1人に集めれば 4（2026-11-19 本人確定: 数に比例して効果が強まる）。
+## 仲間から受け取った・回収した能力は、器が無いまま効く扱い（仮。受け取った能力の置き場の UI は未決）。
+func ability_count(action: RuleAction.Kind, player_id: int = PLAYER_ID) -> int:
+	var count := 0
+	for t: RuleToken in _tokens.values():
+		if not t.is_prohibition and t.action == action and _held_by(t, player_id, true):
+			count += 1
+	return count
+
+
+## そのトークンがプレイヤーの手元で効くか。for_ability なら能力の効き方、そうでなければ禁止の効き方。
+func _held_by(t: RuleToken, player_id: int, for_ability: bool) -> bool:
+	if t.carrier_id != -1:
+		return t.carrier_id == player_id
+	if not t.is_in_vessel():
+		return false
+	var v := vessel(t.vessel_id)
+	if v == null or v.owner_id != player_id:
+		return false
+	return _applies_to_player(v) if for_ability else v.location != RuleVessel.Location.WORLD
 
 
 func _applies_to_player(v: RuleVessel) -> bool:
@@ -182,26 +258,25 @@ func _applies_to_player(v: RuleVessel) -> bool:
 
 
 ## 部位に装備している器（無ければ null）。
-func equipped_vessel(part: RuleVessel.Part) -> RuleVessel:
+func equipped_vessel(part: RuleVessel.Part, player_id: int = PLAYER_ID) -> RuleVessel:
 	for v: RuleVessel in _vessels.values():
-		if v.location == RuleVessel.Location.EQUIPPED and v.part == part:
+		var here := v.location == RuleVessel.Location.EQUIPPED and v.owner_id == player_id
+		if here and v.part == part:
 			return v
 	return null
 
 
-func player_prohibited(action: RuleAction.Kind) -> bool:
-	for v: RuleVessel in _vessels.values():
-		if v.location == RuleVessel.Location.WORLD:
-			continue
-		var t := token(v.token_id)
-		if t.action == action and t.is_prohibition and not t.is_lent():
+## 禁止は手元（ホットバー・通常インベントリ・装備欄、回収して持っているもの）のどこにあっても効く。
+func player_prohibited(action: RuleAction.Kind, player_id: int = PLAYER_ID) -> bool:
+	for t: RuleToken in _tokens.values():
+		if t.is_prohibition and t.action == action and _held_by(t, player_id, false):
 			return true
 	return false
 
 
 func entity_has_ability(entity_id: int, action: RuleAction.Kind) -> bool:
-	if entity_id == PLAYER_ID:
-		return player_has_ability(action)
+	if _entities.get(entity_id, -1) == EntityKind.Kind.PLAYER:
+		return player_has_ability(action, entity_id)
 	for t: RuleToken in _tokens.values():
 		if not t.is_prohibition and t.action == action and t.holder_ids.has(entity_id):
 			return true
@@ -209,8 +284,8 @@ func entity_has_ability(entity_id: int, action: RuleAction.Kind) -> bool:
 
 
 func entity_prohibited(entity_id: int, action: RuleAction.Kind) -> bool:
-	if entity_id == PLAYER_ID:
-		return player_prohibited(action)
+	if _entities.get(entity_id, -1) == EntityKind.Kind.PLAYER:
+		return player_prohibited(action, entity_id)
 	for t: RuleToken in _tokens.values():
 		if t.is_prohibition and t.action == action and t.holder_ids.has(entity_id):
 			return true
@@ -231,12 +306,13 @@ func tokens_on(entity_id: int) -> Array[RuleToken]:
 	return result
 
 
-## プレイヤーが貸し出し中の単発トークンのうち、その行動のもの（対応キーで起動する）。
-func pending_single_shots(action: RuleAction.Kind) -> Array[RuleToken]:
+## プレイヤーが貸し出し中の単発トークンのうち、その行動のもの（付与した人の対応キーで起動する）。
+## レベルに最初から置かれた単発（付与した人がいない）は含まない。
+func pending_single_shots(action: RuleAction.Kind, player_id: int = PLAYER_ID) -> Array[RuleToken]:
 	var result: Array[RuleToken] = []
 	for t: RuleToken in _tokens.values():
 		if (
-			t.vessel_id != -1
+			t.lender_id == player_id
 			and t.is_lent()
 			and t.mode == TriggerMode.Kind.SINGLE_SHOT
 			and t.action == action
@@ -281,8 +357,9 @@ func range_tokens_at(position: Vector3, vertical_reach: float = 3.0) -> Array[Ru
 # --- 操作 -------------------------------------------------------------------
 
 
-## ホットバーの器から能力・禁止を付与する。
+## ホットバーの器から能力・禁止を付与する（器の持ち主が付与する）。
 ## range_spec が空でなければ範囲付与: {"center": Vector3, "radius": float, "layer": int}
+## プレイヤーへ渡すときは give_to_player を使う（ここではプレイヤーを対象にできない）。
 func lend(
 	vessel_id: int,
 	target_ids: PackedInt32Array,
@@ -292,17 +369,29 @@ func lend(
 	var v := vessel(vessel_id)
 	if v == null:
 		return LendResult.NO_SUCH_VESSEL
-	if v.location == RuleVessel.Location.EQUIPPED:
-		return LendResult.EQUIPPED_CANNOT_LEND
-	if v.location != RuleVessel.Location.HOTBAR:
-		return LendResult.NOT_IN_HOTBAR
-	var t := token(v.token_id)
-	if t.is_lent():
-		return LendResult.ALREADY_LENT
+	return lend_token(v.token_id, v.owner_id, target_ids, mode, range_spec)
+
+
+## by_player の手元のトークン（ホットバーの自分の器、または受け取って持っているもの）を付与する。
+func lend_token(
+	token_id: int,
+	by_player: int,
+	target_ids: PackedInt32Array,
+	mode: TriggerMode.Kind,
+	range_spec: Dictionary = {}
+) -> LendResult:
+	var t := token(token_id)
+	if t == null:
+		return LendResult.NO_SUCH_VESSEL
+	var source := _lend_source(t, by_player)
+	if source != LendResult.OK:
+		return source
 	var is_range := not range_spec.is_empty()
 	var check := _validate_targets(t, target_ids, mode, is_range)
 	if check != LendResult.OK:
 		return check
+	t.carrier_id = -1
+	t.lender_id = by_player
 	t.holder_ids = target_ids.duplicate()
 	var uses_mode := _all_blocks(target_ids) and _needs_mode(t)
 	t.mode = mode if uses_mode else TriggerMode.Kind.NONE
@@ -315,25 +404,43 @@ func lend(
 	return LendResult.OK
 
 
-## 付与中のトークンを器へ戻す。範囲付与なら全ブロックから一括で戻る。
-## レベルに設置されていたトークン（器なし）は、拾ったものとして通常インベントリに新しい器を作る。
-func recall(token_id: int) -> bool:
+## 能力を仲間へ直接渡す（受け手の承認なし。2026-11-19 本人確定）。器は from_player に残る。
+## 渡した先が元の器の持ち主なら、その器へ戻る。
+func give_to_player(token_id: int, from_player: int, to_player: int) -> LendResult:
+	var t := token(token_id)
+	if t == null:
+		return LendResult.NO_SUCH_VESSEL
+	if t.is_prohibition:
+		return LendResult.PROHIBITION_TO_PLAYER
+	if to_player == from_player or not _present.has(to_player):
+		return LendResult.UNKNOWN_TARGET
+	var source := _lend_source(t, from_player)
+	if source != LendResult.OK:
+		return source
+	_deliver(t, to_player)
+	t.lender_id = from_player
+	changed.emit()
+	return LendResult.OK
+
+
+## 付与中のトークンを回収する（F）。範囲付与なら全ブロックから一括で戻る。
+## 受け取るのは回収した人（by_player）。元の器の持ち主が回収したら器へ戻る（2026-11-19 本人確定）。
+## レベルに設置されていたトークン（器なし）は、拾ったものとして回収した人の通常インベントリに器を作る。
+func recall(token_id: int, by_player: int = PLAYER_ID) -> bool:
 	var t := token(token_id)
 	if t == null or not t.is_lent():
 		return false
-	if t.vessel_id == -1:
-		var v := _new_vessel(t)
-		v.location = RuleVessel.Location.INVENTORY
 	_clear_lend(t)
+	_deliver(t, by_player)
 	changed.emit()
 	return true
 
 
 ## その対象が持つトークンをすべて回収する（F）。回収したトークンIDを返す。
-func recall_from_entity(entity_id: int) -> PackedInt32Array:
+func recall_from_entity(entity_id: int, by_player: int = PLAYER_ID) -> PackedInt32Array:
 	var recalled := PackedInt32Array()
 	for t: RuleToken in tokens_on(entity_id):
-		if recall(t.id):
+		if recall(t.id, by_player):
 			recalled.append(t.id)
 	return recalled
 
@@ -342,22 +449,46 @@ func recall_from_entity(entity_id: int) -> PackedInt32Array:
 ## 発動できなかったとき（禁止・能力なし・塞がれている・空中）も、発動したのと同じ扱いで戻る
 ## （2026-11-19 本人の判断。単発は手動で回収しなくてよい方式なので、動けないまま残さない）。
 ## 範囲単発で一部だけ成功した場合も同じく戻る。
-func complete_single_shot(token_id: int, results: Array[BlockRules.Attempt]) -> bool:
+## 戻る先は直前に付与した人（元の器の持ち主ではない。2026-11-19 本人確定）。
+## その人が退出していたら、成功したときは drop_position に落ちる（同日確定）。誰でも拾える。
+## 退出していて失敗したときの扱いは未決なので、ブロックに付けたまま false を返す（F で回収はできる）。
+func complete_single_shot(
+	token_id: int, results: Array[BlockRules.Attempt], drop_position: Vector3 = Vector3.ZERO
+) -> bool:
 	var t := token(token_id)
 	if t == null or t.mode != TriggerMode.Kind.SINGLE_SHOT or not t.is_lent():
 		return false
 	if results.is_empty():
 		return false
+	var lender_left := t.lender_id != -1 and not _present.has(t.lender_id)
+	if lender_left and not BlockRules.single_shot_succeeded(results):
+		return false
 	_clear_lend(t)
+	if lender_left:
+		t.dropped = true
+		t.drop_position = drop_position
+	elif t.lender_id != -1:
+		_deliver(t, t.lender_id)
+	changed.emit()
+	return true
+
+
+## 落ちている能力を拾う。拾った人が受け取る（元の器の持ち主なら器へ戻る）。
+func pickup_token(token_id: int, player_id: int = PLAYER_ID) -> bool:
+	var t := token(token_id)
+	if t == null or not t.dropped or not _present.has(player_id):
+		return false
+	_deliver(t, player_id)
 	changed.emit()
 	return true
 
 
 ## 世界に落ちている器を拾い、通常インベントリへ入れる（企画書 7: F で拾ったものは通常インベントリへ）。
-func pickup(vessel_id: int) -> bool:
+func pickup(vessel_id: int, player_id: int = PLAYER_ID) -> bool:
 	var v := vessel(vessel_id)
 	if v == null or v.location != RuleVessel.Location.WORLD:
 		return false
+	v.owner_id = player_id
 	v.location = RuleVessel.Location.INVENTORY
 	v.slot = -1
 	changed.emit()
@@ -376,7 +507,7 @@ func equip(vessel_id: int) -> EquipResult:
 		return EquipResult.NOT_CARRIED
 	if v.location == RuleVessel.Location.EQUIPPED:
 		return EquipResult.OK
-	var occupant := equipped_vessel(v.part)
+	var occupant := equipped_vessel(v.part, v.owner_id)
 	if occupant != null:
 		occupant.location = v.location
 		occupant.slot = v.slot
@@ -401,7 +532,7 @@ func move_to_hotbar(vessel_id: int, slot: int) -> bool:
 		return false
 	if v.location == RuleVessel.Location.WORLD:
 		return false
-	var occupant := hotbar_vessel(slot)
+	var occupant := hotbar_vessel(slot, v.owner_id)
 	if occupant == v:
 		return true
 	if occupant != null:
@@ -446,6 +577,7 @@ func snapshot() -> Dictionary:
 		"vessels": vessels,
 		"next_token_id": _next_token_id,
 		"next_vessel_id": _next_vessel_id,
+		"present": players(),
 	}
 
 
@@ -465,52 +597,66 @@ func restore(data: Dictionary) -> void:
 		_vessels[v.id] = v
 	_next_token_id = int(data["next_token_id"])
 	_next_vessel_id = int(data["next_vessel_id"])
+	_present.clear()
+	for id in data.get("present", PackedInt32Array([PLAYER_ID])) as PackedInt32Array:
+		_present[id] = true
 	changed.emit()
 
 
-## 不変条件の違反を列挙する（テスト・デバッグ用）。空なら正常。
+## 不変条件の違反を列挙する（テスト・デバッグ用）。空なら正常。中身は LedgerValidator。
 func validate() -> PackedStringArray:
-	var errors := PackedStringArray()
-	var used_slots := {}
-	for v: RuleVessel in _vessels.values():
-		var t := token(v.token_id)
-		if t == null:
-			errors.append("vessel %d has missing token %d" % [v.id, v.token_id])
-		elif t.vessel_id != v.id:
-			errors.append("token %d does not point back to vessel %d" % [t.id, v.id])
-		if v.location == RuleVessel.Location.HOTBAR:
-			if v.slot < 0 or v.slot >= HOTBAR_SIZE:
-				errors.append("vessel %d has invalid hotbar slot %d" % [v.id, v.slot])
-			elif used_slots.has(v.slot):
-				errors.append("hotbar slot %d used twice" % v.slot)
-			used_slots[v.slot] = true
-	var used_parts := {}
-	for v: RuleVessel in _vessels.values():
-		if v.location != RuleVessel.Location.EQUIPPED:
-			continue
-		if not v.is_equipment():
-			errors.append("vessel %d is equipped but is not equipment" % v.id)
-		elif used_parts.has(v.part):
-			errors.append("part %d equipped twice" % v.part)
-		used_parts[v.part] = true
-	for v: RuleVessel in _vessels.values():
-		if v.location == RuleVessel.Location.WORLD and token(v.token_id) != null:
-			if token(v.token_id).is_lent():
-				errors.append("token %d is lent from a vessel still in the world" % v.token_id)
-	for t: RuleToken in _tokens.values():
-		if t.vessel_id == -1 and not t.is_lent():
-			errors.append("token %d is neither in a vessel nor placed" % t.id)
-		if t.vessel_id != -1 and not _vessels.has(t.vessel_id):
-			errors.append("token %d points to missing vessel" % t.id)
-		for holder in t.holder_ids:
-			if not _entities.has(holder):
-				errors.append("token %d held by unknown entity %d" % [t.id, holder])
-			if holder == PLAYER_ID:
-				errors.append("token %d lent to the player" % t.id)
-	return errors
+	return LedgerValidator.check(self)
 
 
 # --- 内部 -------------------------------------------------------------------
+
+
+## 付与・譲渡の元として by_player の手元にあるか。
+func _lend_source(t: RuleToken, by_player: int) -> LendResult:
+	if t.carrier_id != -1:
+		return _carried_source(t, by_player)
+	var v := vessel(t.vessel_id)
+	if v == null:
+		return LendResult.NO_SUCH_VESSEL
+	var place := _vessel_lend_check(v)
+	if place != LendResult.OK:
+		return place
+	if not t.is_in_vessel():
+		return LendResult.ALREADY_LENT
+	var mine := v.owner_id == by_player and _present.has(by_player)
+	return LendResult.OK if mine else LendResult.NOT_HELD
+
+
+## 器を離れて誰かが持っているトークン。元の器の持ち主から見れば貸出中。
+func _carried_source(t: RuleToken, by_player: int) -> LendResult:
+	if t.carrier_id == by_player:
+		return LendResult.OK if _present.has(by_player) else LendResult.NOT_HELD
+	var v := vessel(t.vessel_id)
+	var is_origin := v != null and v.owner_id == by_player
+	return LendResult.ALREADY_LENT if is_origin else LendResult.NOT_HELD
+
+
+func _vessel_lend_check(v: RuleVessel) -> LendResult:
+	if v.location == RuleVessel.Location.EQUIPPED:
+		return LendResult.EQUIPPED_CANNOT_LEND
+	if v.location != RuleVessel.Location.HOTBAR:
+		return LendResult.NOT_IN_HOTBAR
+	return LendResult.OK
+
+
+## トークンをプレイヤーの手元へ。元の器の持ち主なら器に戻し、そうでなければ器なしで持たせる。
+## 器の無いトークン（レベルに置かれていたもの）は、その人の通常インベントリに器を作る。
+func _deliver(t: RuleToken, player_id: int) -> void:
+	t.dropped = false
+	t.drop_position = Vector3.ZERO
+	t.carrier_id = -1
+	if t.vessel_id == -1:
+		var made := _new_vessel(t)
+		made.location = RuleVessel.Location.INVENTORY
+		made.owner_id = player_id
+		return
+	if vessel(t.vessel_id).owner_id != player_id:
+		t.carrier_id = player_id
 
 
 func _validate_targets(
@@ -538,7 +684,7 @@ func _validate_known_targets(target_ids: PackedInt32Array) -> LendResult:
 	for target in target_ids:
 		if not _entities.has(target):
 			return LendResult.UNKNOWN_TARGET
-		if target == PLAYER_ID:
+		if _entities[target] == EntityKind.Kind.PLAYER:
 			return LendResult.CANNOT_TARGET_PLAYER
 	return LendResult.OK
 
