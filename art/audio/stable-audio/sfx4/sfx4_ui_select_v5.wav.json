@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx4_ui_select_5th",
+  "original_idea": "ui_select 4回目（2回目の試し）の5つ目。プロンプトは同じ、seed 6304",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a small hard wooden block struck once with a hard wooden stick, one single dry clack with a crisp click at the very start, very short, a single hit only, thick dense maple block, dry, articulate, warm woody tone, close-miked, dry, no reverb.",
+  "sound_fields": {
+    "source": "a small hard wooden block struck once with a hard wooden stick",
+    "action": "one single dry clack with a crisp click at the very start, very short, a single hit only",
+    "material": "thick dense maple block, dry, articulate, warm woody tone",
+    "space": "close-miked, dry, no reverb"
+  },
+  "bpm": null,
+  "seconds": 1.0,
+  "negative_prompt": "multiple hits, rattle, reverb tail, long ring, hiss, muffled, dull, thud, boomy, metallic",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 1,
+  "seed": 6304,
+  "candidate": 1,
+  "file": "sfx4_ui_select_5th.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-21T00:37:19",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 1.69,
+  "ceiling_gain_db": -2.69
+}
