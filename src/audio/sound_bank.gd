@@ -1,7 +1,8 @@
 class_name SoundBank
 extends Node
 ## 効果音を鳴らす窓口（設計は docs/sound-design.md）。音は tools/sfx/build_sfx.py で作った
-## assets/audio/sfx/*.wav（合成した音と、Stable Audio 3 の候補から採用した 6 種）。鳴らすたびに音程と音量を少し揺らし、同じ音の繰り返しで疲れないようにする。
+## assets/audio/sfx/*.wav（合成した音と、Stable Audio 3 の候補から採用した 21 種）。
+## 鳴らすたびに音程と音量を少し揺らし、同じ音の繰り返しで疲れないようにする。
 ## UI の音と世界の音は別のバスに分け、世界の音は位置から鳴らす（遠いと小さい）。
 
 const SFX_DIR := "res://assets/audio/sfx/%s.wav"
