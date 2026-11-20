@@ -56,12 +56,31 @@ func _ready() -> void:
 func open() -> void:
 	visible = true
 	modulate.a = 0.0
+	_fit_to_screen()
 	_book.scale = Vector2.ONE * 0.97
 	var tween := create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tween.tween_property(self, "modulate:a", 1.0, UiTheme.FAST)
 	tween.parallel().tween_property(_book, "scale", Vector2.ONE, UiTheme.NORMAL)
 	refresh()
 	_search.grab_focus()
+
+
+## 文字を大きくして画面が狭くなったとき（設定の「文字の大きさ」）も、持ち物の札が収まる縮尺。
+func fit_scale() -> float:
+	var room := get_viewport_rect().size - Vector2.ONE * UiTheme.SAFE_MARGIN
+	var need := _book.get_combined_minimum_size()
+	if need.x <= 0.0 or need.y <= 0.0:
+		return 1.0
+	return minf(1.0, minf(room.x / need.x, room.y / need.y))
+
+
+## 画面全体を覆ったまま、中身を fit_scale の縮尺でまとめて縮める（左上を基準に）。
+func _fit_to_screen() -> void:
+	var fit := fit_scale()
+	set_anchors_preset(Control.PRESET_TOP_LEFT)
+	position = Vector2.ZERO
+	scale = Vector2.ONE * fit
+	size = get_viewport_rect().size / fit
 
 
 func close() -> void:
@@ -333,11 +352,24 @@ static func _explain(entry: InventoryQuery.Entry) -> String:
 		RuleAction.Kind.JUMP:
 			action = "跳ぶ力。ブロックに渡すと、そのブロックが跳ねる。"
 		RuleAction.Kind.THROW:
-			action = "投げて遠くへ渡す力（C で切り替え）。手放すと「触る」の距離だけになるが、F の回収は残る。"
+			action = (
+				"投げて遠くへ渡す力（%s で切り替え）。手放すと「触る」の距離だけになるが、%s の回収は残る。"
+				% [InputMode.key(&"toggle_reach"), InputMode.key(&"interact")]
+			)
 		RuleAction.Kind.HIGH_JUMP:
 			action = "いつもより高く跳ぶ力（約2ブロック）。装備しているときだけ自分に効く。"
 		RuleAction.Kind.DASH:
-			action = "W/A/D を押しながら Shift で、その向きへまっすぐ3マス突進する力（後ろへは無し）。途中の穴も抜ける。"
+			var moves := PackedStringArray(
+				[
+					InputMode.key(&"move_forward"),
+					InputMode.key(&"move_left"),
+					InputMode.key(&"move_right"),
+				]
+			)
+			action = (
+				"%s を押しながら %s で、その向きへまっすぐ3マス突進する力（後ろへは無し）。途中の穴も抜ける。"
+				% ["/".join(moves), InputMode.key(&"dash")]
+			)
 		RuleAction.Kind.CLIMB:
 			action = "壁を登る力。装備しているときだけ自分に効く。ブロックに渡すと、隣でいちばん高い所の高さまで登ってつかまる。"
 	if t.is_prohibition:
@@ -352,7 +384,9 @@ static func _explain(entry: InventoryQuery.Entry) -> String:
 		InventoryQuery.State.STORED:
 			return action + "\n\nかばんの中では自分に効かない。ホットバーに置くと効く。"
 		InventoryQuery.State.LENT:
-			return action + "\n\n貸し出し中。回収するまで自分は使えない。相手に近づいて F で回収できる。"
+			return (
+				action + "\n\n貸し出し中。回収するまで自分は使えない。相手に近づいて %s で回収できる。" % InputMode.key(&"interact")
+			)
 	return action
 
 
@@ -556,7 +590,7 @@ func _build_detail_column() -> Control:
 	column.add_child(top)
 	_detail_text = Label.new()
 	_detail_text.theme_type_variation = &"Body"
-	_detail_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UiTheme.wrap_text(_detail_text)
 	_detail_text.custom_minimum_size = Vector2(360, 140)
 	column.add_child(_detail_text)
 	_equip_button = Button.new()
