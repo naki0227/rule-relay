@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>世界観 第4回 見本</title>
+<!-- 書体はすべて Google Fonts の OFL（docs/worldview/round4.md の 1-E）。ほかは外部の読み込みなし。 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kaisei+Decol:wght@700&family=Kaisei+HarunoUmi:wght@700&family=Kiwi+Maru:wght@500&family=Klee+One:wght@600&family=M+PLUS+Rounded+1c:wght@500;800&family=Yusei+Magic&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --page: #f6f2ee; --page-ink: #3f3540; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--page-ink); font-family: 'Zen Maru Gothic', sans-serif; }
+  header { max-width: 1180px; margin: 0 auto; padding: 20px 16px 8px; }
+  header h1 { font-size: 22px; margin: 0 0 4px; }
+  header p { margin: 0; font-size: 14px; opacity: .8; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .tabs button { font: inherit; font-weight: 700; padding: 8px 16px; border-radius: 999px; border: 2px solid #d8ccd6; background: #fff; color: inherit; cursor: pointer; }
+  .tabs button[aria-selected="true"] { border-color: #8a74e8; background: #efeaff; }
+  main { max-width: 1180px; margin: 0 auto; padding: 8px 16px 40px; }
+  .theme { display: none; font-family: var(--body); color: var(--ink); }
+  .theme.on { display: block; }
+  .theme h2 { font-family: var(--head); font-size: 30px; margin: 12px 0 0; color: var(--ink); }
+  .theme .tag { margin: 2px 0 14px; color: var(--ink2); }
+  h3 { font-family: var(--head); font-size: 18px; margin: 22px 0 8px; }
+
+  /* 色見本 */
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 8px; }
+  .sw { border-radius: 14px; overflow: hidden; background: #fff; border: 1px solid #0001; font-size: 12px; }
+  .sw i { display: block; height: 46px; }
+  .sw b { display: block; padding: 6px 8px 0; font-size: 12px; }
+  .sw span { display: block; padding: 0 8px 7px; opacity: .75; font-family: ui-monospace, monospace; }
+
+  /* 画面（HUD） */
+  .scene { position: relative; aspect-ratio: 16 / 9; border-radius: 22px; overflow: hidden; background: linear-gradient(var(--sky1), var(--sky2)); box-shadow: 0 6px 24px #0002; container-type: inline-size; }
+  .deco { position: absolute; pointer-events: none; }
+  .island { position: absolute; border-radius: 46% 54% 40% 40% / 30% 30% 70% 70%; background: linear-gradient(var(--t1) 0 22%, var(--t2) 22% 60%, var(--t3) 60%); box-shadow: inset 0 -10px 18px #0002, 0 0 0 2px #ffffff40; }
+  .crosshair { position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; margin: -11px; border: 2.5px solid var(--sel); border-radius: 50%; box-shadow: 0 0 10px var(--sel); }
+
+  .panel { position: relative; background: var(--panel); border: 2px solid var(--edge); border-radius: 24px; box-shadow: 0 6px 18px var(--shadow); color: var(--ink); }
+  .toast { position: absolute; left: 2.2%; top: 4%; padding: .55em 1.1em; font-size: clamp(10px, 1.55cqw, 17px); border-radius: 999px; display: flex; gap: .5em; align-items: center; }
+  .toast .dot { width: .7em; height: .7em; border-radius: 50%; background: var(--act); }
+
+  .hotbar { position: absolute; left: 50%; bottom: 3.5%; transform: translateX(-50%); display: flex; gap: .5cqw; padding: .7cqw .9cqw; border-radius: 2cqw; }
+  .slot { position: relative; width: 5.2cqw; height: 5.2cqw; border: 2px solid var(--edge); border-radius: 1.2cqw; background: var(--slot); display: grid; place-items: center; color: var(--ink); }
+  .slot svg { width: 62%; height: 62%; }
+  .slot .k { position: absolute; left: .35cqw; top: .15cqw; font-size: .9cqw; color: var(--ink2); font-weight: 700; }
+  .slot.sel { border: 3px solid var(--sel); transform: translateY(-.7cqw) scale(1.08); box-shadow: 0 0 1.2cqw var(--sel); background: var(--selbg); }
+  .slot.act::after { content: ""; position: absolute; right: .35cqw; top: .35cqw; width: .8cqw; height: .8cqw; border-radius: 50%; background: var(--act); box-shadow: 0 0 .5cqw var(--act); }
+  .slot.lent svg { opacity: .35; }
+  .slot.lent::before { content: attr(data-lent); position: absolute; left: -2px; right: -2px; bottom: -2px; padding: .1cqw 0; background: var(--lent); color: #fff; font-size: .8cqw; font-weight: 700; text-align: center; border-radius: 0 0 1.1cqw 1.1cqw; }
+  .slot .ban { position: absolute; right: -.5cqw; top: -.5cqw; width: 1.9cqw; height: 1.9cqw; }
+  .badge { position: absolute; left: calc(50% + 27cqw); bottom: 4.5%; padding: .5cqw 1cqw; font-size: 1.3cqw; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+  .namebubble { position: absolute; left: 50%; bottom: 16.5%; transform: translateX(-50%); padding: .35cqw 1.1cqw; border-radius: 999px; font-size: 1.35cqw; font-weight: 700; }
+
+  .radial { position: absolute; right: 4%; top: 22%; width: 22cqw; height: 22cqw; border-radius: 50%; display: grid; place-items: center; }
+  .radial .ring { position: absolute; inset: 0; border-radius: 50%; background: var(--radialbg); border: 2px solid var(--edge); box-shadow: 0 6px 18px var(--shadow); }
+  .radial .seg { position: absolute; min-width: 7.6cqw; white-space: nowrap; text-align: center; font-size: 1.3cqw; font-weight: 700; padding: .5cqw .2cqw; border-radius: 1.2cqw; background: var(--panel); border: 2px solid var(--edge); }
+  .radial .seg.sel { border: 3px solid var(--sel); box-shadow: 0 0 1cqw var(--sel); background: var(--selbg); }
+  .radial .seg:nth-of-type(2) { top: 6%; }
+  .radial .seg:nth-of-type(3) { left: 1%; bottom: 18%; }
+  .radial .seg:nth-of-type(4) { right: 1%; bottom: 18%; }
+  .radial .core { width: 5cqw; height: 5cqw; border-radius: 50%; background: var(--acc1); box-shadow: 0 0 1.4cqw var(--acc1); position: relative; }
+
+  /* 持ち物 */
+  .inv { display: grid; grid-template-columns: 1fr 2.2fr 1.3fr; gap: 14px; padding: 18px; margin-top: 14px; }
+  .inv h4 { font-family: var(--head); margin: 0 0 8px; font-size: 18px; }
+  .inv .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 2px solid var(--edge); }
+  .chip.on { border-color: var(--sel); background: var(--selbg); font-weight: 700; }
+  .figure { height: 210px; border-radius: 18px; background: linear-gradient(var(--sky1), var(--sky2)); position: relative; overflow: hidden; }
+  .figure .body { position: absolute; left: 50%; bottom: 26px; width: 64px; height: 92px; margin-left: -32px; border-radius: 30px 30px 22px 22px; background: var(--acc2); box-shadow: inset 0 -10px 0 #0001; }
+  .figure .hood { position: absolute; left: 50%; bottom: 100px; width: 74px; height: 70px; margin-left: -37px; border-radius: 50% 50% 44% 44%; background: var(--acc2); filter: brightness(1.07); }
+  .figure .face { position: absolute; left: 50%; bottom: 110px; width: 50px; height: 40px; margin-left: -25px; border-radius: 50%; background: #f8dcc4; }
+  .figure .base { position: absolute; left: 18%; right: 18%; bottom: 10px; height: 26px; border-radius: 50%; background: var(--t3); }
+  .equip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .grid .slot, .equip .slot { width: auto; height: auto; aspect-ratio: 1; border-radius: 12px; }
+  .grid .slot .k { display: none; }
+  .grid .slot.sel { transform: none; }
+  .grid .slot.lent::before { font-size: 10px; border-radius: 0 0 10px 10px; }
+  .grid .slot .ban { width: 18px; height: 18px; right: -5px; top: -5px; }
+  .grid .slot.act::after { width: 8px; height: 8px; right: 4px; top: 4px; }
+  .detail .big { height: 96px; border-radius: 18px; display: grid; place-items: center; background: var(--slot); border: 2px solid var(--edge); color: var(--ink); }
+  .detail .big svg { width: 56px; height: 56px; }
+  .detail p { margin: 8px 0; font-size: 14px; line-height: 1.6; }
+  .detail .state { display: inline-block; font-size: 12px; padding: 2px 10px; border-radius: 999px; background: var(--lent); color: #fff; font-weight: 700; }
+  .detail .flav { font-family: var(--flav, var(--body)); color: var(--ink2); }
+  .lentlist { font-size: 13px; margin-top: 8px; border-top: 2px solid var(--edge); padding-top: 8px; }
+
+  .row2 { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; margin-top: 14px; }
+  .bansign { padding: 18px; display: flex; gap: 18px; align-items: center; }
+  .bansign svg { width: 120px; height: 120px; flex: none; }
+  .buttons { padding: 18px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .btn { font: inherit; font-weight: 700; padding: 10px 20px; border-radius: 999px; border: 2px solid var(--edge); background: var(--panel); color: var(--ink); }
+  .btn.hover { border-color: var(--sel); background: var(--selbg); box-shadow: 0 0 10px var(--sel); }
+  .btn.down { transform: translateY(1px); box-shadow: inset 0 2px 0 #0001; }
+  .btn.off { color: var(--ink2); border-style: dashed; opacity: .7; }
+  .note { font-size: 13px; color: #6a5f68; margin-top: 18px; line-height: 1.7; }
+
+  /* ---- 案ごとの飾り（パネルの縁の模様は1か所だけ） ---- */
+  /* A うきにわ: 磁器の板、左上だけ金継ぎの線。枠は鉢の上面（下辺が厚い） */
+  .t-a .fx::before { content: ""; position: absolute; left: 14px; top: -2px; width: 46px; height: 2px; background: linear-gradient(90deg, #e8b84a, #ffe08a 60%, transparent); border-radius: 2px; }
+  .t-a .fx::after { content: ""; position: absolute; left: -2px; top: 14px; width: 2px; height: 36px; background: linear-gradient(#e8b84a, transparent); }
+  .t-a .slot { border-bottom-width: 4px; }
+  .t-a .slot.sel { border-bottom-width: 5px; }
+  /* B ほしわたり: 月光ガラス、上の縁の中央に星3つ。枠は網代の目を透かす */
+  .t-b .panel { box-shadow: inset 0 0 0 1px #ffffffcc, 0 6px 18px var(--shadow); }
+  .t-b .fx::after { content: "✦ ✦ ✦"; position: absolute; left: 50%; top: -.8em; transform: translateX(-50%); font-size: 12px; letter-spacing: 2px; color: var(--sel); text-shadow: 0 0 6px var(--sel); background: var(--panel); padding: 0 6px; border-radius: 6px; line-height: 1.4; }
+  .t-b .slot { background: repeating-linear-gradient(45deg, #ffffff00 0 6px, #c9bcf033 6px 7px), repeating-linear-gradient(-45deg, #ffffff00 0 6px, #c9bcf033 6px 7px), var(--slot); }
+  /* C ゆめまつり: 紙風船、下の縁だけ波形。枠は提灯 */
+  .t-c .fx::after { content: ""; position: absolute; left: 18px; right: 18px; bottom: -8px; height: 8px; background: radial-gradient(circle at 6px 0, var(--edge) 5px, transparent 5.5px) 0 0 / 12px 8px repeat-x; }
+  .t-c .slot { border-radius: 42%; }
+  .t-c .hotbar .slot { box-shadow: inset 0 -.45cqw 0 #5a3a4a22, inset 0 .45cqw 0 #5a3a4a22; }
+  /* D からくり星函: 螺鈿の縁＋四隅の金具。枠は七宝の窓 */
+  .t-d .panel { border-color: transparent; background: linear-gradient(var(--panel), var(--panel)) padding-box, linear-gradient(120deg, #bfe7e8, #e7d2f3 50%, #f6e2c2) border-box; }
+  .t-d .fx::before, .t-d .fx::after { content: ""; position: absolute; width: 14px; height: 14px; border: 3px solid #c9a24e; }
+  .t-d .fx::before { left: 5px; top: 5px; border-right: 0; border-bottom: 0; border-radius: 6px 0 0 0; }
+  .t-d .fx::after { right: 5px; bottom: 5px; border-left: 0; border-top: 0; border-radius: 0 0 6px 0; }
+  .t-d .slot { border-color: #c9a24e; background: radial-gradient(circle at 35% 30%, #ffffffaa, transparent 45%), var(--slot); }
+
+  @media (max-width: 760px) {
+    .inv, .row2 { grid-template-columns: 1fr; }
+    .radial { display: none; }
+    .badge { display: none; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>世界観 第4回 — UI の見本（4案）</h1>
+  <p>色・HUD（ホットバー・知らせ・発動方式の円形メニュー）・持ち物の画面・ボタン・禁止の札を HTML/CSS で近似したもの。3D の光と陰は入っていない。説明は round4.md。</p>
+  <div class="tabs" role="tablist"></div>
+</header>
+<main id="main"></main>
+
+<script>
+const ICON = {
+  w: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+  jump: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20h14M12 16V4M7 9l5-5 5 5"/></svg>',
+  throw: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 19C7 7 15 5 20 13"/><circle cx="20" cy="15" r="1.8" fill="currentColor"/></svg>',
+  climb: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21V3M7 7h6v5h5M17 9l2 3-2 3"/></svg>',
+  dash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 8h9M6 12h11M3 16h9M15 7l5 5-5 5"/></svg>',
+  a: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 17c1-2 1-4 1-7a5 5 0 0 1 10 0c0 3 0 5 1 7z"/><path d="M10 20h4"/></svg>'
+};
+const BANMARK = c => `<svg class="ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#fff" stroke="${c}" stroke-width="3"/><path d="M5.5 18.5l13-13" stroke="${c}" stroke-width="3"/></svg>`;
+
+const THEMES = [
+  {
+    id: 'a', name: 'うきにわ', en: 'Ukiniwa: The Floating Gardens', tag: '「ひとりじゃ、花はひらかない。」 — 雲の鯉に乗って、空に浮かぶ盆栽の庭を渡る。',
+    head: "'Kaisei HarunoUmi', serif", body: "'Zen Maru Gothic', sans-serif", flav: "'Klee One', cursive",
+    v: { sky1: '#a9dcf5', sky2: '#fde3ee', t1: '#92d6a3', t2: '#e2b996', t3: '#c9b8e6', acc1: '#ffd56b', acc2: '#ffb08a', acc3: '#8af0d2',
+         panel: '#fffaf3', edge: '#d9c9f2', ink: '#4a3d5c', ink2: '#8a7d9e', sel: '#ffb347', selbg: '#fff1dc', act: '#4fc59a', lent: '#8b7cf0', ban: '#e0445a',
+         slot: '#f7f1fb', shadow: '#8b7cf02e', radialbg: 'radial-gradient(circle, #fffaf3 0 30%, #f3ecfb 31% 100%)' },
+    pal: [['空・上','#a9dcf5'],['空・地平','#fde3ee'],['雲の陰','#e3d8f7'],['地形・苔','#92d6a3'],['地形・土','#e2b996'],['地形・鉢の釉','#c9b8e6'],['砂利','#f5ecdc'],['金鯉','#ffd56b'],['桃鯉','#ffb08a'],['種の光','#8af0d2'],['藤','#b9a3f0'],['UI パネル','#fffaf3'],['UI 縁','#d9c9f2'],['UI 文字','#4a3d5c'],['選択','#ffb347'],['有効','#4fc59a'],['貸出中','#8b7cf0'],['禁止','#e0445a']],
+    abil: ['根の種','竹の種','ほうせんかの種','つたの種','綿毛の種'], vessel: '苔玉鉢', lent: '植えている', modes: ['ひと咲き','根づき','鯉うた待ち'],
+    toast: '竹の種を 磁器の岩に植えた', hub: 'はじまりの鉢庭', banName: 'とめ石', banText: '縄を十字にかけた丸い石。置かれた物には、どの種も根を下ろさない。袋の中でも効く。',
+    flavText: '「たかいところ、あったかいよ」', btnLabel: 'つぼみへ',
+    decor: s => clouds(s) + koi(s, 18, 24, '#ffd56b') + koi(s, 62, 14, '#ffb08a') + koi(s, 40, 30, '#f4efe6'),
+    banSvg: c => `<svg viewBox="0 0 120 120"><ellipse cx="60" cy="96" rx="40" ry="8" fill="#0001"/><ellipse cx="60" cy="70" rx="38" ry="30" fill="#b9b2bd"/><ellipse cx="50" cy="60" rx="16" ry="8" fill="#ffffff55"/><path d="M60 40v58M24 74h72" stroke="${c}" stroke-width="5" stroke-linecap="round" style="filter:drop-shadow(0 0 4px ${c})"/><path d="M52 40c0-14 16-14 16 0" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round"/><g transform="translate(78 4)"><circle cx="18" cy="18" r="15" fill="#fff" stroke="${c}" stroke-width="4"/><path d="M8 28l20-20" stroke="${c}" stroke-width="4"/></g></svg>`
+  },
+  {
+    id: 'b', name: 'ほしわたり', en: 'Starferry Isles', tag: '「星の橋は、みんなで架ける。」 — 宵の空の島々を、星の川をたどって渡る。',
+    head: "'Kaisei Decol', serif", body: "'Zen Maru Gothic', sans-serif",
+    v: { sky1: '#6f62b8', sky2: '#f8c3d4', t1: '#9adbbd', t2: '#c3a6dc', t3: '#8e88c2', acc1: '#ffd36e', acc2: '#7fe3e0', acc3: '#f4a6c8',
+         panel: '#f8f5ff', edge: '#c9bcf0', ink: '#3b3466', ink2: '#7d75a6', sel: '#ffc75a', selbg: '#fff6dc', act: '#5fc4a0', lent: '#7f9cff', ban: '#e85a6a',
+         slot: '#efeafd', shadow: '#3b346633', radialbg: 'radial-gradient(circle, #4b4590 0 30%, #f8f5ffee 31% 100%)' },
+    pal: [['空・上','#6f62b8'],['空・地平','#f8c3d4'],['星の川','#fff3c4'],['川の光','#9fe8ff'],['地形・月の草','#9adbbd'],['地形・藤の土','#c3a6dc'],['地形・岩','#8e88c2'],['すすき','#e6e8f2'],['星の金','#ffd36e'],['水色の光','#7fe3e0'],['桃','#f4a6c8'],['UI パネル','#f8f5ff'],['UI 縁','#c9bcf0'],['UI 文字','#3b3466'],['選択','#ffc75a'],['有効','#5fc4a0'],['貸出中','#7f9cff'],['禁止','#e85a6a']],
+    abil: ['北の星','昇り星','流れ星','つる星','ほうき星'], vessel: 'ほしかご', lent: '灯している', modes: ['流れ星','定め星','星鐘待ち'],
+    toast: '昇り星を 岩に灯した', hub: '天の渡し場', banName: '雲札', banText: '雲の形の白い札。付いた物の上では星が雲に隠れ、どの星も導かない。籠の中でも雲は晴れない。',
+    btnLabel: '橋を架ける',
+    decor: s => stars(s) + `<div class="deco" style="left:-5%;right:-5%;top:60%;height:9%;transform:rotate(-4deg);background:linear-gradient(90deg,transparent,#fff3c4aa 20%,#9fe8ffcc 50%,#fff3c4aa 80%,transparent);filter:blur(3px);border-radius:50%"></div>`,
+    banSvg: c => `<svg viewBox="0 0 120 120"><path d="M28 86h64a18 18 0 0 0 0-36 24 24 0 0 0-46-6 20 20 0 0 0-18 42z" fill="#fff" stroke="#c9bcf0" stroke-width="3"/><circle cx="60" cy="66" r="17" fill="#fff" stroke="${c}" stroke-width="5"/><path d="M48 78l24-24" stroke="${c}" stroke-width="5"/><path d="M57 72V60M53 64l4-4 4 4" stroke="#3b3466" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>`
+  },
+  {
+    id: 'c', name: 'ゆめまつり', en: 'Dreamfair Isles', tag: '「大花火は、みんながそろってから。」 — 四季の夢の祭りの島をめぐる。',
+    head: "'Yusei Magic', sans-serif", body: "'M PLUS Rounded 1c', sans-serif",
+    v: { sky1: '#ffd9c2', sky2: '#fff1d6', t1: '#a4d68e', t2: '#dcae8c', t3: '#c9b3c9', acc1: '#ffb36b', acc2: '#5fd0c6', acc3: '#b79cf0',
+         panel: '#fff6ef', edge: '#f2c6b0', ink: '#5a3a4a', ink2: '#9a7a88', sel: '#8a74e8', selbg: '#f1ecff', act: '#4fc3a1', lent: '#ffb84d', ban: '#e04a5a',
+         slot: '#fff0e4', shadow: '#c07a5a2e', radialbg: 'repeating-conic-gradient(#fff6ef 0 10deg, #ffeadb 10deg 20deg)' },
+    pal: [['空・上','#ffd9c2'],['空・地平','#fff1d6'],['地形・草','#a4d68e'],['地形・土','#dcae8c'],['地形・岩','#c9b3c9'],['砂','#f7e2b5'],['提灯の杏','#ffb36b'],['花火の青緑','#5fd0c6'],['藤','#b79cf0'],['金','#ffe08a'],['UI パネル','#fff6ef'],['UI 縁','#f2c6b0'],['UI 文字','#5a3a4a'],['選択','#8a74e8'],['有効','#4fc3a1'],['貸出中','#ffb84d'],['禁止','#e04a5a']],
+    abil: ['かざぐるまの火花','打ち上げの火花','ねずみ火花','しだれの火花','流星の火花'], vessel: '花火玉', lent: '移している', modes: ['一発','回り火','太鼓待ち'],
+    toast: '打ち上げの火花を 岩に移した', hub: 'まつり広場', banName: 'しずめ団扇', banText: '赤い輪と斜線の丸い団扇。そばの物では、どの火花も消えてしまう。袋の中でも風はやまない。',
+    btnLabel: '打ち上げ',
+    decor: s => lanterns(s) + `<div class="deco" style="right:30%;top:8%;width:15%;aspect-ratio:1;border-radius:50%;background:repeating-conic-gradient(#5fd0c6cc 0 4deg,transparent 4deg 15deg);-webkit-mask:radial-gradient(circle,transparent 18%,#000 20% 70%,transparent 72%);mask:radial-gradient(circle,transparent 18%,#000 20% 70%,transparent 72%)"></div>`,
+    banSvg: c => `<svg viewBox="0 0 120 120"><path d="M60 84v30" stroke="#5a3a4a" stroke-width="6" stroke-linecap="round"/><circle cx="60" cy="50" r="38" fill="#fff" stroke="#f2c6b0" stroke-width="3"/><g stroke="#f2c6b0" stroke-width="1.5">${Array.from({length:12},(_,i)=>`<path d="M60 84L${60+36*Math.cos(i*Math.PI/6)} ${50+36*Math.sin(i*Math.PI/6)}"/>`).join('')}</g><circle cx="60" cy="50" r="22" fill="#fff" stroke="${c}" stroke-width="6"/><path d="M45 65l30-30" stroke="${c}" stroke-width="6"/></svg>`
+  },
+  {
+    id: 'd', name: 'からくり星函', en: 'The Karakuri Starbox', tag: '「歯止めは厳格に。からくりは自由に。」 — 魔法の宝石箱の中の段と引き出しを旅する。',
+    head: "'Kaisei Decol', serif", body: "'Kiwi Maru', serif",
+    v: { sky1: '#c7e6ef', sky2: '#fbe9d6', t1: '#93c99a', t2: '#d8b183', t3: '#a87a58', acc1: '#d9b25c', acc2: '#7fc4c9', acc3: '#e7a6c1',
+         panel: '#fbf3e6', edge: '#e2cfa8', ink: '#3e3046', ink2: '#857891', sel: '#d9a73c', selbg: '#fbf0d6', act: '#3fb39a', lent: '#6f8ff0', ban: '#df4a58',
+         slot: '#e8f4f3', shadow: '#6b4a3033', radialbg: 'repeating-conic-gradient(#fbf3e6 0 12deg, #f1e3c8 12deg 15deg)' },
+    pal: [['蓋の裏・上','#c7e6ef'],['蓋の裏・下','#fbe9d6'],['蒔絵の金','#d9b25c'],['地形・ベルベット','#93c99a'],['地形・黄楊','#d8b183'],['地形・寄木','#a87a58'],['真鍮の砂','#efdcae'],['七宝の青緑','#7fc4c9'],['七宝の桃','#e7a6c1'],['金具','#c9a24e'],['UI パネル','#fbf3e6'],['螺鈿の縁','#e7d2f3'],['UI 文字','#3e3046'],['選択','#d9a73c'],['有効','#3fb39a'],['貸出中','#6f8ff0'],['禁止','#df4a58']],
+    abil: ['四方のぜんまい','段返りのぜんまい','手まりのぜんまい','はしごのぜんまい','独楽のぜんまい'], vessel: 'からくり根付', lent: '差している', modes: ['ひと巻き','巻きっぱなし','節待ち'],
+    toast: '段返りのぜんまいを 歯車に差した', hub: '蓋の上の大舞台', banName: '歯止め', banText: '真鍮の爪に赤い七宝のメダル。付いた物の歯車は止まり、どのぜんまいでも回らない。',
+    btnLabel: '舞台を回す',
+    decor: s => makie(s),
+    banSvg: c => `<svg viewBox="0 0 120 120"><g fill="#c9a24e"><circle cx="40" cy="74" r="26"/>${Array.from({length:10},(_,i)=>`<rect x="37" y="40" width="6" height="10" transform="rotate(${i*36} 40 74)"/>`).join('')}</g><circle cx="40" cy="74" r="10" fill="#fbf3e6"/><path d="M62 70l26-30 8 6-24 28z" fill="#b38b3e"/><circle cx="88" cy="34" r="22" fill="${c}" stroke="#c9a24e" stroke-width="4"/><circle cx="88" cy="34" r="12" fill="#fff" stroke="#fff" stroke-width="0"/><circle cx="88" cy="34" r="12" fill="none" stroke="${c}" stroke-width="4"/><path d="M80 42l16-16" stroke="${c}" stroke-width="4"/></svg>`
+  }
+];
+
+// 背景の飾り（軽く: div を数個だけ）
+function clouds() { let h = ''; [[-4,82,40,22],[26,86,44,20],[60,80,48,26],[-2,94,104,14]].forEach(([l,t,w,hh]) => h += `<div class="deco" style="left:${l}%;top:${t}%;width:${w}%;height:${hh}%;border-radius:50%;background:radial-gradient(ellipse at 50% 30%,#fff,#efe7fbcc 70%,transparent 72%)"></div>`); return h; }
+function koi(_, l, t, c) { return `<div class="deco" style="left:${l}%;top:${t}%;width:9%;height:3.4%;border-radius:50% 40% 40% 50%;background:${c};opacity:.75;box-shadow:0 0 12px ${c}"></div><div class="deco" style="left:${l-2.2}%;top:${t+.4}%;width:3%;height:2.6%;background:${c};opacity:.6;clip-path:polygon(100% 50%,0 0,25% 50%,0 100%)"></div>`; }
+function stars() { let h = ''; for (let i = 0; i < 40; i++) { const l = (i * 37) % 100, t = (i * 53) % 45, s = 2 + (i % 3); h += `<div class="deco" style="left:${l}%;top:${t}%;width:${s}px;height:${s}px;border-radius:50%;background:#fff3c4;box-shadow:0 0 6px #fff3c4"></div>`; } return h; }
+function lanterns() { let h = ''; [[8,10,'#ffb36b'],[18,18,'#b79cf0'],[78,12,'#5fd0c6'],[88,20,'#ffb36b'],[70,6,'#ffe08a']].forEach(([l,t,c]) => h += `<div class="deco" style="left:${l}%;top:${t}%;width:3.6%;height:5.2%;border-radius:40%;background:radial-gradient(circle at 50% 40%,#fff,${c} 60%);box-shadow:0 0 18px ${c}"></div>`); return h; }
+function makie() { let h = ''; [[6,8],[22,16],[48,6],[70,14],[86,8]].forEach(([l,t]) => h += `<div class="deco" style="left:${l}%;top:${t}%;width:12%;height:5%;border-radius:999px;border:2px solid #d9b25c99;border-bottom-color:transparent"></div><div class="deco" style="left:${l+5}%;top:${t+6}%;color:#d9b25c;font-size:14px">✦</div>`); return h; }
+
+function slot(icon, opts = {}) {
+  const cls = ['slot', opts.sel && 'sel', opts.act && 'act', opts.lent && 'lent'].filter(Boolean).join(' ');
+  return `<div class="${cls}" ${opts.lent ? `data-lent="${opts.lentText}"` : ''}>${opts.k ? `<span class="k">${opts.k}</span>` : ''}${icon ? ICON[icon] : ''}${opts.ban ? BANMARK(opts.banColor) : ''}</div>`;
+}
+
+function render(T) {
+  const v = T.v, b = v.ban, L = T.lent;
+  const style = Object.entries(v).map(([k, x]) => `--${k}:${x}`).join(';') + `;--head:${T.head};--body:${T.body};--flav:${T.flav || T.body}`;
+  const hot = [
+    slot('jump', { k: 1, sel: true, act: true }), slot('w', { k: 2, act: true }), slot('throw', { k: 3, lent: true, lentText: L }),
+    slot('climb', { k: 4, act: true }), slot('dash', { k: 5 }), slot('jump', { k: 6, ban: true, banColor: b }),
+    slot('a', { k: 7, lent: true, lentText: L }), slot('', { k: 8 }), slot('', { k: 9 })
+  ].join('');
+  const grid = ['w','a','jump','throw','climb','dash','jump','w','throw','climb','a','dash','jump','w'].map((ic, i) =>
+    slot(ic, { sel: i === 2, lent: i === 3 || i === 9, lentText: L, ban: i === 6 || i === 11, banColor: b })).join('') + slot('') + slot('') + slot('') + slot('') + slot('') + slot('') + slot('');
+  const sw = T.pal.map(([n, h]) => `<div class="sw"><i style="background:${h}"></i><b>${n}</b><span>${h}</span></div>`).join('');
+  return `<section class="theme t-${T.id}" id="t-${T.id}" style="${style}" role="tabpanel">
+    <h2>${T.id.toUpperCase()}　${T.name} <small style="font-size:15px;color:var(--ink2)">${T.en}</small></h2>
+    <p class="tag">${T.tag}</p>
+    <h3>色</h3>
+    <div class="swatches">${sw}</div>
+    <h3>遊んでいる画面（HUD）と持ち物</h3>
+    <div class="scene">
+      ${T.decor()}
+      <div class="island" style="left:8%;top:40%;width:30%;height:34%"></div>
+      <div class="island" style="left:44%;top:30%;width:22%;height:26%"></div>
+      <div class="island" style="left:70%;top:58%;width:16%;height:18%"></div>
+      <div class="crosshair"></div>
+      <div class="panel toast"><span class="dot"></span>${T.toast}</div>
+      <div class="panel namebubble">${T.abil[1]}</div>
+      <div class="panel fx hotbar">${hot}</div>
+      <div class="panel badge">${ICON.bell.replace('<svg', '<svg style="width:1.2em;height:1.2em;vertical-align:-.25em"')} ${T.modes[0]}</div>
+      <div class="radial"><div class="ring"></div>
+        <div class="seg sel">▶ ${T.modes[0]}</div><div class="seg">${T.modes[1]}</div><div class="seg">${T.modes[2]}</div>
+        <div class="core"></div></div>
+    </div>
+
+    <div class="panel fx inv">
+      <div>
+        <h4>持ち物</h4>
+        <div class="figure"><div class="base"></div><div class="body"></div><div class="hood"></div><div class="face"></div></div>
+        <div class="equip">${slot('')}${slot('')}${slot('climb')}${slot('jump')}</div>
+      </div>
+      <div>
+        <div class="chips"><span class="chip on">すべて</span><span class="chip">能力</span><span class="chip">禁止</span><span class="chip">${L}</span><span class="chip" style="margin-left:auto">${T.vessel} 14</span></div>
+        <div class="grid">${grid}</div>
+      </div>
+      <div class="detail">
+        <div class="big">${ICON.jump}</div>
+        <p><b style="font-family:var(--head);font-size:18px">${T.abil[1]}</b><br><span class="state" style="background:var(--act)">効いている</span>　器: ${T.vessel}</p>
+        <p>${T.abil[1]}を物に渡すと、その物は上へ跳ぶ。ホットバーに置くと自分に効く。</p>
+        ${T.flavText ? `<p class="flav">${T.flavText}</p>` : ''}
+        <div class="lentlist"><b>${L}もの</b><br>${T.abil[2]} → 岩（${T.modes[1]}）<br>${T.abil[0]} → 仲間（${T.modes[0]}）</div>
+      </div>
+    </div>
+
+    <div class="row2">
+      <div class="panel fx bansign">${T.banSvg(b)}<div><h3 style="margin-top:0">禁止の札: ${T.banName}</h3><p style="margin:0;line-height:1.7">${T.banText}</p></div></div>
+      <div class="panel fx buttons"><span style="width:100%;font-size:13px;color:var(--ink2)">ボタン: ふだん／指した／押した／使えない</span>
+        <button class="btn">${T.btnLabel}</button><button class="btn hover">${T.btnLabel}</button><button class="btn down">${T.btnLabel}</button><button class="btn off">${T.btnLabel}</button>
+        <span style="width:100%;font-size:13px;color:var(--ink2);margin-top:6px">ハブ: ${T.hub}　／　見出し ${T.head.split(',')[0]}・本文 ${T.body.split(',')[0]}</span></div>
+    </div>
+  </section>`;
+}
+
+const main = document.getElementById('main');
+const tabs = document.querySelector('.tabs');
+main.innerHTML = THEMES.map(render).join('') + '<p class="note">ホットバーの状態: 1 = 選択中（浮く・太い縁）＋有効の点／3・7 = 貸出中の帯／6 = 禁止の印。状態の形は4案で同じで、素材と色だけが変わる。色は近似で、Godot の画面では試していない。</p>';
+THEMES.forEach((T, i) => {
+  const btn = document.createElement('button');
+  btn.textContent = `${T.id.toUpperCase()} ${T.name}`;
+  btn.setAttribute('role', 'tab');
+  btn.onclick = () => show(T.id);
+  tabs.appendChild(btn);
+});
+function show(id) {
+  document.querySelectorAll('.theme').forEach(s => s.classList.toggle('on', s.id === 't-' + id));
+  tabs.querySelectorAll('button').forEach((b, i) => b.setAttribute('aria-selected', THEMES[i].id === id));
+  try { localStorage.setItem('round4-tab', id); } catch (e) {}
+}
+let first = 'a';
+try { first = localStorage.getItem('round4-tab') || 'a'; } catch (e) {}
+if (location.hash.length > 1) first = location.hash.slice(1);
+show(THEMES.some(t => t.id === first) ? first : 'a');
+</script>
+</body>
+</html>
