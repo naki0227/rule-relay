@@ -136,7 +136,7 @@
 | クリア | どのステージも「島の条件＋生きている全員がゴールに集まる」（2026-11-20 本人。ゴールは縁より 1 段低い窪みで、窪みの中からは下の仲間を狙えない。渡すのをルールで禁止はしない） | 実装＋テスト | `ClearCondition.goal_area`、`OpenIslands.goal_hollow`、`StageWorld._add_goal_marker`、ADR 0011 決定 9〜11 | `test_net_director`（1人ではクリアしない・2人でクリア）、`test_goal_sightlines`、各島の通しプレイ |
 | ハブ | ハブを歩いて入口を見つけ、F でステージへ。クリア後はハブへ戻る | 実装＋テスト（見た目は仮） | `StageCatalog.hub`、`StageWorld`、`PartyDirector` | `test_party_director` |
 | 入口 | タイトル（ひとりで／部屋を作る／部屋に入る） | 実装（起動確認のみ） | `TitleMenu`、`GameRoot` | `tools/check.sh` の起動確認 |
-| Steam 版 | ロビー・招待・P2P | 差し替え口のみ（**未検証**） | `SteamTransport` | `test_steam_transport`（使えないときの動作だけ） |
+| Steam 版 | ロビー・招待・P2P（応募後。提出版には入れない） | 骨組みのみ（**未検証**。Steam クライアントと App ID が無いので、ロビーと P2P は一度も動かしていない） | `SteamGate`、`src/steam/steam_transport.gd`、`HostMigration.link`、ADR 0012 | `test_steam_transport`（使えないときは今までどおり・門番の判断・ロビー持ち主での選出）、`tools/check_no_steam.py`（提出版の書き出しに Steam が無い） |
 
 台帳で仮に決めた挙動（禁止をプレイヤーへ渡せない、付与者が退出していて単発が失敗したらブロックに残す、受け取った能力は持っていれば効く）は `docs/adr/0005-party-token-ledger.md` の「未決のため仮にした挙動」。
 
@@ -147,4 +147,4 @@
 - キーの割り当て変更・明暗や点滅の調整（8 の検討項目）
 - 未決事項（`docs/TODO.md` の要確認）への本人の判断
 - マルチプレイを別々の PC・インターネット越し・Windows 11 実機で試すこと（手順は `docs/how-to-test.md`）
-- Steam 版（GodotSteam と App ID が要る）
+- Steam 版（GodotSteam と App ID が要る。応募後に `docs/steam-build.md` の手順で確かめる）
