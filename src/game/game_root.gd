@@ -13,6 +13,7 @@ var director: PartyDirector
 var net: NetWorld
 var sounds: SoundBank
 var bot: CompanionBot
+var migration: HostMigration
 
 var _title: TitleMenu
 var _hud: Hud
@@ -55,6 +56,7 @@ func start_host(profile: String, port: int, with_bot: bool = false) -> void:
 	net.world = director.world
 	net.start_host(server, session_key(profile))
 	director.attach_net(net)
+	_make_migration(port, profile)
 	director.world.message_posted.emit("部屋を作りました（ポート %d）。友だちは IP アドレスとポートで入れます" % port)
 	if with_bot:
 		_spawn_bot(port)
@@ -71,10 +73,9 @@ func start_join(profile: String, address: String, port: int) -> void:
 	net.world = director.world
 	net.start_client(peer, session_key(profile))
 	director.attach_net(net)
+	_make_migration(port, profile)
+	migration.watch()
 	director.world.message_posted.emit("%s:%d の部屋に入っています…" % [address, port])
-	multiplayer.server_disconnected.connect(
-		func() -> void: director.world.message_posted.emit("ホストとの接続が切れました")
-	)
 
 
 ## 再接続しても同じプレイヤーに戻れるよう、記録の名前ごとに推測できない鍵を保存しておく。
@@ -102,6 +103,16 @@ func _make_director(profile: String) -> void:
 	director.world_changed.connect(_on_world_changed)
 	_banner = PartyBanner.new()
 	_banner.director = director
+
+
+## ホスト移譲の係（ホストは状態を配り、参加者はホストが落ちたら引き継ぐ）。
+func _make_migration(port: int, profile: String) -> void:
+	migration = HostMigration.new()
+	migration.director = director
+	migration.net = net
+	migration.port = port
+	migration.session_key = session_key(profile)
+	add_child(migration)
 
 
 func _make_net(parent: Node) -> NetWorld:
@@ -187,6 +198,10 @@ func _spawn_bot(port: int) -> void:
 		peer, "companion-bot-%s" % Crypto.new().generate_random_bytes(8).hex_encode()
 	)
 	bot_director.attach_net(bot_net)
+	var bot_migration := HostMigration.new()
+	bot_migration.director = bot_director
+	bot_migration.net = bot_net
+	mirror.add_child(bot_migration)
 	bot = CompanionBot.new()
 	bot.name = "Brain"
 	bot.director = bot_director

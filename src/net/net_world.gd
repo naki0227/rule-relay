@@ -38,11 +38,34 @@ func is_host() -> bool:
 	return session.is_host()
 
 
+## 通信がつながっているか（切れた・閉じた直後は false。送ると誤りになるので送らない）。
+func is_online() -> bool:
+	var peer := multiplayer.multiplayer_peer
+	return (
+		peer != null
+		and not peer is OfflineMultiplayerPeer
+		and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED
+	)
+
+
 ## 部屋を作る。peer は ENet なら create_server 済みのもの。
 func start_host(peer: MultiplayerPeer, session_key: String) -> void:
 	session.host(peer, world.ledger, session_key)
-	session.player_joined.connect(_on_player_joined)
+	_listen_as_host()
 	bind(world)
+
+
+## ホスト移譲: 参加者だった自分がホストになる（世界は PartyDirector が作り直してから bind する）。
+func become_host(
+	peer: MultiplayerPeer, session_key: String, player_id: int, hashes: Dictionary, generation: int
+) -> void:
+	session.host(peer, world.ledger, session_key, player_id, hashes, generation + 1000)
+	_listen_as_host()
+
+
+func _listen_as_host() -> void:
+	if not session.player_joined.is_connected(_on_player_joined):
+		session.player_joined.connect(_on_player_joined)
 
 
 ## 部屋に入る。peer は ENet なら create_client 済みのもの。
@@ -83,7 +106,7 @@ func close() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if world == null or multiplayer.multiplayer_peer == null:
+	if world == null or not is_online():
 		return
 	if (
 		manage_falls
@@ -187,8 +210,10 @@ func _relay_sound(event: StringName, at: Vector3, positional: bool) -> void:
 
 
 func _on_joined(player_id: int) -> void:
+	var first_time := world.player.player_id != player_id
 	_adopt_local_id(player_id)
-	world.player.global_position = spawn_point(player_id)
+	if first_time:
+		world.player.global_position = spawn_point(player_id)
 	world.player.velocity = Vector3.ZERO
 	sync_avatars()
 	world.state_changed.emit()

@@ -121,7 +121,22 @@
 | 9 | 循環譲渡でも出自を書き換えない | 台帳のみ | `vessel_id` を不変にした | `test_party_ledger` 9 |
 | P2 | オンライン: ホスト権威で依頼を検証・適用し、台帳を全員へ配る。2人が通信越しに渡す・F で回収する | 台帳の同期のみ（ENet、同じ PC 内の2端で確認）。アバター・ブロックの同期、画面からの操作は未実装 | `src/net/`（`NetSession`・`PartyCommand`・`PartyRoster`）、ADR 0006 | `test_net_session`、`test_party_command`、`test_party_roster` |
 | 16 の一部 | 同じトークンを二重に持たない（再送・peer ID の振り直し・なりすまし） | 台帳の同期のみ | 依頼の seq で再送を一度だけ適用、session_key でプレイヤー ID を固定、送り主は通信から決める | 同上 |
-| 10〜23 | 人数別補助・死亡観戦・共通チェックポイント・投票・途中参加・ホスト移譲・報酬・導入ステージ | 未実装 | — | — |
+| P2 続き | 仲間のアバター・世界の同期・通信越しの操作（付与・F・単発・持ち物の整理）・仲間へ渡す | 実装＋テスト（同じ PC 内の ENet） | `NetWorld`・`WorldFrame`・`WorldParty`・`GameWorld.replica` | `test_net_world` |
+| 3（倍率） | ジャンプ×n は到達高度 n 倍、W×n は速さ n 倍、投げる×n は射程 n 倍、ブロックの単発 n 個はまとめて n 倍 | 実装＋テスト（上限は未決のため仮になし） | `Tuning.stack_factor`、`PlayerAvatar`、`GameWorld._fire_single_shots` | `test_net_world`（ジャンプ×2） |
+| 10 | 人数別補助は全員リセットのときだけ作り直す | 実装＋テスト | `StageLoadout.rebuild_helpers`、`PartyDirector._apply_reset` | `test_stage_rules`、`test_net_director`（途中参加） |
+| 11 | 死亡しても貸与・手持ちはそのまま、世界は戻らない | 実装＋テスト | `PartyLifecycle.die`、`PartyDirector._check_deaths` | `test_party_lifecycle`、`test_net_director` |
+| 12 | 1人到達で共通チェックポイント、台座の F で全員復活（ロードなし・巻き戻しなし） | 実装＋テスト | `PartyDirector._check_checkpoints`／`_on_checkpoint_interacted` | `test_net_director`、`test_party_director` |
+| 13 | 全員リセットは過半数（1/1・2/2・2/3・3/4）、世界まるごと戻る | 実装＋テスト | `PartyLifecycle.vote_reset`、V キー | `test_party_lifecycle`、`test_party_director` |
+| 14 | 死亡観戦がいるとき生存者全員の同意でも全状態リセット | 実装＋テスト（優先順位は仮: どちらでも成立） | `PartyLifecycle` | `test_party_lifecycle` |
+| 15 | 途中入室は観戦、次の全員リセットで合流 | 実装＋テスト | `PartyDirector._on_player_joined` | `test_net_director` |
+| 16 | ホスト移譲: 停止→選出中→新ホストで再開、二重所有なし、失敗は失敗と出す | 実装＋テスト（ENet・同じ PC 内の3人） | `HostMigration`、`PartyDirector.export_state`／`adopt_state` | `test_host_migration` |
+| 17〜21 | 報酬資格の真理値表、切断者は部屋があるうちに戻れば受け取る、初回と周回、複数の記録 | 実装＋テスト | `src/progress/`、`PartyDirector._on_clear`／`deliver_rewards` | `test_stage_run_rewards`、`test_player_progress`、`test_net_director` |
+| 22 | 再送・競合で状態・報酬が一意 | 一部（依頼の再送・報酬の再送・投票の重複はテスト済み。同時 F 回収の競合はホストが順に処理する作りで、専用テストなし） | `NetSession`、`StageRunRewards`、`PartyLifecycle` | `test_net_session`、`test_stage_run_rewards`、`test_party_lifecycle` |
+| 23 | 導入ステージをソロでも2〜4人でも攻略できる | 一部（ソロのクリアは結合テスト。2〜4人の別解は ×n の式が仮のため未確認） | `StageCatalog.intro_jump_lend` | `test_party_director`、`test_stage_rules` |
+| ハブ | ハブを歩いて入口を見つけ、F でステージへ。クリア後はハブへ戻る | 実装＋テスト（見た目は仮） | `StageCatalog.hub`、`StageWorld`、`PartyDirector` | `test_party_director` |
+| 入口 | タイトル（ひとりで／部屋を作る／相棒ボットと／部屋に入る） | 実装（起動確認のみ） | `TitleMenu`、`GameRoot` | `tools/check.sh` の起動確認 |
+| 相棒ボット | （仕様外・試遊用）参加者として入り、ついてくる・能力を渡す・回収する | 実装＋テスト | `CompanionBot` | `test_companion_bot` |
+| Steam 版 | ロビー・招待・P2P | 差し替え口のみ（**未検証**） | `SteamTransport` | `test_steam_transport`（使えないときの動作だけ） |
 
 台帳で仮に決めた挙動（禁止をプレイヤーへ渡せない、付与者が退出していて単発が失敗したらブロックに残す、受け取った能力は持っていれば効く）は `docs/adr/0005-party-token-ledger.md` の「未決のため仮にした挙動」。
 
@@ -131,4 +146,5 @@
 - Windows 11 実機での起動と操作感の確認（CI の Windows 起動確認は通っている）
 - キーの割り当て変更・明暗や点滅の調整（8 の検討項目）
 - 未決事項（`docs/TODO.md` の要確認）への本人の判断
-- マルチプレイの 10〜23 と、2〜9 のゲーム画面・物理・ネットワークへの組み込み（上の表）
+- マルチプレイを別々の PC・インターネット越し・Windows 11 実機で試すこと（手順は `docs/how-to-test.md`）
+- Steam 版（GodotSteam と App ID が要る）
