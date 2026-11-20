@@ -12,6 +12,8 @@
 - 2026-11-20: 6種は Stable Audio 3 medium で生成した候補に置き換えた（ADOPTED。合成の関数は戻せるように残す）
 - 2026-11-20: 2回目の候補からさらに 15 種を置き換えた（ADOPTED の sfx2/。docs/sound-design.md）
 - 2026-11-20: 3回目の候補から 4 種を置き換え、新しい音 dash・ui_notice を足した（ADOPTED の sfx3/）
+- 2026-11-21: 4回目の候補から足音 4 種（3 種から 4 種に増やした）と ui_select を置き換えた（ADOPTED の sfx4/）。
+  これで合成のまま残る音は無い（合成の関数は戻し先として残す）
 """
 
 import wave
@@ -20,13 +22,15 @@ from pathlib import Path
 import numpy as np
 from scipy import signal
 
+import analyze
+
 SR = 44100
 OUT = Path(__file__).resolve().parents[2] / "assets" / "audio" / "sfx"
 RNG = np.random.default_rng(20261118)
 CANDIDATES = Path(__file__).resolve().parents[2] / "art" / "audio" / "stable-audio"
 
 # Stable Audio 3 medium の候補から採用した音（docs/sound-design.md、docs/sound-candidates-2026-11-20.md、
-# docs/sound-candidates-2026-11-20-round2.md、docs/sound-candidates-2026-11-20-round3.md）。
+# docs/sound-candidates-2026-11-20-round2.md、docs/sound-candidates-2026-11-20-round3.md、docs/sound-candidates-round4.md）。
 # イベント名: (候補のファイル, 置き換え前の合成音の RMS dBFS)。候補はピークでそろえてあるので、
 # ゲームの中の音量の釣り合いを変えないよう、置き換え前の RMS に合わせる（ピークは -3dBFS を超えない）
 ADOPTED = {
@@ -61,7 +65,24 @@ ADOPTED = {
     "bell": ("sfx3/bell_3.wav", -34.5),  # T15
     "dash": ("sfx3/dash_1.wav", -28.0),  # T17
     "ui_notice": ("sfx3/ui_notice_1.wav", -26.0),  # T21
+    # 4回目（U01〜U10、1回だけの短い打音）。数値は RMS ではなく、置き換え前の当たりの大きさ（MATCH_HIT）。
+    # 足音は本人の判断（2026-11-20）で 4 種を順番に鳴らす。footstep_4 は置き換え前の音が無いので、ほかの足音と同じ値。
+    # ui_select（U07）は生成した音を加工で −3 半音下げてある（docs/sound-candidates-round4.md）
+    "footstep_1": ("sfx4/footstep_1.wav", -26.2),  # U01
+    "footstep_2": ("sfx4/footstep_3.wav", -26.2),  # U03
+    "footstep_3": ("sfx4/footstep_4.wav", -26.2),  # U04
+    "footstep_4": ("sfx4/footstep_5.wav", -26.2),  # U05
+    "ui_select": ("sfx4/ui_select_2.wav", -19.8),  # U07
 }
+# ファイル全体の RMS ではなく、当たりの大きさ（いちばん大きい 30ms の RMS、analyze.hit_db）でそろえる音。
+# 4回目の候補は 38〜134ms の打音で、置き換え前（足音 100ms、ui_select 390ms の余韻つき）と長さも形も違う。
+# 全体の RMS でそろえると、足音どうしで当たりが 5.4dB ばらつき、ui_select は当たりが 8.8dB 小さくなった（docs/sound-design.md 6回目）
+MATCH_HIT = {"footstep_1", "footstep_2", "footstep_3", "footstep_4", "ui_select"}
+# 当たりの位置をそろえる音（当たりの 20ms 前から始め、2ms でフェードイン）。足音は 0.34 秒ごとに順番に鳴るので、
+# 当たりがファイルの 8〜122ms のどこにあるかがばらばらだと、歩く拍がぶれて足を引きずるように聞こえる（6回目の測定）。
+# 当たりの前の草の音は削れる（AI の判断、2026-11-20。聴いて草の音を残したいときはここから外す）
+ALIGN_HIT = {"footstep_1", "footstep_2", "footstep_3", "footstep_4"}
+ALIGN_LEAD = 0.020
 
 # ハ長調の五音（Hz）。C4=261.63
 NOTE = {
@@ -241,17 +262,33 @@ def mix(length, *parts):
 
 def adopted(name):
     """採用した候補（tools/sfx/stable_audio_candidates.py で加工済みの 16bit モノラル 44.1kHz）を読み、
-    音量だけを置き換え前にそろえる。音色（フィルター・長さ）はそのまま使う。"""
-    file, rms_db = ADOPTED[name]
+    音量だけを置き換え前にそろえる（RMS、MATCH_HIT の音は当たりの大きさ）。音色（フィルター・長さ）はそのまま使う。"""
+    file, level_db = ADOPTED[name]
     with wave.open(str(CANDIDATES / file)) as w:
         assert w.getframerate() == SR and w.getnchannels() == 1 and w.getsampwidth() == 2
         x = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(float) / 32768
-    x = x * 10 ** (rms_db / 20) / (np.sqrt(np.mean(x**2)) + 1e-12)
+    if name in ALIGN_HIT:
+        x = _align_hit(x)
+    current = analyze.hit_db(x, SR) if name in MATCH_HIT else 20 * np.log10(np.sqrt(np.mean(x**2)) + 1e-12)
+    x = x * 10 ** ((level_db - current) / 20)
     limit = 10 ** (-3 / 20)
     peak = np.max(np.abs(x))
     if peak > limit:
         x *= limit / peak
     return x
+
+
+def _align_hit(x):
+    """いちばん大きい 5ms の窓（当たり）の ALIGN_LEAD 前から始める。頭は 2ms でフェードイン。"""
+    win = int(0.005 * SR)
+    energy = np.convolve(x**2, np.ones(win), mode="valid")
+    offset = int(np.argmax(energy)) - int(ALIGN_LEAD * SR)
+    if offset < 0:
+        return np.concatenate([np.zeros(-offset), x])  # 当たりが頭に近い音は、前に無音を足してそろえる
+    y = x[offset:].copy()
+    fade = min(len(y), int(0.002 * SR))
+    y[:fade] *= np.linspace(0.0, 1.0, fade)
+    return y
 
 
 # --- 楽器（世界観: ゆるふわの木のおもちゃの箱庭） -----------------------------
@@ -744,7 +781,7 @@ def player_land():
 
 
 def footstep(seed):
-    """草の上の足音（3種類）: 草のくしゃっと、土のごく小さな当たり。毎回少しずつ違う。"""
+    """草の上の足音（seed ごとに少しずつ違う。2026-11-21 から 4 種とも候補に置き換え、これは戻し先）: 草のくしゃっと、土のごく小さな当たり。"""
     grass = crackle(0.1, 1300 + seed * 200, 3600 + seed * 150, seed=90 + seed)
     grass *= envelope(int(0.1 * SR), 0.004, 0.07)
     soil = hit("stone", 100 + seed * 12, 0.08, 0.2, seed=95 + seed)
@@ -794,7 +831,7 @@ def ui_notice():
 
 SOUNDS = {
     "ui_hover": lambda: adopted("ui_hover"),  # 合成版は ui_hover()
-    "ui_select": ui_select,
+    "ui_select": lambda: adopted("ui_select"),  # 合成版は ui_select()
     "ui_confirm": lambda: adopted("ui_confirm"),  # 合成版は ui_confirm()
     "ui_cancel": lambda: adopted("ui_cancel"),  # 合成版は ui_cancel()
     "ui_open": lambda: adopted("ui_open"),  # 合成版は ui_open()
@@ -817,9 +854,10 @@ SOUNDS = {
     "block_step": lambda: adopted("block_step"),  # 合成版は block_step()
     "player_jump": lambda: adopted("player_jump"),  # 合成版は player_jump()
     "player_land": lambda: adopted("player_land"),  # 合成版は player_land()
-    "footstep_1": lambda: footstep(1),
-    "footstep_2": lambda: footstep(2),
-    "footstep_3": lambda: footstep(3),
+    "footstep_1": lambda: adopted("footstep_1"),  # 合成版は footstep(1)。以下 2〜4 も同じ
+    "footstep_2": lambda: adopted("footstep_2"),
+    "footstep_3": lambda: adopted("footstep_3"),
+    "footstep_4": lambda: adopted("footstep_4"),
     "save": lambda: adopted("save"),  # 合成版は save()
     "goal": lambda: adopted("goal"),  # 合成版は goal()
     "bell": lambda: adopted("bell"),  # 合成版は bell()
