@@ -23,6 +23,8 @@ var bells_by_key: Dictionary[String, Bell] = {}
 var activated: PackedStringArray = PackedStringArray()
 ## 「やり直す」操作（メニューの戻る・最初から）を全員リセットの投票にする（PartyDirector が渡す）。
 var vote_request: Callable = Callable()
+## メニューの「島のはじめから」（PartyDirector が渡す。ひとりなら本当に最初から）。
+var restart_request: Callable = Callable()
 
 
 ## add_child の前に呼ぶ。
@@ -131,7 +133,8 @@ func restore_previous_checkpoint() -> bool:
 
 
 func restart_island() -> void:
-	restore_checkpoint()
+	if restart_request.is_valid():
+		restart_request.call()
 
 
 func can_restore_previous_checkpoint() -> bool:

@@ -7,7 +7,7 @@ extends Node
 ## - ステージに入る: StageWorld を組み立て、開始時の持ち物と人数別補助を置き、開始時点を記録する
 ## - 死亡: 落ちたら死亡観戦（台帳はそのまま。貸したものも手元のものも残る）。1人用・全滅は自動で戻る
 ## - チェックポイント: 1人が触れたらチーム共通。その時点の世界を記録する。台座の上の F で全員復活
-## - 全員リセット: V で投票（過半数、または死亡観戦がいるとき生存者全員）。成立したら世界を丸ごと戻し、
+## - 全員リセット: V 長押しで投票（過半数、または死亡観戦がいるとき生存者全員）。成立したら世界を丸ごと戻し、
 ##   途中参加の人を合流させ、人数が変わっていれば人数別補助を作り直す
 ## - クリア: ステージのクリア条件を満たしたら、資格のある人に報酬を配り、しばらくしてハブへ戻る
 ## 子ノード名は固定（"Director"）。RPC のパスを両側でそろえるため。
@@ -45,6 +45,8 @@ var _clear_timer: float = -1.0
 var _runs: Array[StageRunRewards] = []
 ## 一度でもこの部屋に来たプレイヤー（初めて来たときだけ出現地点へ動かす。再接続・ホスト移譲では動かさない）。
 var _known_players: Dictionary[int, bool] = {}
+## 「チェックポイントにできない」を一度伝えた人（台座の上で毎フレーム出さないため）。
+var _warned_checkpoint: Dictionary[int, bool] = {}
 
 
 func _ready() -> void:
@@ -119,6 +121,7 @@ func _build(new_stage_id: String, run_id: String) -> void:
 	world = StageWorld.new()
 	world.setup(StageCatalog.by_id(new_stage_id))
 	world.vote_request = request_vote
+	world.restart_request = request_restart
 	(world_parent if world_parent != null else self).add_child(world)
 	world.player.player_id = me
 	world.ledger_actions.player_id = me
@@ -194,12 +197,30 @@ func _check_checkpoints() -> bool:
 	for player_id in lifecycle.players_in(PartyLifecycle.State.ACTIVE):
 		var avatar := world.avatar_of(player_id)
 		var cp := "" if avatar == null else world.checkpoint_at(avatar.global_position)
+		if cp != "" and not _safe_to_save(player_id, avatar):
+			_warn_unsafe_checkpoint(player_id)
+			continue
 		if cp != "" and lifecycle.activate_checkpoint(player_id, cp):
 			_snapshots[cp] = _capture()
 			world.message_posted.emit("チェックポイントがチーム共通になりました（台座で F: 全員復活）")
 			world.sound_requested.emit(&"save", Vector3.ZERO, false)
 			changed = true
 	return changed
+
+
+## 詰みにつながる状態（自分で一歩も歩けない・空中）では、チェックポイントを有効にしない
+## （2026-11-20 試遊で、歩けないままダッシュで台座に入ると抜け出せない状態が保存された）。
+func _safe_to_save(player_id: int, avatar: PlayerAvatar) -> bool:
+	var on_floor := avatar.is_on_floor() if avatar == world.player else avatar.remote_on_floor
+	return CheckpointPolicy.save_blockers(world.ledger, on_floor, 0, player_id).is_empty()
+
+
+func _warn_unsafe_checkpoint(player_id: int) -> void:
+	if _warned_checkpoint.has(player_id):
+		return
+	_warned_checkpoint[player_id] = true
+	var why := "W/A/S/D のどれかを手元に戻してから台座に触れてください"
+	world.message_posted.emit("チェックポイントにできません（%s）" % why)
 
 
 func _check_clear() -> void:
@@ -236,7 +257,19 @@ func _on_checkpoint_interacted(player_id: int, cp: String) -> void:
 	_broadcast_party()
 
 
-## V: 全員リセットの投票（無ければ提案）。参加者はホストへ送る。
+## メニューの「島のはじめから」: ひとりならステージを最初から作り直す。協力中は、
+## 全員の世界を勝手に巻き戻さないよう、チェックポイントへの全員リセットの投票にする。
+func request_restart() -> void:
+	if not in_stage():
+		return
+	if net == null:
+		enter_stage(stage_id)
+	else:
+		world.message_posted.emit("協力中は、はじめからではなくチェックポイントへの投票になります")
+		request_vote()
+
+
+## V 長押し: 全員リセットの投票（無ければ提案）。参加者はホストへ送る。
 func request_vote() -> void:
 	if not in_stage():
 		return
@@ -249,7 +282,7 @@ func request_vote() -> void:
 func _vote_as(player_id: int) -> void:
 	if lifecycle.vote_reset(player_id):
 		world.message_posted.emit(
-			"全員リセットの投票 %d / %d（V で賛成）" % [lifecycle.yes_vote_count(), lifecycle.required_votes()]
+			"全員リセットの投票 %d / %d（V 長押しで賛成）" % [lifecycle.yes_vote_count(), lifecycle.required_votes()]
 		)
 	_broadcast_party()
 
@@ -264,6 +297,8 @@ func _apply_reset(decision: PartyResetDecision) -> void:
 	)
 	WorldSnapshot.apply(world, saved["world"] as Dictionary)
 	loadout.restore_state(saved["loadout"] as Dictionary)
+	# 鳴らした鐘も、その時点に戻す（やり直したのに「鳴らした」まま数えない）
+	world.activated = (saved.get("activated", PackedStringArray()) as PackedStringArray).duplicate()
 	for player_id in decision.active_player_ids:
 		if not world.ledger.has_entity(player_id):
 			world.ledger.register_player(player_id)
@@ -282,7 +317,11 @@ func _apply_reset(decision: PartyResetDecision) -> void:
 
 
 func _capture() -> Dictionary:
-	return {"world": WorldSnapshot.capture(world), "loadout": loadout.capture_state()}
+	return {
+		"world": WorldSnapshot.capture(world),
+		"loadout": loadout.capture_state(),
+		"activated": world.activated.duplicate(),
+	}
 
 
 # --- クリアと報酬 -----------------------------------------------------------
@@ -404,6 +443,7 @@ func export_state() -> Dictionary:
 		"lifecycle": lifecycle.to_dict(),
 		"snapshots": _snapshots,
 		"tracker": tracker.to_dict(),
+		"activated": world.activated.duplicate(),
 		"runs": runs,
 		"host_id": local_id(),
 	}
@@ -425,6 +465,7 @@ func adopt_state(state: Dictionary) -> void:
 	lifecycle = restored if restored != null else PartyLifecycle.new()
 	_snapshots = state["snapshots"] as Dictionary
 	tracker.restore(state["tracker"] as Dictionary, world.ledger)
+	world.activated = (state.get("activated", PackedStringArray()) as PackedStringArray).duplicate()
 	_runs.clear()
 	for data: Dictionary in state["runs"] as Array:
 		var rewards := StageRunRewards.from_dict(data)

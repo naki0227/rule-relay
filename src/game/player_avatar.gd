@@ -65,20 +65,20 @@ func request_jump() -> void:
 		_jump_requested = true
 
 
-## ダッシュ（向いている方へ、まっすぐ 3 マス×持っている数）。歩く入力があればその向き。
+## ダッシュ（方向キーの向きへ、まっすぐ 3 マス×持っている数）。W/A/D のどれかが要る。
 func request_dash() -> void:
 	if puppet or ledger == null or not ledger.player_can(RuleAction.Kind.DASH, player_id):
 		return
 	if not is_on_floor() and _air_dash_used:
 		return
-	var dir := _allowed_direction()
-	dir.y = 0.0
-	if dir.length() < 0.1:
-		dir = Vector3(-sin(_facing), 0.0, -cos(_facing))
-	_dash_dir = dir.normalized()
+	var dir := _dash_direction()
+	if dir == Vector3.ZERO:
+		return
+	_dash_dir = dir
 	var count := ledger.ability_count(RuleAction.Kind.DASH, player_id)
 	_dash_left = float(Tuning.DASH_CELLS) * Tuning.stack_factor(count)
-	_air_dash_used = not is_on_floor()
+	# 地上でも空中でも、ダッシュは床に着くまで1回だけ（地上のダッシュで谷へ出てから空中でもう一度、を防ぐ）
+	_air_dash_used = true
 	dashed.emit()
 
 
@@ -197,6 +197,25 @@ func _follow_remote(delta: float) -> void:
 
 
 ## 能力があり禁止されていない方向だけを合成する。同じ方向の能力を n 個持てば、その方向の速さは n 倍。
+## ダッシュの向き。方向キー＋ダッシュで、その向きへ突進する。W/A/D のどれかを持っていないと
+## ダッシュできない（後ろ向きのダッシュは無し。2026-11-20 本人の判断「W がある前提」）。
+## 方向キーを押していなければ、W を持っているときだけ体の向きへ。できなければ ZERO。
+func _dash_direction() -> Vector3:
+	var local := Vector2.ZERO
+	if move_intent.y > 0.0 and ledger.player_can(RuleAction.Kind.FORWARD, player_id):
+		local.y = 1.0
+	if move_intent.x < 0.0 and ledger.player_can(RuleAction.Kind.LEFT, player_id):
+		local.x = -1.0
+	if move_intent.x > 0.0 and ledger.player_can(RuleAction.Kind.RIGHT, player_id):
+		local.x = 1.0
+	if local != Vector2.ZERO:
+		var basis := Basis(Vector3.UP, view_yaw)
+		return (basis * Vector3.FORWARD * local.y + basis * Vector3.RIGHT * local.x).normalized()
+	if ledger.player_can(RuleAction.Kind.FORWARD, player_id):
+		return Vector3(-sin(_facing), 0.0, -cos(_facing))
+	return Vector3.ZERO
+
+
 func _allowed_direction() -> Vector3:
 	if ledger == null:
 		return Vector3.ZERO

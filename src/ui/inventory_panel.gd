@@ -337,7 +337,7 @@ static func _explain(entry: InventoryQuery.Entry) -> String:
 		RuleAction.Kind.HIGH_JUMP:
 			action = "いつもより高く跳ぶ力（約2ブロック）。装備しているときだけ自分に効く。"
 		RuleAction.Kind.DASH:
-			action = "向いている方へ、まっすぐ3マス突進する力（Shift）。途中に穴があっても落ちずに抜けられる。ブロックに渡すと北へ突進する。"
+			action = "W/A/D を押しながら Shift で、その向きへまっすぐ3マス突進する力（後ろへは無し）。途中の穴も抜ける。"
 		RuleAction.Kind.CLIMB:
 			action = "壁を登る力。装備しているときだけ自分に効く。ブロックに渡すと、隣でいちばん高い所の高さまで登ってつかまる。"
 	if t.is_prohibition:

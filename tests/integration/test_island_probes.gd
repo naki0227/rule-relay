@@ -2,8 +2,10 @@ extends TestCase
 ## 島の「関所」と詰みを、プレイヤーと同じ操作で壊しにいく試遊（2026-11-20、敵対的な試遊）。
 ## 結果は docs/reports/2026-11-20-island-playtest-findings.md にまとめた。
 ## - test_gate_*: 意図した関所が守られていること（壊れたら失敗する）
-## - test_finding_*: いまの挙動が意図と違う（抜け道・詰み）ことを記録する。src/ を直したら、
-##   このテストは失敗するので、そのときは関所の形（test_gate_*）へ書き換える
+## - test_accepted_*: 見つかった抜け道のうち、本人が「残してよい」と決めたもの（2026-11-20）。
+##   F1 縁ちょうどの幅 4 越え・F2 上昇中のブロックの上で跳ぶ（上手い人の技）・F3 地面のセルの持ち上げ台・
+##   F5 採石場の底（V で戻れる）。挙動が変わったら気づけるように残す
+## - F4・F6・F7 は直したので test_gate_* にした
 ## 瞬間移動・状態の直接書き換えはしない（照準の代わりに TerrainCell を狙うのと、台帳の読み取りだけ）。
 
 const JUMP := RuleAction.Kind.JUMP
@@ -245,7 +247,7 @@ func test_gate_three_bells_west_plateau_is_not_a_plain_jump_from_the_skirt() -> 
 # 幅 4 は ADR 0011 では「ダッシュ・ブーツ・W×2 で越える」はずだが、普通のジャンプで越えられる。
 
 
-func test_finding_hill_west_gap_of_four_is_a_plain_running_jump() -> void:
+func test_accepted_hill_west_gap_of_four_only_at_the_exact_edge() -> void:
 	await _enter(StageCatalog.HILL_ID)
 	# 島の西の端は x = -9（谷は x -13〜-9）。小島には西へ向かって跳ぶ
 	var route: Array[Vector3] = [
@@ -258,11 +260,11 @@ func test_finding_hill_west_gap_of_four_is_a_plain_running_jump() -> void:
 			print("    hill_top west gap 4 crossed with a plain jump at offset %.1f" % offset)
 			break
 	assert_eq(
-		crossed, 1, "FINDING: a plain running jump crosses the 4-wide gap to the gloves islet"
+		crossed, 1, "ACCEPTED: a plain running jump crosses the 4-wide gap to the gloves islet"
 	)
 
 
-func test_finding_three_bells_east_gap_of_four_is_a_plain_running_jump() -> void:
+func test_accepted_three_bells_east_gap_of_four_only_at_the_exact_edge() -> void:
 	await _enter(StageCatalog.THREE_BELLS_ID)
 	await _walk_to(Vector3(9.5, 0.0, 3.5))  # チェックポイントを有効にして、落ちたらここへ戻る
 	var route: Array[Vector3] = [Vector3(10.0, 0.0, -2.5)]
@@ -272,10 +274,10 @@ func test_finding_three_bells_east_gap_of_four_is_a_plain_running_jump() -> void
 			crossed += 1
 			print("    three_bells east gap 4 crossed with a plain jump at offset %.1f" % offset)
 			break
-	assert_eq(crossed, 1, "FINDING: a plain running jump crosses the 4-wide gap to the east islet")
+	assert_eq(crossed, 1, "ACCEPTED: a plain running jump crosses the 4-wide gap to the east islet")
 
 
-func test_finding_floating_west_gap_of_four_is_a_plain_running_jump() -> void:
+func test_accepted_floating_west_gap_of_four_only_at_the_exact_edge() -> void:
 	await _enter(StageCatalog.FLOATING_ID)
 	await _walk_to(Vector3(-4.5, 0.0, 4.5))
 	var route: Array[Vector3] = [Vector3(-3.5, 0.0, 1.5)]
@@ -285,7 +287,7 @@ func test_finding_floating_west_gap_of_four_is_a_plain_running_jump() -> void:
 			crossed += 1
 			print("    floating_isles west gap 4 crossed with a plain jump at offset %.1f" % offset)
 			break
-	assert_eq(crossed, 1, "FINDING: a plain running jump crosses the 4-wide gap to the west isle")
+	assert_eq(crossed, 1, "ACCEPTED: a plain running jump crosses the 4-wide gap to the west isle")
 
 
 func test_gate_floating_east_gap_of_five_is_not_a_running_jump() -> void:
@@ -336,7 +338,7 @@ func test_gate_three_bells_north_bell_is_not_rung_from_the_step() -> void:
 
 ## 窪みのブロック（lift）を使わず、段丘（高さ 2）の好きな所で、足もとの地面のセルにジャンプを
 ## 単発で貸す。セルが動くブロックになって 2.5 跳び、そのまま頂上（高さ 4）へ移れる。
-func test_finding_any_ground_cell_is_a_lift_on_the_hill() -> void:
+func test_accepted_any_ground_cell_is_a_lift_on_the_hill() -> void:
 	await _enter(StageCatalog.HILL_ID)
 	await _walk_route([Vector3(0.5, 1.0, 1.5), Vector3(3.5, 2.0, -1.5), Vector3(3.5, 2.0, -4.5)])
 	var lift_cell := Vector3i(3, 1, -5)
@@ -349,14 +351,14 @@ func test_finding_any_ground_cell_is_a_lift_on_the_hill() -> void:
 			break
 		await tree.physics_frame
 	_me().move_intent = Vector2.ZERO
-	assert_true(await _cleared(), "FINDING: reached the summit on a promoted ground cell")
+	assert_true(await _cleared(), "ACCEPTED: reached the summit on a promoted ground cell")
 	var pit_lift := _block("lift")
 	assert_true(w.ledger.tokens_on(pit_lift.entity_id).is_empty(), "the pit lift was never used")
 
 
 ## 足もとのセルに単発のジャンプを貸して起動し、返ってきたジャンプで、上昇中のセルの上から
 ## 自分でも跳ぶ。セルの上昇の速さが加わって、どこまで上がるかを測る。
-func test_finding_lift_then_own_jump_stacks() -> void:
+func test_accepted_lift_then_own_jump_stacks() -> void:
 	await _enter(StageCatalog.QUARRY_ID)
 	await _walk_to(Vector3(0.5, 0.0, 2.5))
 	var cell := Vector3i(0, -1, 2)
@@ -373,11 +375,11 @@ func test_finding_lift_then_own_jump_stacks() -> void:
 		await tree.physics_frame
 	print("    block 2.5 + own jump while riding: feet reached %.2f" % best)
 	assert_true(pressed, "the single shot came back while riding")
-	assert_gt(best, 3.5, "FINDING: riding jump + own jump goes far above the block's 2.5")
+	assert_gt(best, 3.5, "ACCEPTED: riding jump + own jump goes far above the block's 2.5")
 
 
 ## 上の重ね跳びで、採石場の段丘（高さ 2）から縁（高さ 5）へ、窪み・ブーツ・グローブなしで出る。
-func test_finding_quarry_rim_from_the_terrace_by_stacking() -> void:
+func test_accepted_quarry_rim_from_the_terrace_by_stacking() -> void:
 	await _enter(StageCatalog.QUARRY_ID)
 	await _pick_and_wear(Vector3(-4.5, 0.0, 4.5), RuleVessel.Part.FEET)  # 底 → 段はブーツ
 	await _walk_to(Vector3(-5.5, 2.0, 4.5))
@@ -398,7 +400,7 @@ func test_finding_quarry_rim_from_the_terrace_by_stacking() -> void:
 			break
 		await tree.physics_frame
 	_me().move_intent = Vector2.ZERO
-	assert_true(await _cleared(), "FINDING: terrace (2) to rim (5) without pit/boots/gloves")
+	assert_true(await _cleared(), "ACCEPTED: terrace (2) to rim (5) without pit/boots/gloves")
 
 
 # --- 2. 詰み -------------------------------------------------------------------
@@ -406,7 +408,7 @@ func test_finding_quarry_rim_from_the_terrace_by_stacking() -> void:
 
 ## 採石場の底で、ジャンプを「投げる」の届き方で縁の隅のセルへ繰り返しで貸すと、底から出られない
 ## （ブーツはジャンプの強化、石の段も 1 段のジャンプが要る、グローブは段の上）。V で始めへ戻れる。
-func test_finding_quarry_floor_without_jump_needs_the_reset_vote() -> void:
+func test_accepted_quarry_floor_without_jump_needs_the_reset_vote() -> void:
 	await _enter(StageCatalog.QUARRY_ID)
 	await _walk_to(Vector3(-3.5, 0.0, -3.5))
 	w.toggle_reach()
@@ -428,10 +430,11 @@ func test_finding_quarry_floor_without_jump_needs_the_reset_vote() -> void:
 	assert_true(w.ledger.player_can(JUMP, _me().player_id), "the reset vote gave the jump back")
 
 
-## 歩く能力（W/A/S/D）を全部、遠くのセルへ「信号」で貸してから、ダッシュでチェックポイントに
-## 入る。チェックポイントは、その瞬間の世界を保存する（詰みの判定がない）。そのあとは、
-## V の全員リセット・メニューの「ひとつ前」「島のはじめから」も、すべてその保存へ戻るので抜けられない。
-func test_finding_checkpoint_saves_a_state_with_no_way_to_walk() -> void:
+## 歩く能力（W/A/S/D）を全部、遠くのセルへ「信号」で貸すと、歩けない。以前はそのままダッシュで
+## チェックポイントに入れて、抜け出せない状態が保存された（F4）。いまはダッシュには W/A/D の
+## どれかが要る（2026-11-20 本人の判断）ので突っ込めず、チェックポイントも歩けない状態を保存しない。
+## メニューの「島のはじめから」で本当に最初へ戻れる。
+func test_gate_no_way_to_walk_cannot_be_saved_and_restart_recovers() -> void:
 	await _enter(StageCatalog.THREE_BELLS_ID)
 	await _pick_dash(Vector3(2.5, 0.0, 4.5))
 	await _walk_to(Vector3(9.5, 0.0, 8.5))
@@ -444,41 +447,34 @@ func test_finding_checkpoint_saves_a_state_with_no_way_to_walk() -> void:
 	for i in MOVES.size():
 		_lend(w.terrain_target(cells[i]), _slot_of(MOVES[i]), TriggerMode.Kind.SIGNAL)
 	w.toggle_reach()
-	assert_eq(director.lifecycle.latest_checkpoint(), PartyLifecycle.STAGE_START, "not saved yet")
+	_me().move_intent = Vector2(0.0, 1.0)
 	w.press_action(DASH)
+	assert_false(_me().is_dashing(), "no dash without W, A or D")
 	await wait_physics_frames(30)
-	assert_eq(director.lifecycle.latest_checkpoint(), "cp2", "dashed onto the checkpoint")
-	# V（1人なら自分の1票）・メニューの3つ、どれで戻っても歩けない
-	for attempt: String in ["vote", "previous", "restart"]:
-		match attempt:
-			"vote":
-				director.request_vote()
-			"previous":
-				w.restore_previous_checkpoint()
-			"restart":
-				w.restart_island()
-		await wait_physics_frames(6)
-		var can_walk := false
-		for action in MOVES:
-			can_walk = can_walk or w.ledger.player_can(action, _me().player_id)
-		assert_false(can_walk, "FINDING: after '%s' the player still cannot walk" % attempt)
-	# 歩こうとしても動けない（向きを変えても同じ）
-	var before := _me().global_position
-	for yaw: float in [0.0, PI * 0.5, PI, -PI * 0.5]:
-		_me().view_yaw = yaw
-		_me().move_intent = Vector2(0.0, 1.0)
-		await wait_physics_frames(20)
 	_me().move_intent = Vector2.ZERO
-	var flat := Vector2(_me().global_position.x - before.x, _me().global_position.z - before.z)
-	assert_lt(flat.length(), 0.05, "FINDING: frozen on the checkpoint for good")
+	assert_eq(
+		director.lifecycle.latest_checkpoint(), PartyLifecycle.STAGE_START, "nothing was saved"
+	)
+	# 保存の側の守り: 歩けないまま台座の上にいても保存しない（ダッシュ以外の手段で運ばれた場合）
+	assert_false(
+		CheckpointPolicy.player_can_move(w.ledger, _me().player_id), "still cannot walk here"
+	)
+	# メニューの「島のはじめから」（ひとり）: ステージを作り直すので歩ける
+	w.restart_island()
+	w = director.world
+	await wait_physics_frames(10)
+	var can_walk := true
+	for action in MOVES:
+		can_walk = can_walk and w.ledger.player_can(action, _me().player_id)
+	assert_true(can_walk, "restart from the beginning gives every move back")
 
 
 # --- 3. ダッシュ ----------------------------------------------------------------
 
 
-## 地上のダッシュは空中ダッシュの回数を使わない。地上で 3 マス突進して谷の上に出てから、
-## もう一度空中でダッシュすると、跳ばずに 6 マス進める（幅 5 の谷を、ジャンプなしで越える）。
-func test_finding_ground_dash_then_air_dash_crosses_five_without_jumping() -> void:
+## 地上のダッシュで谷の上に出てから、もう一度空中でダッシュすると、跳ばずに幅 5 の谷を越えられた
+## （F6）。いまはダッシュは地上でも空中でも、床に着くまで1回だけ。
+func test_gate_ground_dash_does_not_allow_a_second_air_dash() -> void:
 	await _enter(StageCatalog.FLOATING_ID)
 	await _walk_to(Vector3(0.5, 0.0, 5.7), 0.3)
 	_face(Vector3(0.5, 0.0, 10.0))
@@ -493,7 +489,7 @@ func test_finding_ground_dash_then_air_dash_crosses_five_without_jumping() -> vo
 	await wait_physics_frames(6)
 	w.press_action(JUMP)
 	await _walk_to(Vector3(0.5, 0.0, 4.0), 0.6, 240)
-	# 東の谷（幅 5）の縁の手前まで歩き、跳ばずにダッシュ → 谷の上でもう一度ダッシュ
+	# 東の谷（幅 5）の縁の手前まで歩き、跳ばずにダッシュ → 谷の上でもう一度ダッシュを試す
 	await _walk_to(Vector3(6.6, 0.0, -2.5), 0.2)
 	_me().view_yaw = atan2(-1.0, 0.0)
 	_me().move_intent = Vector2(0.0, 1.0)
@@ -505,12 +501,10 @@ func test_finding_ground_dash_then_air_dash_crosses_five_without_jumping() -> vo
 			break
 		await tree.physics_frame
 	w.press_action(DASH)
-	assert_true(_me().is_dashing(), "FINDING: a second (air) dash right after the ground dash")
-	await wait_physics_frames(40)
+	assert_false(_me().is_dashing(), "no second dash before touching the floor")
 	_me().move_intent = Vector2.ZERO
-	await wait_physics_frames(10)
-	assert_gt(_me().global_position.x, 12.0, "FINDING: crossed the 5-wide gap without a jump")
-	assert_gt(_me().global_position.y, -0.3, "standing on the east isle")
+	await _wait_respawn()
+	assert_lt(_me().global_position.x, 7.0, "fell into the gap and came back to the start side")
 
 
 func test_gate_dash_into_a_cliff_stops_and_does_not_climb() -> void:
@@ -553,8 +547,8 @@ func test_gate_dash_off_the_map_kills_and_resets() -> void:
 # --- 4. そのほか ----------------------------------------------------------------
 
 
-## 鳴らした鐘は、全員リセットで世界を戻しても「鳴らした」まま残る（StageWorld.activated は保存の外）。
-func test_finding_rung_bells_survive_the_reset_vote() -> void:
+## 鳴らした鐘は、全員リセットで世界を戻しても「鳴らした」まま残っていた（F7）。いまは保存の時点に戻る。
+func test_gate_rung_bells_are_reset_by_the_vote() -> void:
 	await _enter(StageCatalog.THREE_BELLS_ID)
 	await _walk_to(Vector3(9.5, 0.0, 1.5))
 	_lend(_block("launcher"), _slot_of(THROW), TriggerMode.Kind.NONE)
@@ -567,4 +561,4 @@ func test_finding_rung_bells_survive_the_reset_vote() -> void:
 	await wait_physics_frames(6)
 	assert_eq(director.lifecycle.latest_checkpoint(), PartyLifecycle.STAGE_START, "back to start")
 	assert_false(w.bells_by_key["east_bell"].is_ringing(), "the bell itself was reset")
-	assert_true(w.activated.has("east_bell"), "FINDING: still counted as rung after the reset")
+	assert_false(w.activated.has("east_bell"), "no longer counted as rung after the reset")

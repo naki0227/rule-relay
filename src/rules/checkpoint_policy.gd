@@ -21,12 +21,15 @@ const MOVE_ACTIONS: Array[RuleAction.Kind] = [
 
 
 static func save_blockers(
-	ledger: RuleLedger, player_on_floor: bool, falling_block_count: int
+	ledger: RuleLedger,
+	player_on_floor: bool,
+	falling_block_count: int,
+	player_id: int = RuleLedger.PLAYER_ID
 ) -> Array[Blocker]:
 	var blockers: Array[Blocker] = []
 	if not player_on_floor:
 		blockers.append(Blocker.AIRBORNE)
-	if not player_can_move(ledger):
+	if not player_can_move(ledger, player_id):
 		blockers.append(Blocker.CANNOT_MOVE)
 	if falling_block_count > 0:
 		blockers.append(Blocker.FALLING_BLOCK)
@@ -36,9 +39,9 @@ static func save_blockers(
 
 
 ## 自分で歩ける方向が1つでもあるか。カメラを回せばどの方角へも進めるので、1方向あれば足りる。
-static func player_can_move(ledger: RuleLedger) -> bool:
+static func player_can_move(ledger: RuleLedger, player_id: int = RuleLedger.PLAYER_ID) -> bool:
 	for action in MOVE_ACTIONS:
-		if ledger.player_can(action):
+		if ledger.player_can(action, player_id):
 			return true
 	return false
 

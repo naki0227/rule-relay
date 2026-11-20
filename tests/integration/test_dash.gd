@@ -1,5 +1,6 @@
 extends TestCase
-## ダッシュ: 向いている方へマス単位でまっすぐ水平に突進し、途中の穴は落ちずに抜ける（2026-11-20 本人）。
+## ダッシュ: 方向キーの向き（無ければ体の向き）へマス単位でまっすぐ水平に突進し、途中の穴は落ちずに
+## 抜ける。W/A/D のどれかが要り、後ろ向きには突進しない（どちらも 2026-11-20 本人）。
 
 const DASH := RuleAction.Kind.DASH
 
@@ -71,3 +72,25 @@ func test_a_block_dashes_north_over_the_gap() -> void:
 	await wait_physics_frames(40)
 	assert_almost(block.global_position.z, 0.5 - 3.0, 0.1, "three cells north")
 	assert_gt(block.global_position.y, 0.0, "it did not fall in the gap while dashing")
+
+
+func test_no_dash_without_w_a_or_d() -> void:
+	var v := world.ledger.hotbar_vessel(0)
+	world.ledger.move_to_inventory(v.id)
+	world.ledger.give_player_item(RuleAction.Kind.BACK, false, 0)
+	world.player.view_yaw = 0.0
+	world.press_action(DASH)
+	assert_false(world.player.is_dashing(), "S alone does not allow a dash")
+
+
+func test_holding_s_does_not_dash_backward() -> void:
+	world.ledger.give_player_item(RuleAction.Kind.BACK, false, 2)
+	world.player.view_yaw = 0.0
+	world.player.move_intent = Vector2(0.0, -1.0)
+	var start := world.player.global_position.z
+	world.press_action(DASH)
+	assert_true(world.player.is_dashing(), "W is owned, so it dashes the way the body faces")
+	await wait_physics_frames(1)
+	world.player.move_intent = Vector2.ZERO
+	await wait_physics_frames(40)
+	assert_lt(world.player.global_position.z, start, "went forward, not backward")
