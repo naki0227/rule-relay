@@ -119,6 +119,8 @@
 | 7 | 退出者がブロックへ付けた能力は残り、F で回収できる | 台帳のみ | `RuleLedger.set_player_present` | `test_party_ledger` 7 |
 | 8 | 付与者が退出していたら単発成功で現場に落ち、拾える（複製しない） | 台帳のみ。落ちる場所の選び方・見た目は未実装 | `RuleToken.dropped`、`pickup_token` | `test_party_ledger` 8 |
 | 9 | 循環譲渡でも出自を書き換えない | 台帳のみ | `vessel_id` を不変にした | `test_party_ledger` 9 |
+| P2 | オンライン: ホスト権威で依頼を検証・適用し、台帳を全員へ配る。2人が通信越しに渡す・F で回収する | 台帳の同期のみ（ENet、同じ PC 内の2端で確認）。アバター・ブロックの同期、画面からの操作は未実装 | `src/net/`（`NetSession`・`PartyCommand`・`PartyRoster`）、ADR 0006 | `test_net_session`、`test_party_command`、`test_party_roster` |
+| 16 の一部 | 同じトークンを二重に持たない（再送・peer ID の振り直し・なりすまし） | 台帳の同期のみ | 依頼の seq で再送を一度だけ適用、session_key でプレイヤー ID を固定、送り主は通信から決める | 同上 |
 | 10〜23 | 人数別補助・死亡観戦・共通チェックポイント・投票・途中参加・ホスト移譲・報酬・導入ステージ | 未実装 | — | — |
 
 台帳で仮に決めた挙動（禁止をプレイヤーへ渡せない、付与者が退出していて単発が失敗したらブロックに残す、受け取った能力は持っていれば効く）は `docs/adr/0005-party-token-ledger.md` の「未決のため仮にした挙動」。
