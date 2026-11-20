@@ -110,11 +110,10 @@ func test_gate_expedition_throw_spent_on_the_creature_still_leaves_the_dash_way_
 
 
 ## 森の台地で自分のジャンプを「投げる」の届き方で上の段の奥のセルへ繰り返しで貸し、そのまま台地の
-## チェックポイントに触れると、ジャンプの無い状態が保存される（歩けるので保存は拒まれない）。
-## 台地から上へは、ジャンプが無いと窪みのブロックもブーツも使えず、グローブは谷 5 の向こうの岬にある
-## （ジャンプなしでは渡れない）。全員リセット（V）はこの保存へ戻るので抜けられない。
-## メニューの「島のはじめから」（ひとりなら本当に最初から）で戻れる。40 分の島では、それまでの進み具合を失う。
-func test_finding_expedition_jump_thrown_away_then_saved_needs_a_restart() -> void:
+## チェックポイントに触れる。以前はジャンプの無い状態が保存され、V で戻っても上へ行けなかった（F8）。
+## いまは「自分のジャンプを遠くへ貸したまま（登るも無い）」では保存しない（2026-11-20 本人の判断）。
+## なので V で前の保存へ戻ればジャンプが手元にあり、40 分の島を最初からやり直さなくてよい。
+func test_gate_expedition_does_not_save_while_the_jump_is_thrown_away() -> void:
 	await _enter(StageCatalog.EXPEDITION_ID)
 	await _up_to_the_forest_plateau()
 	await _walk_to(Vector3(6.5, 3.0, -27.5))
@@ -125,18 +124,10 @@ func test_finding_expedition_jump_thrown_away_then_saved_needs_a_restart() -> vo
 	assert_false(w.ledger.player_can(JUMP, _me().player_id), "jump is away")
 	await _walk_to(Vector3(9.5, 3.0, -27.5), 0.3)
 	await wait_physics_frames(4)
-	assert_eq(director.lifecycle.latest_checkpoint(), "cp2", "FINDING: saved without a jump")
-	# 上の段の縁のセルまで届かない（奥のセルは触る距離の外）
-	await _walk_to(Vector3(0.5, 3.0, -29.7), 0.3)
-	w.interact(w.terrain_target(Vector3i(0, 4, -38)))
-	await wait_physics_frames(2)
-	assert_false(w.ledger.player_can(JUMP, _me().player_id), "out of touch from the plateau")
+	assert_ne(director.lifecycle.latest_checkpoint(), "cp2", "not saved while the jump is away")
+	# 台地からは届かないので取り戻せないが、保存されていないので、V で前の保存へ戻ればジャンプがある
+	var before := director.lifecycle.latest_checkpoint()
 	director.request_vote()
 	await wait_physics_frames(6)
-	assert_false(
-		w.ledger.player_can(JUMP, _me().player_id), "FINDING: V returns to the jumpless save"
-	)
-	w.restart_island()
-	w = director.world
-	await wait_physics_frames(10)
-	assert_true(w.ledger.player_can(JUMP, _me().player_id), "restart from the beginning recovers")
+	assert_eq(director.lifecycle.latest_checkpoint(), before, "back to the save before the throw")
+	assert_true(w.ledger.player_can(JUMP, _me().player_id), "the vote gives the jump back")
