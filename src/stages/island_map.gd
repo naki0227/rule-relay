@@ -18,6 +18,29 @@ func _init(p_rows: PackedStringArray, p_origin: Vector2i) -> void:
 	origin = p_origin
 
 
+## 何もない（底なし）地図。左上のマスが origin、幅 width・奥行き depth。
+static func blank(p_origin: Vector2i, width: int, depth: int) -> IslandMap:
+	var empty := PackedStringArray()
+	for i in depth:
+		empty.append(".".repeat(width))
+	return IslandMap.new(empty, p_origin)
+
+
+## (x0, z0)〜(x1, z1)（両端を含む）を高さ h にする。h が -1 なら何もない（底なし）にする。
+func fill(x0: int, z0: int, x1: int, z1: int, h: int) -> void:
+	var ch := "." if h < 0 else str(h)
+	for z in range(mini(z0, z1), maxi(z0, z1) + 1):
+		var row := z - origin.y
+		if row < 0 or row >= rows.size():
+			continue
+		var line := rows[row]
+		for x in range(mini(x0, x1), maxi(x0, x1) + 1):
+			var col := x - origin.x
+			if col >= 0 and col < line.length():
+				line[col] = ch
+		rows[row] = line
+
+
 ## マス（x, z）の上面の高さ。何もなければ -100。窪みは下げる前の高さ。
 func height(x: int, z: int) -> int:
 	var row := z - origin.y
