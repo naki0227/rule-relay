@@ -64,6 +64,8 @@ static func provisional() -> RewardTable:
 				"quarry": _stage_rewards("quarry", "tmp_hub_workshop"),
 				"three_bells": _stage_rewards("bells3", "tmp_hub_belfry"),
 				"floating_isles": _stage_rewards("isles", "tmp_hub_lighthouse"),
+				"windy_ridge": _stage_rewards("ridge", "tmp_hub_windmill"),
+				"ruined_fort": _stage_rewards("fort", "tmp_hub_gatehouse"),
 			}
 		)
 	)
