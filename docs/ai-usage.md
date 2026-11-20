@@ -12,6 +12,8 @@
 | 2026-11-20 | Audio Studio MCP（Stable Audio 3 medium、Stability AI、ローカル生成） | BGM・効果音 | BGM 3場面×2、効果音 27種×2 の候補を生成（`art/audio/stable-audio/`、一覧は `docs/sound-candidates-2026-11-20.md`）。同日、うち6個をゲームに採用（次の行） | 本人の試聴待ち |
 | 2026-11-20 | Stable Audio 3 medium（Stability AI。Audio Studio MCP 経由でローカル生成。ライセンス: Stability AI Community License） | 効果音 | 上の候補のうち、測定の基準を全部満たす効果音 6 種をゲームの効果音として採用: E01→ui_hover、E32→receive_stone、E38→block_jump、E42→block_step、E45→player_jump、E51→save（`assets/audio/sfx/`、取り込みは `tools/sfx/build_sfx.py` の `ADOPTED`、経緯と数値は `docs/sound-design.md`）。加工は人の書いたスクリプトでのフィルター・切り出し・音量調整だけ。BGM は採用していない | AI（Claude Code）が測定値で選んだ。本人の試聴待ち |
 | 2026-11-20 | Claude Code（Anthropic） | 効果音 | 上の候補の測定と選定、取り込みのスクリプト（`tools/sfx/stable_audio_candidates.py`・`build_sfx.py`）と記録の作成 | PR でレビュー予定 |
+| 2026-11-20 | Audio Studio MCP（Stable Audio 3 medium、Stability AI、ローカル生成。Stability AI Community License） | BGM | 上の候補のうち BGM の B1（ハブ）・B3（島）・B5（タイトル）を、加工せずにゲームへ取り込んだ（`assets/audio/music/`、鳴らすのは `src/audio/music_player.gd`）。AI は音を聴けないので仮の選曲 | 本人の試聴待ち |
+| 2026-11-20 | Audio Studio MCP 1.2.0（Stable Audio 3 medium、Stability AI、`stabilityai/stable-audio-3-optimized` MLX 版 rev `30cb264`、ローカル生成） | 効果音 | 1回目で基準を外れた21イベントを作り直し、3つずつ計63個の候補を生成（`art/audio/stable-audio/sfx2/`、一覧は `docs/sound-candidates-2026-11-20-round2.md`）。ゲームの音は置き換えていない | 本人の試聴待ち |
 
 - モデル名・バージョンは、提出時に本人が各サービスの表示で確認して記入する。
 - 生成 AI（音声）の版（2026-11-20 に本人から受け取った情報。企画書の開示表 `docs/submission/proposal-draft.md` 3.6 に転記）: Hugging Face の `stabilityai/stable-audio-3-optimized` の MLX 版、リビジョン `30cb264`。Audio Studio MCP 1.2.0 を通して、本人の Mac の中で生成した

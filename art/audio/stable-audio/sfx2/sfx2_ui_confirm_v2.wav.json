@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_ui_confirm",
+  "original_idea": "ui_confirm 作り直し（2回目の試し）: こもっている → アタックをはっきり（判を押す「トン」）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a wooden hand stamp pressed firmly onto paper on a hardwood desk, a bright crisp click at the very start, then one firm short woody thump, boxwood stamp and paper on hardwood, articulate, present, woody, close-miked, dry, no reverb.",
+  "sound_fields": {
+    "source": "a wooden hand stamp pressed firmly onto paper on a hardwood desk",
+    "action": "a bright crisp click at the very start, then one firm short woody thump",
+    "material": "boxwood stamp and paper on hardwood, articulate, present, woody",
+    "space": "close-miked, dry, no reverb"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": "muffled, dull, boomy, distant, reverb, soft thud, low-pass filtered",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4311,
+  "candidate": 2,
+  "file": "sfx2_ui_confirm_v2.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:22:14",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 6.3,
+  "ceiling_gain_db": -7.3
+}

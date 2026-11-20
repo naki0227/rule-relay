@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_ui_select",
+  "original_idea": "ui_select 作り直し: こもっている → アタックをはっきり（札を机に当てる「トッ」）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, the edge of a stiff paper card tapped onto a hard maple desk, crisp transient with a clear click at the start, then a short warm woody tock that stops quickly, hard maple and cardstock, warm mid-low woody body, articulate attack, no hiss, close-miked, dry, no reverb.",
+  "sound_fields": {
+    "source": "the edge of a stiff paper card tapped onto a hard maple desk",
+    "action": "crisp transient with a clear click at the start, then a short warm woody tock that stops quickly",
+    "material": "hard maple and cardstock, warm mid-low woody body, articulate attack, no hiss",
+    "space": "close-miked, dry, no reverb"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": "muffled, dull, boomy, distant, reverb, harsh, shrill, hiss, high-pitched, metallic",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4002,
+  "candidate": 3,
+  "file": "sfx2_ui_select_2_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:07:47",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 3.27,
+  "ceiling_gain_db": -4.27
+}

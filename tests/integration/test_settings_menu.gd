@@ -24,6 +24,7 @@ func after_each() -> void:
 	tree.paused = false
 	tree.root.content_scale_factor = 1.0
 	KeyBindings.new().apply()
+	GameSettings.new().apply_volumes()
 	InputMode.using_pad = false
 	hud.queue_free()
 	island.queue_free()
@@ -111,6 +112,40 @@ func test_text_size_and_reset_to_defaults() -> void:
 	assert_eq(InputMode.key(&"jump"), "Space")
 	assert_almost(tree.root.content_scale_factor, 1.0, 0.001)
 	assert_true(menu.settings.bindings.is_default())
+	assert_eq(menu.settings.music_volume, GameSettings.DEFAULT_MUSIC_VOLUME)
+
+
+func test_volume_sliders_apply_to_buses_and_persist() -> void:
+	_open_settings()
+	assert_eq(menu._music_slider.value, 70.0, "BGM starts at 70%")
+	menu.choose_music_volume(40)
+	menu.choose_sfx_volume(0)
+	var music := AudioServer.get_bus_index(AudioBuses.MUSIC)
+	assert_almost(AudioServer.get_bus_volume_db(music), linear_to_db(0.4), 0.01)
+	assert_true(AudioServer.is_bus_mute(AudioServer.get_bus_index(AudioBuses.SFX)))
+	assert_eq(menu._music_value.text, "40%")
+	menu.close()
+	var saved := GameSettings.new(PATH)
+	saved.load_file()
+	assert_eq(saved.music_volume, 40)
+	assert_eq(saved.sfx_volume, 0)
+
+
+func test_volume_slider_moves_with_the_d_pad() -> void:
+	_open_settings()
+	var slider := menu._music_slider
+	slider.grab_focus()
+	await tree.process_frame
+	assert_eq(menu.get_viewport().gui_get_focus_owner(), slider)
+	for pressed: bool in [true, false]:
+		var right := InputEventJoypadButton.new()
+		right.button_index = JOY_BUTTON_DPAD_RIGHT
+		right.pressed = pressed
+		Input.parse_input_event(right)
+		Input.flush_buffered_events()
+		await tree.process_frame
+	assert_eq(slider.value, 75.0, "one step of 5% to the right")
+	assert_eq(menu.settings.music_volume, 75)
 
 
 func test_capture_times_out() -> void:

@@ -9,6 +9,9 @@ extends Node
 ## - チェックポイント: 1人が触れたらチーム共通。その時点の世界を記録する。台座の上の F で全員復活
 ## - 全員リセット: V 長押しで投票（過半数、または死亡観戦がいるとき生存者全員）。成立したら世界を丸ごと戻し、
 ##   途中参加の人を合流させ、人数が変わっていれば人数別補助を作り直す
+## - 投票の時間切れ: 開いた投票は PartyLifecycle.VOTE_TIME_LIMIT 秒（仮 30 秒）で権威が閉じる（試遊 G4）
+## - ゴールにまだ来ていない人: 協力中、島の条件がそろうか誰かがゴールに入ったら HUD に名前を出す
+##   （試遊 G5。情報だけで、外したり止めたりはしない）
 ## - クリア: ステージのクリア条件を満たしたら、資格のある人に報酬を配り、しばらくしてハブへ戻る
 ## 子ノード名は固定（"Director"）。RPC のパスを両側でそろえるため。
 
@@ -34,6 +37,8 @@ var stage_id: String = ""
 var stage_run_id: String = ""
 ## 最後にクリアした結果の文（HUD の表示用）。
 var last_clear_text: String = ""
+## ゴールにまだ来ていない生きている人（ホストが決めて party の配信で参加者へも届く。HUD の表示用）。
+var goal_missing: PackedInt32Array = PackedInt32Array()
 ## ステージの島を置く親（既定は自分。物理の世界を分けたいときは SubViewport を渡す）。
 var world_parent: Node
 ## ハブの入口を最初から全部開けておく（試遊の版。本人が全部を順に試せるように）。
@@ -51,7 +56,7 @@ var _runs: Array[StageRunRewards] = []
 ## 一度でもこの部屋に来たプレイヤー（初めて来たときだけ出現地点へ動かす。再接続・ホスト移譲では動かさない）。
 var _known_players: Dictionary[int, bool] = {}
 ## 「チェックポイントにできない」を一度伝えた人（台座の上で毎フレーム出さないため）。
-var _warned_checkpoint: Dictionary[int, bool] = {}
+var _warned_checkpoint: Dictionary[int, int] = {}
 
 
 func _ready() -> void:
@@ -125,6 +130,7 @@ func _build(new_stage_id: String, run_id: String) -> void:
 	stage_id = new_stage_id
 	stage_run_id = run_id
 	last_clear_text = ""
+	goal_missing = PackedInt32Array()
 	world = StageWorld.new()
 	world.setup(StageCatalog.by_id(new_stage_id))
 	world.vote_request = request_vote
@@ -188,6 +194,8 @@ func _physics_process(delta: float) -> void:
 		return
 	_update_spectate()
 	if not is_authority():
+		if in_stage():
+			lifecycle.tick_vote(delta)  # 表示用に残り秒数だけ進める（閉じるのはホスト）
 		return
 	if _clear_timer >= 0.0:
 		_clear_timer -= delta
@@ -198,14 +206,25 @@ func _physics_process(delta: float) -> void:
 		_rescue_in_hub()
 		return
 	tracker.seconds += delta
-	var changed := _check_deaths()
+	# 時間切れを死亡より先に見る（切れた票が、同じコマの死亡で成立しないように）
+	var changed := _check_vote_timeout(delta)
+	changed = _check_deaths() or changed
 	changed = _check_checkpoints() or changed
 	if lifecycle.has_pending_reset():
 		_apply_reset(lifecycle.take_pending_reset())
 		changed = true
+	changed = _check_clear() or changed
 	if changed:
 		_broadcast_party()
-	_check_clear()
+
+
+## 全員リセットの投票の時間切れ（試遊 G4、2026-11-20 本人の判断）。権威だけが閉じて知らせる。
+func _check_vote_timeout(delta: float) -> bool:
+	if not lifecycle.tick_vote(delta):
+		return false
+	lifecycle.cancel_vote()
+	world.message_posted.emit("全員リセットの投票は時間切れになりました")
+	return true
 
 
 func _check_deaths() -> bool:
@@ -224,8 +243,10 @@ func _check_checkpoints() -> bool:
 	for player_id in lifecycle.players_in(PartyLifecycle.State.ACTIVE):
 		var avatar := world.avatar_of(player_id)
 		var cp := "" if avatar == null else world.checkpoint_at(avatar.global_position)
-		if cp != "" and not _safe_to_save(player_id, avatar):
-			_warn_unsafe_checkpoint(player_id)
+		if cp == "":
+			_warned_checkpoint.erase(player_id)
+		elif not _safe_to_save(player_id, avatar):
+			_warn_unsafe_checkpoint(player_id, avatar)
 			continue
 		if cp != "" and lifecycle.activate_checkpoint(player_id, cp):
 			_snapshots[cp] = _capture()
@@ -237,27 +258,53 @@ func _check_checkpoints() -> bool:
 	return changed
 
 
-## 詰みにつながる状態（自分で一歩も歩けない・空中）では、チェックポイントを有効にしない
-## （2026-11-20 試遊で、歩けないままダッシュで台座に入ると抜け出せない状態が保存された）。
+## 詰みにつながる状態（自分で一歩も歩けない・空中・ジャンプを遠くへ貸したまま）では、
+## チェックポイントを有効にしない（2026-11-20 試遊 F4・F8）。
 func _safe_to_save(player_id: int, avatar: PlayerAvatar) -> bool:
+	return _save_blockers(player_id, avatar).is_empty()
+
+
+func _save_blockers(player_id: int, avatar: PlayerAvatar) -> Array[CheckpointPolicy.Blocker]:
 	var on_floor := avatar.is_on_floor() if avatar == world.player else avatar.remote_on_floor
-	return CheckpointPolicy.save_blockers(world.ledger, on_floor, 0, player_id).is_empty()
+	return CheckpointPolicy.save_blockers(world.ledger, on_floor, 0, player_id)
 
 
-func _warn_unsafe_checkpoint(player_id: int) -> void:
-	if _warned_checkpoint.has(player_id):
+## 理由が変わったとき・台座に乗り直したときだけ伝える（台座の上で毎フレーム出さない）。
+func _warn_unsafe_checkpoint(player_id: int, avatar: PlayerAvatar) -> void:
+	var blockers := _save_blockers(player_id, avatar)
+	if blockers.is_empty() or blockers[0] == CheckpointPolicy.Blocker.AIRBORNE:
 		return
-	_warned_checkpoint[player_id] = true
-	var why := "W/A/S/D のどれかを手元に戻してから台座に触れてください"
-	world.message_posted.emit("チェックポイントにできません（%s）" % why)
+	if _warned_checkpoint.get(player_id, -1) == blockers[0]:
+		return
+	_warned_checkpoint[player_id] = blockers[0]
+	world.message_posted.emit("チェックポイントにできません（%s）" % CheckpointPolicy.describe(blockers[0]))
 
 
-func _check_clear() -> void:
+## クリアを調べ、ゴールにまだ来ていない人の一覧も更新する。一覧が変わったら true（配信する）。
+## 一覧はひとり（1人用・部屋に正式参加者が1人）では出さず、クリアしたら空にする。
+func _check_clear() -> bool:
 	var snapshot := world.clear_snapshot(
 		lifecycle.formal_participants(), lifecycle.players_in(PartyLifecycle.State.ACTIVE)
 	)
+	var missing := PackedInt32Array()
 	if world.def.clear_condition.is_met(snapshot):
 		_on_clear()
+	elif net != null and lifecycle.formal_participants().size() > 1:
+		missing = world.def.clear_condition.goal_stragglers(snapshot)
+	if missing == goal_missing:
+		return false
+	goal_missing = missing
+	return true
+
+
+## HUD の「ゴールにまだ来ていない: …」の文。出さないときは空。
+func goal_missing_text() -> String:
+	if goal_missing.is_empty() or last_clear_text != "" or not in_stage():
+		return ""
+	var names := PackedStringArray()
+	for player_id in goal_missing:
+		names.append(_name(player_id))
+	return "ゴールにまだ来ていない: " + "、".join(names)
 
 
 ## ハブで落ちたら出現地点へ戻すだけ（ハブに死亡はない）。
@@ -597,7 +644,7 @@ func leave_room() -> void:
 func _broadcast_party() -> void:
 	party_changed.emit()
 	if _online() and net.is_host():
-		_party.rpc(lifecycle.to_dict())
+		_party.rpc(lifecycle.to_dict(), goal_missing)
 
 
 ## 権威がプレイヤーを動かす。自分ならその場で、仲間ならその人の画面へ頼む（アバターは各自が動かすため）。
@@ -633,10 +680,11 @@ func _enter(new_stage_id: String, run_id: String) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _party(state: Dictionary) -> void:
+func _party(state: Dictionary, missing: PackedInt32Array) -> void:
 	var replica := PartyLifecycle.from_dict(state)
 	if replica != null:
 		lifecycle = replica
+		goal_missing = missing
 		party_changed.emit()
 
 

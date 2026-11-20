@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_receive_grass",
+  "original_idea": "receive_grass 作り直し（2回目の試し）: シャーっと鳴る → 高域を抑える。生成は既定の cfg、高域は加工のローパス",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a hand patting a patch of grassy soil, one clear soft thump with a short rustle of grass blades, packed earth and grass, warm low body with a clear leafy edge, close-up, outdoors, dry.",
+  "sound_fields": {
+    "source": "a hand patting a patch of grassy soil",
+    "action": "one clear soft thump with a short rustle of grass blades",
+    "material": "packed earth and grass, warm low body with a clear leafy edge",
+    "space": "close-up, outdoors, dry"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": null,
+  "cfg": 1.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4460,
+  "candidate": 1,
+  "file": "sfx2_receive_grass_v1.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:24:50",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -12.07,
+  "raw_peak_dbfs": -12.07,
+  "ceiling_gain_db": 0.0
+}

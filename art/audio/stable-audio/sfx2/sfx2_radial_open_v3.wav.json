@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_radial_open",
+  "original_idea": "radial_open 作り直し: シャーっと鳴る → 高域を抑える（札を扇に広げる）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, three thick paper cards fanned out by hand on a wooden table, a quick soft sequence of three gentle flicks spreading out, short, thick cardstock, warm papery taps, rolled-off highs, no hiss, close-up, dry, small room.",
+  "sound_fields": {
+    "source": "three thick paper cards fanned out by hand on a wooden table",
+    "action": "a quick soft sequence of three gentle flicks spreading out, short",
+    "material": "thick cardstock, warm papery taps, rolled-off highs, no hiss",
+    "space": "close-up, dry, small room"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": "hiss, sizzle, crackle, harsh, bright, airy noise, shrill, white noise, swoosh",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4122,
+  "candidate": 3,
+  "file": "sfx2_radial_open_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:17:26",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 2.61,
+  "ceiling_gain_db": -3.61
+}
