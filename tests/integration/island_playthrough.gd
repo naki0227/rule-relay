@@ -156,8 +156,8 @@ func _walk_into_goal(via: Array[Vector3] = []) -> void:
 	assert_true(goal.has_point(_me().global_position), "standing in the goal")
 
 
-func _cleared() -> bool:
-	for i in 180:
+func _cleared(frames: int = 180) -> bool:
+	for i in frames:
 		if director.last_clear_text != "":
 			# 自動プレイの所要時間（答えを知っていて迷わないので、人の時間の下限にもならない参考値）
 			print("    %s: %s" % [director.stage_id, director.last_clear_text])
@@ -210,3 +210,74 @@ func _wait_until_rung(key: String, frames: int = 400) -> bool:
 
 func _creature(key: String) -> Creature:
 	return w.creatures[int(w.entity_ids[key])]
+
+
+## 落ちている器を拾い、装備せずにホットバーの空き（無ければ失敗）へ置く。置いたスロットを返す。
+func _pick_to_hotbar(at: Vector3, action: RuleAction.Kind) -> int:
+	await _walk_to(at, 0.6)
+	w.interact(null)
+	await wait_physics_frames(2)
+	var slot := _free_slot()
+	for v in w.ledger.inventory_vessels(_me().player_id):
+		if (
+			w.ledger.token(v.token_id).action == action
+			and not w.ledger.token(v.token_id).is_prohibition
+		):
+			assert_true(w.ledger_actions.move_to_hotbar(v.id, slot), "%s on the hotbar" % action)
+	assert_eq(_slot_of(action), slot, "picked up %s" % action)
+	return slot
+
+
+func _free_slot() -> int:
+	for slot in RuleLedger.HOTBAR_SIZE:
+		if w.ledger.hotbar_vessel(slot, _me().player_id) == null:
+			return slot
+	return -1
+
+
+## 手元の禁止（action）をホットバーへ移して、target へ触って渡す（禁止を手放す）。
+func _hand_off_ban(action: RuleAction.Kind, target: Node3D) -> void:
+	var slot := _free_slot()
+	for v in w.ledger.inventory_vessels(_me().player_id):
+		var t := w.ledger.token(v.token_id)
+		if t.is_prohibition and t.action == action:
+			assert_true(w.ledger_actions.move_to_hotbar(v.id, slot), "ban to the hotbar")
+	_lend(target, slot, TriggerMode.Kind.NONE)
+	assert_false(w.ledger.player_prohibited(action, _me().player_id), "got rid of the ban")
+
+
+## 台に付いているものを F で全部回収する（届かない間は、届くまで待つ）。
+func _recall_all_from(key: String) -> void:
+	var block := _block(key)
+	for i in 600:
+		if w.ledger.tokens_on(block.entity_id).is_empty():
+			break
+		if w.is_within_reach(block):
+			w.interact(block)
+		await tree.physics_frame
+	assert_true(w.ledger.tokens_on(block.entity_id).is_empty(), "recalled from %s" % key)
+
+
+## 石に移動を繰り返しで渡し、止まるまで待って回収する（石は壁に当たって止まる）。
+func _slide_stone(key: String, stand: Vector3, action: RuleAction.Kind, stop: Vector3i) -> void:
+	var stone := _block(key)
+	await _walk_to(stand, 0.3)
+	_lend(stone, _slot_of(action), TriggerMode.Kind.REPEAT)
+	for i in 900:
+		if stone.cell() == stop and not stone.is_moving_horizontally():
+			break
+		await tree.physics_frame
+	assert_eq(stone.cell(), stop, "%s slid to %s" % [key, stop])
+	await _walk_to(stone.global_position + Vector3(0.0, -0.5, 1.6), 0.4)
+	await _recall_all_from(key)
+
+
+## 生き物がある箱の中に入るまで待つ（生き物は自分の願いで進む）。
+func _wait_creature_in(key: String, box: AABB, frames: int = 1800) -> bool:
+	var critter := _creature(key)
+	for i in frames:
+		if box.has_point(critter.global_position):
+			return true
+		await tree.physics_frame
+	print("    %s stopped at %s (%s)" % [key, critter.global_position, critter.stage])
+	return false
