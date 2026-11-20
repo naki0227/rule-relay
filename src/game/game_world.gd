@@ -197,8 +197,9 @@ func is_receiving_signal(entity_id: int) -> bool:
 
 
 ## 願いを持つ生き物を置く（企画書 6）。
-func add_creature(at: Vector3) -> Creature:
+func add_creature(at: Vector3, look: String = Creature.MODEL_WISH) -> Creature:
 	var creature := Creature.new()
+	creature.look = look
 	var id := _next_creature_id
 	_next_creature_id += 1
 	creature.setup(id, at)

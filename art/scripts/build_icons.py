@@ -3,10 +3,13 @@
     blender -b --factory-startup --python art/scripts/build_icons.py
 
 器は丸いメダル型。中央の記号で行動を示す（W/A/S/D は矢印、ジャンプは二重の山形、投げるは玉と斜めの矢印、
-高跳び（ジャンプブーツ）は三重の山形、登る（クライミンググローブ）ははしご）。
+高跳び（ジャンプブーツ）は三重の山形、登る（クライミンググローブ）ははしご、ダッシュは矢印と流れる線）。
 禁止は同じ記号を灰色にし、赤い輪と斜線を重ねる（色だけに頼らない）。
 矢印の向きはアイコン上の向きで、ゲーム内ではプレイヤーはカメラ相対、ブロックは世界の方角になる。
 原本は art/source/item_icons.blend（全アイコンを並べたシーン）。
+
+記号だけの白い絵（glyph_*.png、真上から・透明背景）も書き出す。世界に落ちている器の3Dメダル
+（build_markers.py）の面に、ゲームが色を付けて重ねる。
 """
 
 import math
@@ -30,6 +33,7 @@ ACTIONS = {
     "throw": "throw",
     "high_jump": "high_jump",
     "climb": "climb",
+    "dash": "dash",
 }
 
 
@@ -143,6 +147,12 @@ def symbol(name, action, mat):
         parts = [rect(-0.16, -0.25, -0.1, 0.25), rect(0.1, -0.25, 0.16, 0.25)]
         parts += [rect(-0.1, y - 0.03, 0.1, y + 0.03) for y in (-0.15, 0.0, 0.15)]
         return [extruded_polygon(f"{name}{i}", pts, 0.05, mat) for i, pts in enumerate(parts)]
+    if kind == "dash":
+        arrow = extruded_polygon(name + "Arrow", [(x * 0.85, y * 0.85) for x, y in ARROW], 0.05, mat, -90.0)
+        for v in arrow.data.vertices:
+            v.co.x += 0.08
+        lines = [rect(-0.3, y - 0.025, -0.3 + w, y + 0.025) for y, w in ((-0.1, 0.14), (0.0, 0.2), (0.1, 0.14))]
+        return [arrow] + [extruded_polygon(f"{name}Line{i}", pts, 0.05, mat) for i, pts in enumerate(lines)]
     return [extruded_polygon(name, ARROW, 0.05, mat, kind)]
 
 
@@ -219,12 +229,33 @@ def build_icon(scene, kind, action):
         obj.location.y += -1.2 * (index // len(ACTIONS))
 
 
+def render_glyphs(scene):
+    """記号だけを真上から白で描く（器の3Dメダルの面に重ねる絵）。描いた物は原本に残さない。"""
+    cam = scene.camera
+    saved = (cam.location.copy(), cam.rotation_euler.copy())
+    cam.location = (0, 0, 2.2)
+    cam.rotation_euler = (0, 0, 0)
+    white = material("GlyphWhite", "#ffffff", 1.0, emission="#ffffff", strength=1.0)
+    for action in ACTIONS:
+        objs = symbol(f"glyph_{action}", action, white)
+        for other in scene.objects:
+            if other.type == "MESH":
+                other.hide_render = other not in objs
+        scene.render.filepath = str(OUT_DIR / f"glyph_{action}.png")
+        bpy.ops.render.render(write_still=True)
+        for obj in objs:
+            bpy.data.objects.remove(obj, do_unlink=True)
+    bpy.data.materials.remove(white)
+    cam.location, cam.rotation_euler = saved
+
+
 def main():
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     scene = setup_scene()
     for kind in ("ability", "prohibition"):
         for action in ACTIONS:
             build_icon(scene, kind, action)
+    render_glyphs(scene)
     for obj in scene.objects:
         obj.hide_render = False
     bpy.ops.wm.save_as_mainfile(filepath=str(SOURCE), compress=True)

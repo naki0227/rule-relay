@@ -21,8 +21,9 @@ var move_intent: Vector2 = Vector2.ZERO
 ## 移動の基準にするカメラの水平向き（ラジアン、Y軸回り）。
 var view_yaw: float = 0.0
 var ledger: RuleLedger
-## 台帳の上でのプレイヤー ID（1人用は PLAYER_ID）。
-var player_id: int = RuleLedger.PLAYER_ID
+## 台帳の上でのプレイヤー ID（1人用は PLAYER_ID）。変えると服の色もその人の色になる（ArtPalette）。
+var player_id: int = RuleLedger.PLAYER_ID:
+	set = _set_player_id
 ## 仲間のアバター（操り人形）。入力も物理も使わず、通信で受け取った位置へなめらかに動く。
 var puppet: bool = false
 ## 操り人形が目指す位置・向き（通信で受け取る）。
@@ -42,6 +43,8 @@ var _dash_dir: Vector3 = Vector3.ZERO
 var _air_dash_used: bool = false
 var _walked: float = 0.0
 var _visual: Node3D
+var _model: Node3D
+var _idle_time: float = 0.0
 var _limbs: Dictionary[String, Node3D] = {}
 var _walk_phase: float = 0.0
 var _facing: float = 0.0
@@ -289,6 +292,10 @@ func _animate_limbs(delta: float, direction: Vector3, grounded: bool) -> void:
 	_set_limb("ArmL", -swing * 0.8, -0.08)
 	_set_limb("ArmR", swing * 0.8, 0.08)
 	var bob := absf(sin(_walk_phase)) * 0.04 * speed
+	# 立ち止まっているときは、ゆっくり息をするように上下させる
+	_idle_time = fmod(_idle_time + delta, TAU * 4.0)
+	if grounded and speed <= 0.05:
+		bob += sin(_idle_time * 2.2) * 0.012
 	var body := _limbs.get("Body") as Node3D
 	var head := _limbs.get("Head") as Node3D
 	if body != null:
@@ -312,13 +319,20 @@ func _build_body() -> void:
 	shape.position = Vector3(0.0, HEIGHT * 0.5, 0.0)
 	add_child(shape)
 
-	# 見た目は Blender のモデル（art/source/traveler.blend）。手足は関節に原点がある
+	# 見た目は Blender のモデル（art/scripts/build_cast.py）。手足は関節に原点がある
 	_visual = Node3D.new()
 	_visual.name = "Visual"
 	add_child(_visual)
-	var model := ModelLibrary.instantiate("traveler")
-	_visual.add_child(model)
+	_model = ModelLibrary.instantiate("traveler")
+	_visual.add_child(_model)
+	ArtPalette.tint_player(_model, player_id)
 	for limb_name: String in ["Body", "Head", "ArmL", "ArmR", "LegL", "LegR"]:
-		var limb := model.find_child(limb_name, true, false) as Node3D
+		var limb := _model.find_child(limb_name, true, false) as Node3D
 		if limb != null:
 			_limbs[limb_name] = limb
+
+
+func _set_player_id(value: int) -> void:
+	player_id = value
+	if _model != null:
+		ArtPalette.tint_player(_model, value)

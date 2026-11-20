@@ -52,8 +52,6 @@ var shuttle: RuleBlock
 var creature: Creature
 var bell: Bell
 var launcher: RuleBlock
-var _goal_crystal: Node3D
-var _time: float = 0.0
 
 
 func _ready() -> void:
@@ -73,7 +71,9 @@ func _ready() -> void:
 		checkpoint_center + Vector3(0.0, 1.9, 0.0),
 		"チェックポイント（%s で保存）" % InputMode.token(&"interact")
 	)
-	_goal_crystal = _add_model("goal_beacon", Vector3(6.6, 3.0, -10.4)).find_child("Crystal")
+	var goal_flag := GoalMarker.new()
+	goal_flag.setup(AABB(Vector3(6.6, 3.0, -10.4), Vector3.ZERO))
+	add_child(goal_flag)
 	_add_label(Vector3(5.0, 4.9, -8.5), "目標: 高台")
 	set_initial_checkpoint()
 
@@ -225,13 +225,6 @@ func _add_trunk_collision(at: Vector3) -> void:
 	body.add_child(shape)
 	body.position = at
 	add_child(body)
-
-
-func _process(delta: float) -> void:
-	_time += delta
-	if _goal_crystal != null:
-		_goal_crystal.rotation.y = _time * 1.2
-		_goal_crystal.position.y = 1.55 + sin(_time * 2.0) * 0.08
 
 
 func _add_label(at: Vector3, text: String) -> void:
