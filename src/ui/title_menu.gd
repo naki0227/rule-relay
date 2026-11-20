@@ -4,6 +4,7 @@ extends Control
 ## 提出版は Steam なしの直接接続（IP アドレスとポート）。
 ## Steam 版だけ、Steam 版の通信（src/steam/）が add_entry / add_note で項目を足す（docs/adr/0012）。
 ## 足されなければ、この画面は Steam のことを何も知らない（提出版はいつもこちら）。
+## 「せってい」は Esc のメニューと同じ設定の画面（SettingsMenu）を開く。遊ぶ前にキーや文字の大きさを変えられる。
 
 signal solo_chosen(profile: String)
 signal host_chosen(profile: String, port: int)
@@ -12,11 +13,16 @@ signal prohibition_option_toggled(on: bool)
 
 const DEFAULT_PORT: int = 24565
 
+## 設定の画面（Esc のメニューと同じもの）。
+var settings_menu: SettingsMenu
+
 var _profile: LineEdit
 var _address: LineEdit
 var _port: LineEdit
 var _status: Label
 var _box: VBoxContainer
+var _center: CenterContainer
+var _settings_button: Button
 
 
 func _ready() -> void:
@@ -29,6 +35,7 @@ func _ready() -> void:
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
+	_center = center
 	var card := PanelContainer.new()
 	card.add_theme_stylebox_override("panel", UiTheme.panel_box())
 	center.add_child(card)
@@ -52,8 +59,23 @@ func _ready() -> void:
 	_address = _add_field(box, "部屋に入る: ホストの IP アドレス", "127.0.0.1")
 	_port = _add_field(box, "ポート", str(DEFAULT_PORT))
 	_add_button(box, "部屋に入る", _join)
+	_settings_button = _add_button(box, "せってい", open_settings)
 	_status = _add_label(box, "", UiTheme.SIZE_SMALL, UiTheme.BAN)
+	# 設定の画面は最後の子にして、札より手前に出す
+	settings_menu = SettingsMenu.new()
+	settings_menu.closed.connect(_on_settings_closed)
+	add_child(settings_menu)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+
+## 設定の画面を開く。札は隠す（パッドの十字キーで後ろのボタンへ焦点が抜けないように）。
+func open_settings() -> void:
+	_center.visible = false
+	settings_menu.open()
+
+
+func is_settings_open() -> bool:
+	return settings_menu.is_open()
 
 
 func profile_name() -> String:
@@ -65,18 +87,28 @@ func show_error(text: String) -> void:
 	_status.text = text
 
 
-## 項目を足す（「部屋に入る」の下、エラー表示の上）。_ready の後に呼ぶ。
+## 項目を足す（「部屋に入る」の下、「せってい」の上）。_ready の後に呼ぶ。
 func add_entry(text: String, action: Callable) -> Button:
 	var button := _add_button(_box, text, action)
-	_box.move_child(button, _status.get_index())
+	_box.move_child(button, _settings_button.get_index())
 	return button
 
 
 ## 小さな説明を足す（add_entry と同じ位置）。
 func add_note(text: String) -> Label:
 	var label := _add_label(_box, text, UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-	_box.move_child(label, _status.get_index())
+	_box.move_child(label, _settings_button.get_index())
 	return label
+
+
+## 札の項目の並び（設定の画面は含まない。テスト用）。
+func menu_box() -> VBoxContainer:
+	return _box
+
+
+func _on_settings_closed() -> void:
+	_center.visible = true
+	_settings_button.grab_focus()
 
 
 func _host() -> void:

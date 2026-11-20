@@ -18,6 +18,9 @@ const ACTION_KEYS: Dictionary[StringName, RuleAction.Kind] = {
 ## 右スティックでカメラを回す速さ（マウスの移動量に換算して 1 秒あたり。仮値）。
 ## 遊ぶ人は設定画面の「視点の速さ（パッド）」で倍率を変えられる（GameSettings.pad_sensitivity）。
 const PAD_LOOK_SPEED: float = 800.0
+## 操作の案内「歩く」「見回す」を慣れたことにする量（1回分。HintMemory.LEARN_AFTER 回で消える）。
+const WALK_SECONDS_PER_USE: float = 1.0
+const LOOK_RADIANS_PER_USE: float = 0.8
 
 var world: GameWorld
 var hud: Hud
@@ -25,6 +28,9 @@ var hud: Hud
 var party: Node
 ## V（十字↓）は長押しで投票する（誤操作を防ぐ）。
 var _vote_hold := HoldAction.new()
+var _walked: float = 0.0
+var _turned: float = 0.0
+var _last_yaw: float = NAN
 
 
 func _ready() -> void:
@@ -44,6 +50,7 @@ func _process(delta: float) -> void:
 	world.player.move_intent = intent
 	_hold_vote(blocked, delta)
 	_look_with_stick(delta)
+	_note_first_steps(intent, delta)
 	world.player.view_yaw = world.camera_rig.yaw
 	var aimed := world.aimed_block()
 	world.update_highlight(aimed)
@@ -90,11 +97,19 @@ func _unhandled_input(event: InputEvent) -> void:
 func _handle_gameplay(event: InputEvent) -> void:
 	for action_name: StringName in ACTION_KEYS:
 		if event.is_action_pressed(action_name):
-			world.press_action(ACTION_KEYS[action_name])
+			var kind := ACTION_KEYS[action_name]
+			if (
+				hud != null
+				and not world.ledger.pending_single_shots(kind, world.acting_id()).is_empty()
+			):
+				hud.hints.used("fire")
+			world.press_action(kind)
 	for i in RuleLedger.HOTBAR_SIZE:
 		if event.is_action_pressed(StringName("slot_%d" % (i + 1))):
 			world.select_slot(i)
-	_step_hotbar(event)
+			_note(&"select")
+	if _step_hotbar(event):
+		_note(&"select")
 	if event.is_action_pressed(&"lend_single"):
 		if world.lend_to(world.aimed_block(), false) == RuleLedger.LendResult.OK and hud != null:
 			hud.hints.used("lend")
@@ -119,8 +134,7 @@ func _handle_gameplay(event: InputEvent) -> void:
 		if hud != null:
 			hud.hints.used("throw")
 	elif event.is_action_pressed(&"interact"):
-		if hud != null:
-			hud.hints.used("save" if world.is_on_checkpoint() else "recall")
+		_note_interact(world.aimed_block())
 		world.interact(world.aimed_block())
 	elif event.is_action_pressed(&"restore_checkpoint"):
 		# プレビュー中の Esc は取り消しだけにする。それ以外はメニューを開く（戻る操作はメニューから）
@@ -128,6 +142,11 @@ func _handle_gameplay(event: InputEvent) -> void:
 			world.cancel_range_preview()
 		elif hud != null:
 			hud.pause_menu.open()
+			# 同じ Esc を、開いたばかりのメニュー（「Esc で閉じる」）に渡さない。HUD が入力より先に
+			# 木にあるゲーム本体（GameRoot）では、渡すと開いた直後に閉じてしまっていた
+			get_viewport().set_input_as_handled()
+			_note(&"menu")
+			_restart_retry_timer()
 
 
 func _radial_open() -> bool:
@@ -175,8 +194,8 @@ func _handle_inventory(event: InputEvent) -> void:
 		hud.inventory.toggle_equip_selected()
 
 
-## LB/RB: ホットバーの枠を1つ前・後ろへ（端で反対側へ回る）。
-func _step_hotbar(event: InputEvent) -> void:
+## LB/RB: ホットバーの枠を1つ前・後ろへ（端で反対側へ回る）。選び替えたら true。
+func _step_hotbar(event: InputEvent) -> bool:
 	var step := 0
 	if event.is_action_pressed(&"hotbar_prev"):
 		step = -1
@@ -184,6 +203,7 @@ func _step_hotbar(event: InputEvent) -> void:
 		step = 1
 	if step != 0:
 		world.select_slot(posmod(world.selected_slot + step, RuleLedger.HOTBAR_SIZE))
+	return step != 0
 
 
 ## 持ち物画面で、見えている持ち物を1つ前・後ろへ選ぶ。
@@ -222,3 +242,43 @@ func _hold_vote(blocked: bool, delta: float) -> void:
 	var pressed := party != null and not blocked and Input.is_action_pressed(&"vote_reset")
 	if _vote_hold.update(pressed, delta):
 		party.call(&"handle_party_action", &"vote_reset")
+		_note(&"vote")
+		_restart_retry_timer()
+
+
+## 操作の案内に「1回使った」と記録する（HUD が無ければ何もしない）。
+func _note(hint: StringName) -> void:
+	if hud != null:
+		hud.hints.used(String(hint))
+
+
+## やり直し・メニューを使ったら、次に「やり直し」の案内を出すのは、また目安の時間がたってから。
+func _restart_retry_timer() -> void:
+	if hud != null:
+		hud.stage_seconds = 0.0
+
+
+## F を押したとき: 案内が出ていた操作（保存・回収）を本当にしたときだけ数える
+## （入口に入る・鐘を鳴らすなどで「回収」に慣れたことにしない）。
+func _note_interact(target: Node3D) -> void:
+	if world.is_on_checkpoint():
+		_note(&"save")
+	elif target != null and world.is_within_reach(target) and not target is Bell:
+		if not world.ledger.tokens_on(int(target.get("entity_id"))).is_empty():
+			_note(&"recall")
+
+
+## 歩いた時間と、カメラを回した角度を数える（「歩く」「見回す」の案内を慣れたら消すため）。
+func _note_first_steps(intent: Vector2, delta: float) -> void:
+	if intent.length() > 0.1:
+		_walked += delta
+		if _walked >= WALK_SECONDS_PER_USE:
+			_walked -= WALK_SECONDS_PER_USE
+			_note(&"move")
+	var yaw := world.camera_rig.yaw
+	if not is_nan(_last_yaw):
+		_turned += absf(angle_difference(_last_yaw, yaw))
+		if _turned >= LOOK_RADIANS_PER_USE:
+			_turned -= LOOK_RADIANS_PER_USE
+			_note(&"look")
+	_last_yaw = yaw

@@ -93,8 +93,17 @@ func test_goal_banner_appears() -> void:
 
 
 func test_context_prompt_follows_the_target_until_learned() -> void:
+	for key: String in ["move", "look"]:
+		for i in HintMemory.LEARN_AFTER:
+			hud.hints.used(key)
+	island.select_slot(0)
 	hud.update_context(island.row[0], true, false)
-	assert_true(hud.context_actions().has("渡す"))
+	assert_true(hud.context_actions().has("Wを渡す"), "names the selected ability")
+	assert_true(hud.context_actions().has("えらぶ"), "and how to pick another one")
+	assert_false(hud.context_actions().has("まとめて"), "range waits until lending is learned")
+	island.select_slot(4)
+	hud.update_context(island.row[0], true, false)
+	assert_true(hud.context_actions().has("ジャンプを渡す"))
 	assert_false(hud.context_actions().has("回収"), "nothing to recall on an empty block")
 	hud.update_context(island.row[1], true, false)  # ジャンプ禁止が置かれている
 	assert_true(hud.context_actions().has("回収"))
