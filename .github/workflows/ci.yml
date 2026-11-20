@@ -237,7 +237,12 @@ jobs:
           (cd windows && zip -q -r "../rule-relay-${TAG}-windows.zip" .)
           cp macos/rule-relay-macos.zip "rule-relay-${TAG}-macos.zip"
           ls -la *.zip
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "rule-relay $TAG" \
-            --generate-notes \
-            "rule-relay-${TAG}-windows.zip" "rule-relay-${TAG}-macos.zip"
+          files=("rule-relay-${TAG}-windows.zip" "rule-relay-${TAG}-macos.zip")
+          # GitHub の画面で Release を先に作った場合は、そこへ ZIP を足す
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "rule-relay $TAG" \
+              --generate-notes "${files[@]}"
+          fi
 

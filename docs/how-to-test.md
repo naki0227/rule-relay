@@ -12,7 +12,7 @@
   - `rule-relay-v0.1.0-windows.zip`
   - `rule-relay-v0.1.0-macos.zip`（署名・公証済み。警告なしで開ける）
 - タグの付け方:
-  - GitHub の「Releases」→「Draft a new release」→「Choose a tag」に新しいタグ名を入れて公開すると、少しして ZIP が付く。自動で作られる Release とぶつからないように、この画面では ZIP を付けない。
+  - GitHub の「Releases」→「Draft a new release」→「Choose a tag」に新しいタグ名を入れて公開すると、少しして ZIP が自動で付く（この画面で ZIP を付ける必要はない）。
   - またはターミナルで次を実行する。
 
     ```bash
