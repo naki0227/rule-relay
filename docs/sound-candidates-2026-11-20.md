@@ -2,6 +2,9 @@
 
 本人が聴き比べて選ぶための候補。**ゲームの音（`assets/audio/sfx/`）は置き換えていない。** 気に入ったものを ID（B1、E07 など）で指定してもらえれば、それを取り込む作業を別にする。
 
+> 追記（2026-11-20）: 本人の「採用できると判断したものは採用してよい」を受けて、測り直したうえで効果音 6 種を取り込んだ
+> （E01・E32・E38・E42・E45・E51）。経緯と数値は `docs/sound-design.md` の「2026-11-20（3回目）」。BGM は取り込んでいない。
+
 - 生成: このMacの Audio Studio MCP（Stable Audio 3 medium、Stability AI。ローカルで生成し、外部のサービスには送っていない）。歌・歌詞は無し
 - 置き場所: `art/audio/stable-audio/`（`art/` は `.gdignore` で Godot から除外されている）。生成時の設定（prompt・seed・steps など）は、各ファイルの横の `.json` と `sfx/measurements.json` にある
 - 再現: 同じ prompt・seed・duration・steps=8・cfg=1.0 で同じ音が出る。効果音の加工と測定は `tools/sfx/stable_audio_candidates.py`
