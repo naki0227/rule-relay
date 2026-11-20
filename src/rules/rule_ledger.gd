@@ -47,6 +47,9 @@ enum EquipResult {
 const PLAYER_ID: int = 1
 const HOTBAR_SIZE: int = 9
 
+## set_player_present で「退出した人の手元を動かさない」を表す値。
+const NO_RELEASE := Vector3(INF, INF, INF)
+
 ## 禁止をプレイヤーへ直接渡せるか。既定は渡せない（仲間を詰ませるいたずらを防ぐ）。
 ## ホストが部屋を作るときのオプションでだけ有効にする（2026-11-20 本人の判断）。
 var allow_prohibition_to_player: bool = false
@@ -82,14 +85,53 @@ func register_player(player_id: int) -> void:
 
 
 ## 退出・再参加。退出しても、その人がブロック等へ付与した能力は残る（2026-11-19 本人確定）。
-## 退出した人の手元の器・受け取っていた能力をどうするかは未決なので、ここでは何も動かさない。
-func set_player_present(player_id: int, present: bool) -> void:
+## release_at を渡すと、退出した人の手元を島に残す（2026-11-20 本人の判断。抜けた人の分が消えて
+## 人数に合わせた島が解けなくなる「詰み」を防ぐ。島の能力の合計は変わらない）:
+## - 仲間から借りていた能力は、元の器の持ち主へ戻す（持ち主もいなければ release_at に落とす）
+## - 自分の器（ホットバー・通常インベントリ・装備。中身が貸出中でも）は release_at に置き、誰でも拾える
+## 戻ってきても手元には戻さない（自動で返すと複製のおそれがある）。NO_RELEASE なら何も動かさない
+## （通信が一時的に切れただけ、など）。
+func set_player_present(player_id: int, present: bool, release_at: Vector3 = NO_RELEASE) -> void:
 	assert(_entities.get(player_id, -1) == EntityKind.Kind.PLAYER, "not a player")
 	if present:
 		_present[player_id] = true
 	else:
 		_present.erase(player_id)
+		if release_at != NO_RELEASE:
+			_release_departed(player_id, release_at)
 	changed.emit()
+
+
+func _release_departed(player_id: int, at: Vector3) -> void:
+	var spot := 0
+	for t: RuleToken in _tokens.values():
+		if t.carrier_id != player_id:
+			continue
+		var origin := vessel(t.vessel_id)
+		if origin != null and _present.has(origin.owner_id):
+			_deliver(t, origin.owner_id)
+		else:
+			t.carrier_id = -1
+			t.dropped = true
+			t.drop_position = _spread(at, spot)
+			spot += 1
+	for v: RuleVessel in _vessels.values():
+		if v.owner_id != player_id or v.location == RuleVessel.Location.WORLD:
+			continue
+		v.location = RuleVessel.Location.WORLD
+		v.slot = -1
+		v.owner_id = -1
+		v.world_position = _spread(at, spot)
+		spot += 1
+
+
+## 同じ場所に重ならないよう、i 番目を小さな円の上にずらす。
+static func _spread(at: Vector3, i: int) -> Vector3:
+	if i == 0:
+		return at
+	var angle := float(i) * 2.4
+	var r := 0.5 + 0.12 * float(i)
+	return at + Vector3(cos(angle) * r, 0.0, sin(angle) * r)
 
 
 ## 参加中のプレイヤー（ID 順）。

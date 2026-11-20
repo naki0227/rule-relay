@@ -162,6 +162,21 @@ func test_clear_gives_rewards_to_both_players() -> void:
 	await _until(func() -> bool: return client.stage_id == StageCatalog.HUB_ID)
 
 
+## 参加者が部屋を出たら、その人の手元は島に残る（拾える）。消えないので、人数に合わせた島が解けなくならない。
+func test_leaving_player_leaves_their_items_on_the_island() -> void:
+	await _join()
+	await _go_intro()
+	await _until(func() -> bool: return host.world.avatars[B].global_position.y > -1.0)
+	var before := host.world.ledger.world_vessels().size()
+	client.leave_room()
+	await _until(func() -> bool: return not host.world.ledger.players().has(B))
+	var dropped := host.world.ledger.world_vessels()
+	assert_gt(dropped.size(), before, "B's vessels are on the ground")
+	for v in dropped:
+		assert_gt(v.world_position.y, -0.6, "dropped on solid ground, not into the void")
+	assert_eq(host.world.ledger.validate(), PackedStringArray(), "nothing was copied or lost")
+
+
 ## 2026-11-20 本人の判断（docs/adr/0011 決定 9）: クリアは「島の条件＋生きている全員がゴールに集まる」。
 ## 丘の上の旗で、1人だけゴールに入ってもクリアしない・2人とも入るとクリアすることを、
 ## 頂上の縁から窪みのゴールへ歩いて入る操作で確かめる。
