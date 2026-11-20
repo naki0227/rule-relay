@@ -13,6 +13,8 @@ const ACTION_KEYS: Dictionary[StringName, RuleAction.Kind] = {
 
 var world: GameWorld
 var hud: Hud
+## 投票・相棒ボットへの頼みごとを受け取る（GameRoot）。無ければ無視する。
+var party: Node
 
 
 func _ready() -> void:
@@ -103,6 +105,8 @@ func _handle_gameplay(event: InputEvent) -> void:
 		if hud != null:
 			hud.hints.used("save" if world.is_on_checkpoint() else "recall")
 		world.interact(world.aimed_block())
+	elif _party_action(event):
+		pass
 	elif event.is_action_pressed(&"restore_checkpoint"):
 		# プレビュー中の Esc は取り消しだけにする。それ以外はメニューを開く（戻る操作はメニューから）
 		if world.is_range_preview_active():
@@ -150,3 +154,14 @@ func _input(event: InputEvent) -> void:
 		hud.toggle_inventory()
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 		get_viewport().set_input_as_handled()
+
+
+## V（全員リセットの投票）と G/H/R（相棒ボット）。押されたら true。
+func _party_action(event: InputEvent) -> bool:
+	if party == null:
+		return false
+	for action: StringName in [&"vote_reset", &"bot_follow", &"bot_give", &"bot_recall"]:
+		if event.is_action_pressed(action):
+			party.call(&"handle_party_action", action)
+			return true
+	return false

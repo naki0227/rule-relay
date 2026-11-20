@@ -112,6 +112,7 @@ func _build(new_stage_id: String, run_id: String) -> void:
 		world.name = "Leaving"
 	stage_id = new_stage_id
 	stage_run_id = run_id
+	last_clear_text = ""
 	world = StageWorld.new()
 	world.setup(StageCatalog.by_id(new_stage_id))
 	world.vote_request = request_vote

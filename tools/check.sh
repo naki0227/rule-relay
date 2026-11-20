@@ -67,6 +67,10 @@ run_godot test --headless --fixed-fps 60 --script res://tests/run_tests.gd
 step "smoke (main scene, 180 frames)"
 run_godot smoke --headless --fixed-fps 60 --quit-after 180
 
+step "smoke (solo / host + companion bot, 300 frames)"
+run_godot smoke_solo --headless --fixed-fps 60 --quit-after 300 -- --solo --profile=zz_smoke
+run_godot smoke_host --headless --fixed-fps 60 --quit-after 300 -- --host=24991 --bot --profile=zz_smoke
+
 if [ "$BUILD" -eq 1 ]; then
   step "build (Windows Desktop)"
   mkdir -p build/windows
