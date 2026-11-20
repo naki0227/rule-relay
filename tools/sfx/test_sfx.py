@@ -16,9 +16,11 @@ IMPACTS = {"block_land", "block_jump"}  # 低い胴鳴りが本体の衝撃音
 # 長さの上限の例外（ms）。dash は 3 マスの突進（約 0.2 秒）に合わせて 500ms（2026-11-20 3回目の候補）。
 # ui_notice（投票の開始・時間切れ）は名前が ui_ なので、ほかの UI と同じ 450ms
 LONG = {"goal": 2300, "save": 1300, "bell": 2300, "dash": 500}
+# 足音の間隔（ms）。PlayerAvatar.STEP_DISTANCE（1.7m）を歩く速さで割った、約 0.34 秒
+STEP_INTERVAL_MS = 340
 # 音程の無い雑音だけの音（服・草・足音・ダッシュの風）。主な周波数は偶然の山なので、音程の判定から外す
 UNPITCHED = {
-    "player_jump", "player_land", "footstep_1", "footstep_2", "footstep_3", "dash",
+    "player_jump", "player_land", "footstep_1", "footstep_2", "footstep_3", "footstep_4", "dash",
     "block_step", "radial_open",  # こする音、紙をはじく音
     "ui_hover", "ui_cancel", "ui_open", "ui_pick", "ui_drop",  # 紙の札・本の音（音程の無い雑音）
 }
@@ -68,10 +70,24 @@ class SoundBudget(unittest.TestCase):
             with self.subTest(name):
                 self.assertLessEqual(m["ms"], limit)
 
+    def test_footsteps_are_four_similar_variants_that_fit_the_step_interval(self):
+        """足音は 4 種を順番に鳴らす（本人の判断 2026-11-20、SoundBank の variants と同じ数）。
+        当たりの大きさをそろえ（いちばん大きい 30ms の RMS の差 0.5dB 以内。長さが 38〜134ms とばらばらなので、
+        全体の RMS では比べない）、歩くと 1.7m ごと（約 0.34 秒ごと）に鳴るので、その間隔より短い。"""
+        steps = [p for p in self.files if p.stem.startswith("footstep_")]
+        self.assertEqual(sorted(p.stem for p in steps), [f"footstep_{i}" for i in range(1, 5)])
+        hit = [analyze.measure(p)["hit_db"] for p in steps]
+        self.assertLessEqual(max(hit) - min(hit), 0.5, "footsteps share one level")
+        for path in steps:
+            with self.subTest(path.stem):
+                self.assertLess(analyze.measure(path)["ms"], STEP_INTERVAL_MS)
+
     def test_ui_is_quieter_than_world(self):
-        rms = {p.stem: analyze.measure(p)["rms_db"] for p in self.files}
-        ui = max(v for k, v in rms.items() if k.startswith("ui_"))
-        world = max(rms[k] for k in ["block_jump", "block_land", "lend", "goal"])
+        """当たりの大きさ（いちばん大きい 30ms の RMS）で比べる。2026-11-21 まではファイル全体の RMS で、
+        48ms の ui_select と 2300ms の goal のように長さが違う音を正しく比べられなかった。"""
+        hit = {p.stem: analyze.measure(p)["hit_db"] for p in self.files}
+        ui = max(v for k, v in hit.items() if k.startswith("ui_"))
+        world = max(hit[k] for k in ["block_jump", "block_land", "lend", "goal"])
         self.assertLess(ui, world, "UI stays under gameplay sounds")
 
 

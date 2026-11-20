@@ -1,7 +1,7 @@
 class_name SoundBank
 extends Node
 ## 効果音を鳴らす窓口（設計は docs/sound-design.md）。音は tools/sfx/build_sfx.py で作った
-## assets/audio/sfx/*.wav（合成した音と、Stable Audio 3 の候補から採用した 27 種）。
+## assets/audio/sfx/*.wav（すべて Stable Audio 3 の候補から採用した音。足音は 4 種）。
 ## 鳴らすたびに音程と音量を少し揺らし、同じ音の繰り返しで疲れないようにする。
 ## UI の音と世界の音は別のバスに分け、世界の音は位置から鳴らす（遠いと小さい）。
 
@@ -13,7 +13,8 @@ const WORLD_VOICES: int = 12
 ## 同じ音をこの間隔（秒）より短く連打したら鳴らさない（ホバーの連続など）。
 const MIN_INTERVAL: float = 0.035
 
-## 音の名前 → 揺らし方。pitch は ± の割合、volume は ± dB。variants は足音のような差し替え。
+## 音の名前 → 揺らし方。pitch は ± の割合、volume は ± dB。variants は足音のような差し替えで、
+## 名前_1〜名前_N のファイルを順番に鳴らす（同じ音が続かない。足音は 4 種、2026-11-20 の本人の判断）。
 const EVENTS: Dictionary[StringName, Dictionary] = {
 	&"ui_hover": {"pitch": 0.03, "volume": 1.0},
 	&"ui_select": {"pitch": 0.0, "volume": 0.5},
@@ -42,7 +43,7 @@ const EVENTS: Dictionary[StringName, Dictionary] = {
 	&"player_jump": {"pitch": 0.05, "volume": 1.5},
 	&"player_land": {"pitch": 0.05, "volume": 1.5},
 	&"dash": {"pitch": 0.05, "volume": 1.5},
-	&"footstep": {"pitch": 0.08, "volume": 2.0, "variants": 3},
+	&"footstep": {"pitch": 0.08, "volume": 2.0, "variants": 4},
 	&"save": {"pitch": 0.0, "volume": 0.0},
 	&"goal": {"pitch": 0.0, "volume": 0.0},
 }
@@ -51,11 +52,15 @@ const SLOT_SEMITONES: Array[int] = [0, 2, 4, 7, 9, 12, 14, 16, 19]
 
 ## テスト用: 最後に鳴らした音の名前。
 var last_event: StringName = &""
+## テスト用: 最後に鳴らした差し替えの番号（差し替えの無い音は 0）。
+var last_variant: int = 0
 
 var _streams: Dictionary[String, AudioStream] = {}
 var _ui_players: Array[AudioStreamPlayer] = []
 var _world_players: Array[AudioStreamPlayer3D] = []
 var _last_played: Dictionary[StringName, int] = {}
+## 差し替えのある音で、次に鳴らす番号（1 から）。
+var _next_variant: Dictionary[StringName, int] = {}
 var _rng := RandomNumberGenerator.new()
 
 
@@ -85,8 +90,10 @@ static func ensure_buses() -> void:
 
 ## UI の音（位置なし）。pitch_semitones で音程をずらす（ホットバーの番号など）。
 func play_ui(event: StringName, pitch_semitones: int = 0) -> bool:
-	var stream := _stream_for(event)
-	if stream == null or _too_soon(event):
+	if not _known(event) or _too_soon(event):
+		return false
+	var stream := _stream_for(event, _take_variant(event))
+	if stream == null:
 		return false
 	var player := _free_ui_player()
 	player.stream = stream
@@ -103,8 +110,10 @@ func play_at(event: StringName, at: Vector3) -> bool:
 	if event_name.contains("@"):
 		semitones = int(event_name.get_slice("@", 1))
 		event = StringName(event_name.get_slice("@", 0))
-	var stream := _stream_for(event)
-	if stream == null or _too_soon(event) or not is_inside_tree():
+	if not _known(event) or _too_soon(event) or not is_inside_tree():
+		return false
+	var stream := _stream_for(event, _take_variant(event))
+	if stream == null:
 		return false
 	var player := _free_world_player()
 	player.stream = stream
@@ -128,18 +137,46 @@ func play_slot_select(slot: int) -> bool:
 	return play_ui(&"ui_select", SLOT_SEMITONES[clampi(slot, 0, SLOT_SEMITONES.size() - 1)])
 
 
+## 音のファイルがそろっているか（差し替えのある音は全部の番号）。鳴らす順番は進めない。
 func has_event(event: StringName) -> bool:
-	return EVENTS.has(event) and _stream_for(event) != null
-
-
-func _stream_for(event: StringName) -> AudioStream:
 	if not EVENTS.has(event):
-		push_warning("unknown sound event: %s" % event)
-		return null
-	var file := String(event)
-	var variants := int(EVENTS[event].get("variants", 0))
-	if variants > 0:
-		file = "%s_%d" % [event, _rng.randi_range(1, variants)]
+		return false
+	var count := variant_count(event)
+	if count <= 0:
+		return _stream_for(event, 0) != null
+	for variant in range(1, count + 1):
+		if _stream_for(event, variant) == null:
+			return false
+	return true
+
+
+## 差し替えの数（無ければ 0）。
+func variant_count(event: StringName) -> int:
+	return int(EVENTS[event].get("variants", 0)) if EVENTS.has(event) else 0
+
+
+## 次に鳴らす差し替えの番号を返し、順番を1つ進める（差し替えが無ければ 0）。
+func _take_variant(event: StringName) -> int:
+	var count := variant_count(event)
+	if count <= 0:
+		last_variant = 0
+		return 0
+	var variant: int = _next_variant.get(event, 1)
+	_next_variant[event] = variant % count + 1
+	last_variant = variant
+	return variant
+
+
+func _known(event: StringName) -> bool:
+	if EVENTS.has(event):
+		return true
+	push_warning("unknown sound event: %s" % event)
+	return false
+
+
+## variant が 1 以上なら「名前_番号」のファイル、0 なら「名前」のファイル。
+func _stream_for(event: StringName, variant: int) -> AudioStream:
+	var file := String(event) if variant <= 0 else "%s_%d" % [event, variant]
 	if not _streams.has(file):
 		_streams[file] = load(SFX_DIR % file) as AudioStream
 	return _streams[file]

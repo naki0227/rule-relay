@@ -42,6 +42,21 @@ func test_play_and_rapid_repeat_guard() -> void:
 	assert_true(sounds.play_slot_select(8))
 
 
+func test_footsteps_rotate_through_four_variants() -> void:
+	# 足音は 4 種を順番に鳴らす（2026-11-20 の本人の判断。同じ音が続かない）
+	assert_eq(sounds.variant_count(&"footstep"), 4)
+	assert_eq(sounds.variant_count(&"ui_select"), 0)
+	var order := []
+	for i in 8:
+		sounds._last_played.clear()  # 35ms の連打よけを外して、続けて鳴らす
+		assert_true(sounds.play_at(&"footstep", Vector3.ZERO))
+		order.append(sounds.last_variant)
+	assert_eq(order, [1, 2, 3, 4, 1, 2, 3, 4])
+	sounds._last_played.clear()
+	assert_true(sounds.play_slot_select(8))
+	assert_eq(sounds.last_variant, 0, "an event without variants uses its single file")
+
+
 func test_lend_jump_and_land_make_sounds() -> void:
 	island.player.global_position = Vector3(3.5, 0.0, -3.0)
 	await wait_physics_frames(3)

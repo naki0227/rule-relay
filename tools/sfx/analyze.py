@@ -57,12 +57,21 @@ def measure(path):
         "ms": len(x) / sr * 1000,
         "peak_db": 20 * np.log10(np.max(np.abs(x)) + 1e-12),
         "rms_db": 20 * np.log10(np.sqrt(np.mean(x**2)) + 1e-12),
+        "hit_db": hit_db(x, sr),
         "centroid_hz": centroid,
         "high_ratio": high,
         "harsh_ratio": harsh,
         "dominant_hz": dominant,
         "small_speaker": audible,
     }
+
+
+def hit_db(x, sr=44100, window_ms=30.0):
+    """いちばん大きい 30ms の RMS（dBFS）。当たりの大きさの目安。ファイル全体の RMS は長さと余韻に引っぱられ、
+    長さが大きく違う音（390ms の合成音と 48ms の打音など）の比べ方として合わない（2026-11-21、4回目の取り込みで追加）。"""
+    n = max(1, min(len(x), int(window_ms / 1000 * sr)))
+    power = np.convolve(x**2, np.ones(n) / n, mode="valid")
+    return float(10 * np.log10(np.max(power) + 1e-24))
 
 
 def a_weight(f):

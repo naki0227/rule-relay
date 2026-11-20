@@ -64,7 +64,7 @@ ROUNDS = {
     4: {"prefix": "sfx4_", "out": OUT.parent / "sfx4", "events": ROUND4_EVENTS, "count": 5, "lowpass": ROUND4_LOWPASS,
         "one_shot": True},
 }
-# test_sfx.py と同じ分類（footstep は footstep_1〜3 と同じ扱い）
+# test_sfx.py と同じ分類（footstep は footstep_1〜4 と同じ扱い）
 IMPACTS = {"block_land", "block_jump"}
 LONG = {"goal": 2300, "save": 1300, "bell": 2300, "dash": 500}  # dash は 3マスの突進（0.3〜0.5 秒）
 UNPITCHED = {

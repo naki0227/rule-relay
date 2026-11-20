@@ -255,8 +255,8 @@
 | Jolt Physics | 3D 物理（Godot に組み込み） | MIT | ADR 0001（`physics/3d/physics_engine` で明示） |
 | Godot に組み込まれたそのほかの部品（FreeType・HarfBuzz・ICU・ENet・Ogg Vorbis など） | 文字の描画・和文の折り返し・通信・音声など | 各部品のライセンス（Expat（MIT）・BSD・Zlib・Apache-2.0・MPL-2.0 など。`LICENSES.txt` に Godot が報告する一覧と本文） | `tools/dump_engine_licenses.gd` |
 | Zen Maru Gothic（Medium・Bold） | UI の書体。収録する文字を絞った改変版 | SIL Open Font License 1.1 | `assets/fonts/README.md` |
-| 効果音 6 種と BGM 3 曲（Stable Audio 3 medium の生成物） | 効果音: ホバー・石の応え・ブロックのジャンプと移動・自分のジャンプ・保存。BGM: タイトル・ハブ・島（仮の選曲） | モデルは Stability AI Community License | `docs/sound-design.md`、下の 3.6 |
-| 自作の素材 | 3D モデル 15 点・アイコン・残りの効果音は、このゲームのために書いたスクリプト（Blender の Python・Python の合成）で生成 | 自作 | `art/README.md`、`docs/sound-design.md` |
+| 効果音 32 個（全部）と BGM 3 曲（Stable Audio 3 medium の生成物） | 効果音: UI・能力・物の応え・ブロック・自分の動き・足音 4 種・保存・到達・鐘など、ゲームの効果音すべて。BGM: タイトル・ハブ・島（仮の選曲） | モデルは Stability AI Community License | `docs/sound-design.md`、下の 3.6 |
+| 自作の素材 | 3D モデル 15 点・アイコンは、このゲームのために書いたスクリプト（Blender の Python）で生成。効果音の加工（フィルター・切り出し・音量）も自作の Python | 自作 | `art/README.md`、`docs/sound-design.md` |
 
 - 外部のアドオンはゲームに入れていない（ADR 0002「Godot のゲーム本体には、外部アドオンを入れていない」）。
 - CC0 などの外部の素材: **いまは使っていない**。2026-11-19 に CC0 の実録音を一時使ったが、同日に合成へ戻し、素材は消した（`docs/sound-design.md`）。
@@ -267,7 +267,7 @@
 | 名前 | 用途 |
 |---|---|
 | Blender 4.5.16 LTS | 3D モデル・アイコンの生成（`art/scripts/`） |
-| Python 3・NumPy・SciPy | 効果音の合成と測定（`tools/sfx/`） |
+| Python 3・NumPy・SciPy | 効果音の加工・測定と、戻し先の合成（`tools/sfx/`） |
 | gdtoolkit 4.5.0 | GDScript の整形・静的検査（ADR 0002） |
 | GitHub Actions | CI（下の 3.7） |
 
@@ -279,7 +279,7 @@
 | AI ツール | AI モデル・バージョン | 使用工程と用途 | 使用時期 | 人の確認 |
 |---|---|---|---|---|
 | Claude Code（Anthropic） | 【本人が記入】（提出時に本人がサービスの表示で確かめる。`docs/ai-usage.md`） | プログラミングコードの生成（ゲームのルール・物理・通信・UI）、テスト・CI、技術選定の比較、3D モデルとアイコンを生成する Blender のスクリプト、効果音の合成と取り込みのスクリプト、効果音の候補の測定と選定、記録の作成 | 2026-11-18〜（作業が続くあいだ。終わりの日は【本人が記入】） | 本人が PR でレビュー |
-| Stable Audio 3 medium（Stability AI）。Audio Studio MCP 1.2.0 を通して、本人の Mac の中で生成（外部のサービスには送っていない） | Hugging Face `stabilityai/stable-audio-3-optimized` の MLX 版、リビジョン `30cb264` | 音楽の作曲・効果音の生成。候補（1 回目: BGM 3 場面×2、効果音 27 種×2。2 回目: 効果音 21 種×3。3 回目: 効果音 6 種×4）を生成し、効果音 27 種（1 回目 6・2 回目 15・3 回目 6）と BGM 3 曲（タイトル・ハブ・島）をゲームに採用。効果音の加工は人の書いたスクリプトでのフィルター・切り出し・音量調整だけ、BGM は加工なし | 2026-11-20 | 効果音は AI（Claude Code）が測定値で選び、BGM は AI の仮の選曲（AI は音を聴けない）。本人の試聴は【本人が記入】 |
+| Stable Audio 3 medium（Stability AI）。Audio Studio MCP 1.2.0 を通して、本人の Mac の中で生成（外部のサービスには送っていない） | Hugging Face `stabilityai/stable-audio-3-optimized` の MLX 版、リビジョン `30cb264` | 音楽の作曲・効果音の生成。候補（1 回目: BGM 3 場面×2、効果音 27 種×2。2 回目: 効果音 21 種×3。3 回目: 効果音 6 種×4。4 回目: 効果音 2 種×5）を生成し、効果音 32 個（1 回目 6・2 回目 15・3 回目 6・4 回目 5。ゲームの効果音はすべて）と BGM 3 曲（タイトル・ハブ・島）をゲームに採用。効果音の加工は人の書いたスクリプトでのフィルター・切り出し・ピッチ変更・音量調整だけ、BGM は加工なし | 2026-11-20〜21 | 効果音は AI（Claude Code）が測定値で選び（4 回目の足音 4 つは本人が指定）、BGM は AI の仮の選曲（AI は音を聴けない）。本人の試聴は【本人が記入】 |
 | ChatGPT（OpenAI） | 【本人が記入】 | 企画の相談（仕様は本人が選択） | 2026-11-17 | 本人が仕様を選択 |
 
 - 使っていないもの: 画像生成 AI・3D 生成 AI（3D モデルとアイコンはスクリプトで生成。`art/README.md`）。ゲームの中で動く AI もない。
