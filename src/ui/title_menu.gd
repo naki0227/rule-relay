@@ -1,7 +1,9 @@
 class_name TitleMenu
 extends Control
 ## 起動したときの入口: ひとりで遊ぶ／部屋を作る／部屋に入る（docs/adr/0006）。
-## 提出版は Steam なしの直接接続（IP アドレスとポート）。Steam 版では、部屋に入るはロビーと招待に変わる。
+## 提出版は Steam なしの直接接続（IP アドレスとポート）。
+## Steam 版だけ、Steam 版の通信（src/steam/）が add_entry / add_note で項目を足す（docs/adr/0012）。
+## 足されなければ、この画面は Steam のことを何も知らない（提出版はいつもこちら）。
 
 signal solo_chosen(profile: String)
 signal host_chosen(profile: String, port: int)
@@ -14,6 +16,7 @@ var _profile: LineEdit
 var _address: LineEdit
 var _port: LineEdit
 var _status: Label
+var _box: VBoxContainer
 
 
 func _ready() -> void:
@@ -33,6 +36,7 @@ func _ready() -> void:
 	box.add_theme_constant_override("separation", 12)
 	box.custom_minimum_size = Vector2(460, 0)
 	card.add_child(box)
+	_box = box
 	_add_label(box, "Rule Relay", UiTheme.SIZE_TITLE, UiTheme.INK)
 	_add_label(box, "ルールは厳格に。解法は自由に。", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_profile = _add_field(box, "記録の名前（同じ PC で2つ起動するときは別の名前に）", "player")
@@ -59,6 +63,20 @@ func profile_name() -> String:
 
 func show_error(text: String) -> void:
 	_status.text = text
+
+
+## 項目を足す（「部屋に入る」の下、エラー表示の上）。_ready の後に呼ぶ。
+func add_entry(text: String, action: Callable) -> Button:
+	var button := _add_button(_box, text, action)
+	_box.move_child(button, _status.get_index())
+	return button
+
+
+## 小さな説明を足す（add_entry と同じ位置）。
+func add_note(text: String) -> Label:
+	var label := _add_label(_box, text, UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
+	_box.move_child(label, _status.get_index())
+	return label
 
 
 func _host() -> void:
