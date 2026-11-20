@@ -1,0 +1,1479 @@
+[
+ {
+  "file": "ui_hover_1.wav",
+  "event": "ui_hover",
+  "n": 1,
+  "seed": 3000,
+  "prompt": "TrackType: SFX, fingertip brushing the corner of a thick paper card, a single tiny soft tick, instant attack, almost no tail, thick cardstock, crisp but quiet, low pitched, close-up, dry, quiet room.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 8.2,
+  "limit_ms": 80,
+  "measure": {
+   "name": "ui_hover_1",
+   "attack_hz": 987.8295,
+   "clarity": 0.9152,
+   "sizzle_ratio": 0.0011,
+   "ms": 80.0,
+   "peak_db": -12.001,
+   "rms_db": -28.0345,
+   "centroid_hz": 1077.5291,
+   "high_ratio": 0.0799,
+   "harsh_ratio": 0.2396,
+   "dominant_hz": 112.5,
+   "small_speaker": 0.965
+  },
+  "fails": []
+ },
+ {
+  "file": "ui_hover_2.wav",
+  "event": "ui_hover",
+  "n": 2,
+  "seed": 3001,
+  "prompt": "TrackType: SFX, fingertip brushing the corner of a thick paper card, a single tiny soft tick, instant attack, almost no tail, thick cardstock, crisp but quiet, low pitched, close-up, dry, quiet room.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 80,
+  "measure": {
+   "name": "ui_hover_2",
+   "attack_hz": 2639.2544,
+   "clarity": 0.9772,
+   "sizzle_ratio": 0.0001,
+   "ms": 80.0,
+   "peak_db": -12.001,
+   "rms_db": -31.0881,
+   "centroid_hz": 2632.3944,
+   "high_ratio": 0.316,
+   "harsh_ratio": 0.6679,
+   "dominant_hz": 175.0,
+   "small_speaker": 0.9884
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   "2-5k"
+  ]
+ },
+ {
+  "file": "ui_select_1.wav",
+  "event": "ui_select",
+  "n": 1,
+  "seed": 3010,
+  "prompt": "TrackType: SFX, a paper card tapped edge-down onto a wooden desk, one light tap with a crisp attack and a short woody decay, cardstock on a solid oak desk, warm low knock, clear transient, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 94.6,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_select_1",
+   "attack_hz": 299.5965,
+   "clarity": 0.0019,
+   "sizzle_ratio": 0.0,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -30.9005,
+   "centroid_hz": 294.5179,
+   "high_ratio": 0.0,
+   "harsh_ratio": 0.0001,
+   "dominant_hz": 264.4444,
+   "small_speaker": 0.8841
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "ui_select_2.wav",
+  "event": "ui_select",
+  "n": 2,
+  "seed": 3011,
+  "prompt": "TrackType: SFX, a paper card tapped edge-down onto a wooden desk, one light tap with a crisp attack and a short woody decay, cardstock on a solid oak desk, warm low knock, clear transient, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 74.1,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_select_2",
+   "attack_hz": 376.5575,
+   "clarity": 0.0041,
+   "sizzle_ratio": 0.0,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -32.7017,
+   "centroid_hz": 372.5326,
+   "high_ratio": 0.0,
+   "harsh_ratio": 0.0006,
+   "dominant_hz": 286.6667,
+   "small_speaker": 0.9309
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "ui_confirm_1.wav",
+  "event": "ui_confirm",
+  "n": 1,
+  "seed": 3020,
+  "prompt": "TrackType: SFX, a wooden rubber stamp pressed firmly onto paper on a desk, one firm satisfying thump, crisp attack, quick decay, wooden stamp handle, rubber and paper on hardwood, warm solid low knock, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 8.7,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_confirm_1",
+   "attack_hz": 476.6882,
+   "clarity": 0.0013,
+   "sizzle_ratio": 0.0,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -30.6649,
+   "centroid_hz": 439.2444,
+   "high_ratio": 0.0,
+   "harsh_ratio": 0.0001,
+   "dominant_hz": 320.0,
+   "small_speaker": 0.9627
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "ui_confirm_2.wav",
+  "event": "ui_confirm",
+  "n": 2,
+  "seed": 3021,
+  "prompt": "TrackType: SFX, a wooden rubber stamp pressed firmly onto paper on a desk, one firm satisfying thump, crisp attack, quick decay, wooden stamp handle, rubber and paper on hardwood, warm solid low knock, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 31.9,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_confirm_2",
+   "attack_hz": 277.2023,
+   "clarity": 0.0003,
+   "sizzle_ratio": 0.0,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -28.6916,
+   "centroid_hz": 319.5529,
+   "high_ratio": 0.0,
+   "harsh_ratio": 0.0,
+   "dominant_hz": 320.0,
+   "small_speaker": 0.9104
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "ui_cancel_1.wav",
+  "event": "ui_cancel",
+  "n": 1,
+  "seed": 3030,
+  "prompt": "TrackType: SFX, a paper card slid back across a wooden desk by a fingertip, one short quick slide that stops softly, smooth cardstock friction on varnished wood, soft but clear, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 76.6,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_cancel_1",
+   "attack_hz": 5124.8233,
+   "clarity": 0.9555,
+   "sizzle_ratio": 0.0858,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -23.6155,
+   "centroid_hz": 4199.2268,
+   "high_ratio": 0.44,
+   "harsh_ratio": 0.3153,
+   "dominant_hz": 842.2222,
+   "small_speaker": 0.9998
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "ui_cancel_2.wav",
+  "event": "ui_cancel",
+  "n": 2,
+  "seed": 3031,
+  "prompt": "TrackType: SFX, a paper card slid back across a wooden desk by a fingertip, one short quick slide that stops softly, smooth cardstock friction on varnished wood, soft but clear, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 141.8,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_cancel_2",
+   "attack_hz": 3308.7497,
+   "clarity": 0.9003,
+   "sizzle_ratio": 0.0818,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -22.4506,
+   "centroid_hz": 4609.7585,
+   "high_ratio": 0.4716,
+   "harsh_ratio": 0.4596,
+   "dominant_hz": 537.7778,
+   "small_speaker": 0.9999
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "ui_open_1.wav",
+  "event": "ui_open",
+  "n": 1,
+  "seed": 3040,
+  "prompt": "TrackType: SFX, a small cloth-bound hardcover book being opened, cover lifts with a soft spine creak, then a quick flutter of pages settling open, old paper pages and cloth cover, warm, crisp page texture, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 29.0,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_open_1",
+   "attack_hz": 3688.5552,
+   "clarity": 0.9622,
+   "sizzle_ratio": 0.0247,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -33.113,
+   "centroid_hz": 4139.9472,
+   "high_ratio": 0.4738,
+   "harsh_ratio": 0.5915,
+   "dominant_hz": 4888.8889,
+   "small_speaker": 1.0
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   ">9k",
+   "2-5k"
+  ]
+ },
+ {
+  "file": "ui_open_2.wav",
+  "event": "ui_open",
+  "n": 2,
+  "seed": 3041,
+  "prompt": "TrackType: SFX, a small cloth-bound hardcover book being opened, cover lifts with a soft spine creak, then a quick flutter of pages settling open, old paper pages and cloth cover, warm, crisp page texture, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 32.7,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_open_2",
+   "attack_hz": 3376.811,
+   "clarity": 0.9439,
+   "sizzle_ratio": 0.0108,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -35.6333,
+   "centroid_hz": 3514.3308,
+   "high_ratio": 0.2966,
+   "harsh_ratio": 0.6846,
+   "dominant_hz": 3715.5556,
+   "small_speaker": 0.9996
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   "2-5k"
+  ]
+ },
+ {
+  "file": "ui_close_1.wav",
+  "event": "ui_close",
+  "n": 1,
+  "seed": 3050,
+  "prompt": "TrackType: SFX, a small cloth-bound hardcover book being closed, cover claps shut with a short puff of air, immediate attack, short decay, cloth-bound board cover and paper block, warm low clap, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 36.2,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_close_1",
+   "attack_hz": 486.8894,
+   "clarity": 0.0702,
+   "sizzle_ratio": 0.0003,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -33.0336,
+   "centroid_hz": 516.987,
+   "high_ratio": 0.009,
+   "harsh_ratio": 0.0162,
+   "dominant_hz": 208.8889,
+   "small_speaker": 0.8974
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "ui_close_2.wav",
+  "event": "ui_close",
+  "n": 2,
+  "seed": 3051,
+  "prompt": "TrackType: SFX, a small cloth-bound hardcover book being closed, cover claps shut with a short puff of air, immediate attack, short decay, cloth-bound board cover and paper block, warm low clap, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 51.6,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_close_2",
+   "attack_hz": 1315.9014,
+   "clarity": 0.1477,
+   "sizzle_ratio": 0.0007,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -30.5389,
+   "centroid_hz": 982.8668,
+   "high_ratio": 0.0613,
+   "harsh_ratio": 0.0739,
+   "dominant_hz": 135.5556,
+   "small_speaker": 0.9495
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "ui_pick_1.wav",
+  "event": "ui_pick",
+  "n": 1,
+  "seed": 3060,
+  "prompt": "TrackType: SFX, a paper card picked up off a wooden table, one short quick swipe as the card leaves the surface, thin cardstock, soft airy friction, crisp start, close-up, dry, small room.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 37.7,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_pick_1",
+   "attack_hz": 2695.2955,
+   "clarity": 0.7939,
+   "sizzle_ratio": 0.0351,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -30.4052,
+   "centroid_hz": 2484.15,
+   "high_ratio": 0.1723,
+   "harsh_ratio": 0.3051,
+   "dominant_hz": 680.0,
+   "small_speaker": 0.9996
+  },
+  "fails": [
+   ">9k"
+  ]
+ },
+ {
+  "file": "ui_pick_2.wav",
+  "event": "ui_pick",
+  "n": 2,
+  "seed": 3061,
+  "prompt": "TrackType: SFX, a paper card picked up off a wooden table, one short quick swipe as the card leaves the surface, thin cardstock, soft airy friction, crisp start, close-up, dry, small room.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 67.8,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_pick_2",
+   "attack_hz": 5637.9144,
+   "clarity": 0.9715,
+   "sizzle_ratio": 0.0477,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -31.8444,
+   "centroid_hz": 2314.7729,
+   "high_ratio": 0.159,
+   "harsh_ratio": 0.2187,
+   "dominant_hz": 764.4444,
+   "small_speaker": 0.9999
+  },
+  "fails": [
+   ">9k"
+  ]
+ },
+ {
+  "file": "ui_drop_1.wav",
+  "event": "ui_drop",
+  "n": 1,
+  "seed": 3070,
+  "prompt": "TrackType: SFX, a paper card set down flat on a wooden table, one light flat pat, very short, with a tiny woody tap underneath, cardstock on hardwood, soft papery with clear attack, close-up, dry, small room.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_drop_1",
+   "attack_hz": 661.8561,
+   "clarity": 0.1198,
+   "sizzle_ratio": 0.0005,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -33.1807,
+   "centroid_hz": 721.4501,
+   "high_ratio": 0.0061,
+   "harsh_ratio": 0.031,
+   "dominant_hz": 406.6667,
+   "small_speaker": 0.9806
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "ui_drop_2.wav",
+  "event": "ui_drop",
+  "n": 2,
+  "seed": 3071,
+  "prompt": "TrackType: SFX, a paper card set down flat on a wooden table, one light flat pat, very short, with a tiny woody tap underneath, cardstock on hardwood, soft papery with clear attack, close-up, dry, small room.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_drop_2",
+   "attack_hz": 702.6832,
+   "clarity": 0.1775,
+   "sizzle_ratio": 0.0001,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -32.4844,
+   "centroid_hz": 1177.8257,
+   "high_ratio": 0.0058,
+   "harsh_ratio": 0.1742,
+   "dominant_hz": 535.5556,
+   "small_speaker": 0.9988
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "ui_error_1.wav",
+  "event": "ui_error",
+  "n": 1,
+  "seed": 3080,
+  "prompt": "TrackType: SFX, a fingertip knocking on a wooden tabletop twice, two soft dull knocks in quick succession, gentle, not alarming, solid wood tabletop, low and rounded knock with a clear edge, no buzzer, no beep, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 8.2,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_error_1",
+   "attack_hz": 386.0373,
+   "clarity": 0.0003,
+   "sizzle_ratio": 0.0,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -28.8616,
+   "centroid_hz": 392.6463,
+   "high_ratio": 0.0,
+   "harsh_ratio": 0.0,
+   "dominant_hz": 366.6667,
+   "small_speaker": 0.9305
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "ui_error_2.wav",
+  "event": "ui_error",
+  "n": 2,
+  "seed": 3081,
+  "prompt": "TrackType: SFX, a fingertip knocking on a wooden tabletop twice, two soft dull knocks in quick succession, gentle, not alarming, solid wood tabletop, low and rounded knock with a clear edge, no buzzer, no beep, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 0.0,
+  "limit_ms": 450,
+  "measure": {
+   "name": "ui_error_2",
+   "attack_hz": 333.2758,
+   "clarity": 0.0022,
+   "sizzle_ratio": 0.0,
+   "ms": 450.0,
+   "peak_db": -9.0004,
+   "rms_db": -31.0911,
+   "centroid_hz": 386.0992,
+   "high_ratio": 0.0,
+   "harsh_ratio": 0.0002,
+   "dominant_hz": 368.8889,
+   "small_speaker": 0.9547
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "radial_open_1.wav",
+  "event": "radial_open",
+  "n": 1,
+  "seed": 3090,
+  "prompt": "TrackType: SFX, three paper cards fanned out quickly by hand, a rapid sequence of three crisp flicks spreading outward, short, stiff cardstock, papery snap, clear but soft, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 12.9,
+  "limit_ms": 800,
+  "measure": {
+   "name": "radial_open_1",
+   "attack_hz": 4201.7309,
+   "clarity": 0.9731,
+   "sizzle_ratio": 0.0746,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -27.3069,
+   "centroid_hz": 5125.66,
+   "high_ratio": 0.6073,
+   "harsh_ratio": 0.4626,
+   "dominant_hz": 2857.5,
+   "small_speaker": 0.9999
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "radial_open_2.wav",
+  "event": "radial_open",
+  "n": 2,
+  "seed": 3091,
+  "prompt": "TrackType: SFX, three paper cards fanned out quickly by hand, a rapid sequence of three crisp flicks spreading outward, short, stiff cardstock, papery snap, clear but soft, close-up, dry, small room.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 13.4,
+  "limit_ms": 800,
+  "measure": {
+   "name": "radial_open_2",
+   "attack_hz": 3995.1969,
+   "clarity": 0.9823,
+   "sizzle_ratio": 0.02,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -32.6642,
+   "centroid_hz": 3102.1101,
+   "high_ratio": 0.3137,
+   "harsh_ratio": 0.3565,
+   "dominant_hz": 1698.75,
+   "small_speaker": 0.9977
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "lend_1.wav",
+  "event": "lend",
+  "n": 1,
+  "seed": 3100,
+  "prompt": "TrackType: SFX, a paper card flicked from the fingers, then a glass rod rubbed with a wet fingertip, a quick papery flick followed by a short clear singing tone that swells gently and fades, paper and glass, warm low singing tone with a soft beating shimmer, close-up, small wooden room, light short reverb.",
+  "generated_seconds": 2.0,
+  "head_cut_ms": 66.3,
+  "limit_ms": 800,
+  "measure": {
+   "name": "lend_1",
+   "attack_hz": 3741.1638,
+   "clarity": 0.9633,
+   "sizzle_ratio": 0.0328,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -30.1672,
+   "centroid_hz": 2273.0755,
+   "high_ratio": 0.2669,
+   "harsh_ratio": 0.1793,
+   "dominant_hz": 86.25,
+   "small_speaker": 0.9816
+  },
+  "fails": [
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "lend_2.wav",
+  "event": "lend",
+  "n": 2,
+  "seed": 3101,
+  "prompt": "TrackType: SFX, a paper card flicked from the fingers, then a glass rod rubbed with a wet fingertip, a quick papery flick followed by a short clear singing tone that swells gently and fades, paper and glass, warm low singing tone with a soft beating shimmer, close-up, small wooden room, light short reverb.",
+  "generated_seconds": 2.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 800,
+  "measure": {
+   "name": "lend_2",
+   "attack_hz": 5395.997,
+   "clarity": 0.9794,
+   "sizzle_ratio": 0.0154,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -27.4288,
+   "centroid_hz": 1799.2417,
+   "high_ratio": 0.1895,
+   "harsh_ratio": 0.1542,
+   "dominant_hz": 102.5,
+   "small_speaker": 0.9551
+  },
+  "fails": [
+   ">9k"
+  ]
+ },
+ {
+  "file": "lend_range_1.wav",
+  "event": "lend_range",
+  "n": 1,
+  "seed": 3110,
+  "prompt": "TrackType: SFX, several glass rods rubbed with wet fingertips one after another, a soft staggered cluster of low singing tones spreading outward, swelling and fading together, glass, warm low tones slightly detuned against each other, gentle shimmer, small wooden room, light short reverb.",
+  "generated_seconds": 2.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 800,
+  "measure": {
+   "name": "lend_range_1",
+   "attack_hz": 4421.5328,
+   "clarity": 0.9911,
+   "sizzle_ratio": 0.1799,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -31.767,
+   "centroid_hz": 7270.9175,
+   "high_ratio": 0.8957,
+   "harsh_ratio": 0.1655,
+   "dominant_hz": 8051.25,
+   "small_speaker": 0.9998
+  },
+  "fails": [
+   "main≥1100Hz",
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "lend_range_2.wav",
+  "event": "lend_range",
+  "n": 2,
+  "seed": 3111,
+  "prompt": "TrackType: SFX, several glass rods rubbed with wet fingertips one after another, a soft staggered cluster of low singing tones spreading outward, swelling and fading together, glass, warm low tones slightly detuned against each other, gentle shimmer, small wooden room, light short reverb.",
+  "generated_seconds": 2.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 800,
+  "measure": {
+   "name": "lend_range_2",
+   "attack_hz": 6209.9199,
+   "clarity": 0.979,
+   "sizzle_ratio": 0.2466,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -27.0351,
+   "centroid_hz": 4599.5839,
+   "high_ratio": 0.4804,
+   "harsh_ratio": 0.1667,
+   "dominant_hz": 136.25,
+   "small_speaker": 0.9755
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "recall_1.wav",
+  "event": "recall",
+  "n": 1,
+  "seed": 3120,
+  "prompt": "TrackType: SFX, a low glass singing tone drawn back into a hand, ending with a paper card snapped between fingers, tone swells in like reversed audio, then a crisp short paper snap at the end, glass and stiff cardstock, warm low tone, clear snap, close-up, small wooden room, light short reverb.",
+  "generated_seconds": 2.0,
+  "head_cut_ms": 80.3,
+  "limit_ms": 800,
+  "measure": {
+   "name": "recall_1",
+   "attack_hz": 581.4467,
+   "clarity": 0.1447,
+   "sizzle_ratio": 0.0148,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -28.0068,
+   "centroid_hz": 2535.4664,
+   "high_ratio": 0.2521,
+   "harsh_ratio": 0.3357,
+   "dominant_hz": 172.5,
+   "small_speaker": 0.9677
+  },
+  "fails": [
+   ">4k",
+   "muffled"
+  ]
+ },
+ {
+  "file": "recall_2.wav",
+  "event": "recall",
+  "n": 2,
+  "seed": 3121,
+  "prompt": "TrackType: SFX, a low glass singing tone drawn back into a hand, ending with a paper card snapped between fingers, tone swells in like reversed audio, then a crisp short paper snap at the end, glass and stiff cardstock, warm low tone, clear snap, close-up, small wooden room, light short reverb.",
+  "generated_seconds": 2.0,
+  "head_cut_ms": 55.9,
+  "limit_ms": 800,
+  "measure": {
+   "name": "recall_2",
+   "attack_hz": 6655.5356,
+   "clarity": 0.9836,
+   "sizzle_ratio": 0.0117,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -33.4744,
+   "centroid_hz": 5208.3493,
+   "high_ratio": 0.7437,
+   "harsh_ratio": 0.2577,
+   "dominant_hz": 148.75,
+   "small_speaker": 0.9975
+  },
+  "fails": [
+   "centroid",
+   ">4k"
+  ]
+ },
+ {
+  "file": "prohibit_1.wav",
+  "event": "prohibit",
+  "n": 1,
+  "seed": 3130,
+  "prompt": "TrackType: SFX, a heavy wooden seal stamp pressed down onto paper, one heavy firm thud followed by a short low slightly detuned hum that settles, friendly not scary, dense hardwood and paper, low warm thud with clear attack, close-up, small wooden room, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 48.4,
+  "limit_ms": 800,
+  "measure": {
+   "name": "prohibit_1",
+   "attack_hz": 445.4404,
+   "clarity": 0.1148,
+   "sizzle_ratio": 0.0,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -30.2973,
+   "centroid_hz": 413.0956,
+   "high_ratio": 0.0009,
+   "harsh_ratio": 0.0141,
+   "dominant_hz": 180.0,
+   "small_speaker": 0.9067
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "prohibit_2.wav",
+  "event": "prohibit",
+  "n": 2,
+  "seed": 3131,
+  "prompt": "TrackType: SFX, a heavy wooden seal stamp pressed down onto paper, one heavy firm thud followed by a short low slightly detuned hum that settles, friendly not scary, dense hardwood and paper, low warm thud with clear attack, close-up, small wooden room, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 90.7,
+  "limit_ms": 800,
+  "measure": {
+   "name": "prohibit_2",
+   "attack_hz": 346.2991,
+   "clarity": 0.0518,
+   "sizzle_ratio": 0.0,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -27.0845,
+   "centroid_hz": 368.5196,
+   "high_ratio": 0.0043,
+   "harsh_ratio": 0.0115,
+   "dominant_hz": 236.25,
+   "small_speaker": 0.8685
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "receive_wood_1.wav",
+  "event": "receive_wood",
+  "n": 1,
+  "seed": 3140,
+  "prompt": "TrackType: SFX, a hollow wooden crate knocked once with a knuckle, single resonant knock, crisp attack, short hollow ring, dry pine boards, hollow box body, warm woody tone, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 12.5,
+  "limit_ms": 800,
+  "measure": {
+   "name": "receive_wood_1",
+   "attack_hz": 426.3385,
+   "clarity": 0.0311,
+   "sizzle_ratio": 0.0,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -29.5448,
+   "centroid_hz": 428.6235,
+   "high_ratio": 0.0011,
+   "harsh_ratio": 0.0071,
+   "dominant_hz": 288.75,
+   "small_speaker": 0.9904
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "receive_wood_2.wav",
+  "event": "receive_wood",
+  "n": 2,
+  "seed": 3141,
+  "prompt": "TrackType: SFX, a hollow wooden crate knocked once with a knuckle, single resonant knock, crisp attack, short hollow ring, dry pine boards, hollow box body, warm woody tone, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 20.2,
+  "limit_ms": 800,
+  "measure": {
+   "name": "receive_wood_2",
+   "attack_hz": 516.9414,
+   "clarity": 0.0573,
+   "sizzle_ratio": 0.0,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -30.1805,
+   "centroid_hz": 500.1291,
+   "high_ratio": 0.0032,
+   "harsh_ratio": 0.0115,
+   "dominant_hz": 387.5,
+   "small_speaker": 0.996
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "receive_stone_1.wav",
+  "event": "receive_stone",
+  "n": 1,
+  "seed": 3150,
+  "prompt": "TrackType: SFX, a small smooth stone tapped by another stone, one short clack that stops almost immediately, dense river stone, hard, dry, mid-low click with a solid body, close-up, outdoors, dry.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 800,
+  "measure": {
+   "name": "receive_stone_1",
+   "attack_hz": 1692.4608,
+   "clarity": 0.5652,
+   "sizzle_ratio": 0.0001,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -32.5317,
+   "centroid_hz": 1707.0319,
+   "high_ratio": 0.0583,
+   "harsh_ratio": 0.3368,
+   "dominant_hz": 652.5,
+   "small_speaker": 0.9999
+  },
+  "fails": []
+ },
+ {
+  "file": "receive_stone_2.wav",
+  "event": "receive_stone",
+  "n": 2,
+  "seed": 3151,
+  "prompt": "TrackType: SFX, a small smooth stone tapped by another stone, one short clack that stops almost immediately, dense river stone, hard, dry, mid-low click with a solid body, close-up, outdoors, dry.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 800,
+  "measure": {
+   "name": "receive_stone_2",
+   "attack_hz": 1276.1834,
+   "clarity": 0.3918,
+   "sizzle_ratio": 0.0001,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -32.0682,
+   "centroid_hz": 1301.9601,
+   "high_ratio": 0.0264,
+   "harsh_ratio": 0.2111,
+   "dominant_hz": 700.0,
+   "small_speaker": 0.9999
+  },
+  "fails": []
+ },
+ {
+  "file": "receive_grass_1.wav",
+  "event": "receive_grass",
+  "n": 1,
+  "seed": 3160,
+  "prompt": "TrackType: SFX, a hand patting a patch of grassy soil, one soft dull thump with a brief rustle of grass blades, packed earth and dry grass, soft low body with a crisp leafy edge, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 54.3,
+  "limit_ms": 800,
+  "measure": {
+   "name": "receive_grass_1",
+   "attack_hz": 1033.8904,
+   "clarity": 0.4135,
+   "sizzle_ratio": 0.023,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -27.2167,
+   "centroid_hz": 1301.3503,
+   "high_ratio": 0.1106,
+   "harsh_ratio": 0.0963,
+   "dominant_hz": 142.5,
+   "small_speaker": 0.9674
+  },
+  "fails": [
+   ">9k"
+  ]
+ },
+ {
+  "file": "receive_grass_2.wav",
+  "event": "receive_grass",
+  "n": 2,
+  "seed": 3161,
+  "prompt": "TrackType: SFX, a hand patting a patch of grassy soil, one soft dull thump with a brief rustle of grass blades, packed earth and dry grass, soft low body with a crisp leafy edge, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 82.7,
+  "limit_ms": 800,
+  "measure": {
+   "name": "receive_grass_2",
+   "attack_hz": 1388.52,
+   "clarity": 0.3925,
+   "sizzle_ratio": 0.0228,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -33.1501,
+   "centroid_hz": 1578.912,
+   "high_ratio": 0.1279,
+   "harsh_ratio": 0.1217,
+   "dominant_hz": 497.5,
+   "small_speaker": 0.9897
+  },
+  "fails": [
+   ">9k"
+  ]
+ },
+ {
+  "file": "receive_creature_1.wav",
+  "event": "receive_creature",
+  "n": 1,
+  "seed": 3170,
+  "prompt": "TrackType: SFX, a small soft round plush-like creature bouncing once, a soft squishy bop, then a tiny rising puff of breath, cute and short, soft fur and a squishy body, warm, rounded, mid-low, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 13.4,
+  "limit_ms": 800,
+  "measure": {
+   "name": "receive_creature_1",
+   "attack_hz": 186.3732,
+   "clarity": 0.0366,
+   "sizzle_ratio": 0.0,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -22.2343,
+   "centroid_hz": 264.5309,
+   "high_ratio": 0.0004,
+   "harsh_ratio": 0.0029,
+   "dominant_hz": 187.5,
+   "small_speaker": 0.7193
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "receive_creature_2.wav",
+  "event": "receive_creature",
+  "n": 2,
+  "seed": 3171,
+  "prompt": "TrackType: SFX, a small soft round plush-like creature bouncing once, a soft squishy bop, then a tiny rising puff of breath, cute and short, soft fur and a squishy body, warm, rounded, mid-low, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 0.0,
+  "limit_ms": 800,
+  "measure": {
+   "name": "receive_creature_2",
+   "attack_hz": 194.6925,
+   "clarity": 0.0079,
+   "sizzle_ratio": 0.0,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -21.6765,
+   "centroid_hz": 283.0111,
+   "high_ratio": 0.0005,
+   "harsh_ratio": 0.0006,
+   "dominant_hz": 263.75,
+   "small_speaker": 0.8143
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "block_jump_1.wav",
+  "event": "block_jump",
+  "n": 1,
+  "seed": 3180,
+  "prompt": "TrackType: SFX, a wooden crate springing up off a flexible wooden plank, the plank creaks and flexes, then a springy thump as the crate launches upward, pine plank and hollow crate, woody creak, low punchy thump with clear attack, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 91.2,
+  "limit_ms": 800,
+  "measure": {
+   "name": "block_jump_1",
+   "attack_hz": 537.514,
+   "clarity": 0.0806,
+   "sizzle_ratio": 0.0005,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -24.4965,
+   "centroid_hz": 434.2699,
+   "high_ratio": 0.0136,
+   "harsh_ratio": 0.0489,
+   "dominant_hz": 81.25,
+   "small_speaker": 0.9674
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "block_jump_2.wav",
+  "event": "block_jump",
+  "n": 2,
+  "seed": 3181,
+  "prompt": "TrackType: SFX, a wooden crate springing up off a flexible wooden plank, the plank creaks and flexes, then a springy thump as the crate launches upward, pine plank and hollow crate, woody creak, low punchy thump with clear attack, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 37.6,
+  "limit_ms": 800,
+  "measure": {
+   "name": "block_jump_2",
+   "attack_hz": 375.7941,
+   "clarity": 0.1998,
+   "sizzle_ratio": 0.0,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -23.5435,
+   "centroid_hz": 462.7964,
+   "high_ratio": 0.0057,
+   "harsh_ratio": 0.0579,
+   "dominant_hz": 80.0,
+   "small_speaker": 0.972
+  },
+  "fails": []
+ },
+ {
+  "file": "block_land_1.wav",
+  "event": "block_land",
+  "n": 1,
+  "seed": 3190,
+  "prompt": "TrackType: SFX, a hollow wooden crate dropped onto grassy ground, one heavy satisfying thunk with a brief woody rattle, quick decay, pine boards and packed earth, deep hollow body with a clear knock on impact, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 67.3,
+  "limit_ms": 800,
+  "measure": {
+   "name": "block_land_1",
+   "attack_hz": 428.2166,
+   "clarity": 0.0265,
+   "sizzle_ratio": 0.0,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -23.8064,
+   "centroid_hz": 339.381,
+   "high_ratio": 0.0001,
+   "harsh_ratio": 0.0015,
+   "dominant_hz": 318.75,
+   "small_speaker": 0.929
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "block_land_2.wav",
+  "event": "block_land",
+  "n": 2,
+  "seed": 3191,
+  "prompt": "TrackType: SFX, a hollow wooden crate dropped onto grassy ground, one heavy satisfying thunk with a brief woody rattle, quick decay, pine boards and packed earth, deep hollow body with a clear knock on impact, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 70.4,
+  "limit_ms": 800,
+  "measure": {
+   "name": "block_land_2",
+   "attack_hz": 323.5087,
+   "clarity": 0.0221,
+   "sizzle_ratio": 0.0,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -26.4437,
+   "centroid_hz": 334.6686,
+   "high_ratio": 0.0004,
+   "harsh_ratio": 0.0037,
+   "dominant_hz": 251.25,
+   "small_speaker": 0.8953
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "block_step_1.wav",
+  "event": "block_step",
+  "n": 1,
+  "seed": 3200,
+  "prompt": "TrackType: SFX, a wooden crate pushed one step across the ground, a short scraping slide that stops with a small bump, wood on packed dirt and small pebbles, gritty friction, woody body, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 28.4,
+  "limit_ms": 800,
+  "measure": {
+   "name": "block_step_1",
+   "attack_hz": 455.149,
+   "clarity": 0.293,
+   "sizzle_ratio": 0.0147,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -23.864,
+   "centroid_hz": 2308.433,
+   "high_ratio": 0.1668,
+   "harsh_ratio": 0.3037,
+   "dominant_hz": 765.0,
+   "small_speaker": 0.9997
+  },
+  "fails": []
+ },
+ {
+  "file": "block_step_2.wav",
+  "event": "block_step",
+  "n": 2,
+  "seed": 3201,
+  "prompt": "TrackType: SFX, a wooden crate pushed one step across the ground, a short scraping slide that stops with a small bump, wood on packed dirt and small pebbles, gritty friction, woody body, close-up, outdoors, dry.",
+  "generated_seconds": 1.5,
+  "head_cut_ms": 26.8,
+  "limit_ms": 800,
+  "measure": {
+   "name": "block_step_2",
+   "attack_hz": 1739.7089,
+   "clarity": 0.4731,
+   "sizzle_ratio": 0.0034,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -29.4233,
+   "centroid_hz": 1253.1529,
+   "high_ratio": 0.0488,
+   "harsh_ratio": 0.0999,
+   "dominant_hz": 733.75,
+   "small_speaker": 0.9985
+  },
+  "fails": []
+ },
+ {
+  "file": "bell_1.wav",
+  "event": "bell",
+  "n": 1,
+  "seed": 3210,
+  "prompt": "TrackType: SFX, a small bronze village bell hanging in a wooden frame, struck once by its clapper, clear strike then a long warm ringing decay with gentle beating, cast bronze, low warm tone, rich but not shrill, outdoors, short distance, open air.",
+  "generated_seconds": 3.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 2300,
+  "measure": {
+   "name": "bell_1",
+   "attack_hz": 1693.4446,
+   "clarity": 0.7009,
+   "sizzle_ratio": 0.0003,
+   "ms": 2299.9773,
+   "peak_db": -4.0005,
+   "rms_db": -29.3427,
+   "centroid_hz": 1786.6854,
+   "high_ratio": 0.0192,
+   "harsh_ratio": 0.0435,
+   "dominant_hz": 1767.4087,
+   "small_speaker": 1.0
+  },
+  "fails": [
+   "main≥1100Hz"
+  ]
+ },
+ {
+  "file": "bell_2.wav",
+  "event": "bell",
+  "n": 2,
+  "seed": 3211,
+  "prompt": "TrackType: SFX, a small bronze village bell hanging in a wooden frame, struck once by its clapper, clear strike then a long warm ringing decay with gentle beating, cast bronze, low warm tone, rich but not shrill, outdoors, short distance, open air.",
+  "generated_seconds": 3.0,
+  "head_cut_ms": 43.5,
+  "limit_ms": 2300,
+  "measure": {
+   "name": "bell_2",
+   "attack_hz": 1871.7844,
+   "clarity": 0.534,
+   "sizzle_ratio": 0.1021,
+   "ms": 2299.9773,
+   "peak_db": -4.0005,
+   "rms_db": -32.8901,
+   "centroid_hz": 4835.7734,
+   "high_ratio": 0.6716,
+   "harsh_ratio": 0.2464,
+   "dominant_hz": 2183.065,
+   "small_speaker": 1.0
+  },
+  "fails": [
+   "main≥1100Hz",
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "player_jump_1.wav",
+  "event": "player_jump",
+  "n": 1,
+  "seed": 3220,
+  "prompt": "TrackType: SFX, a cloth tunic flapping as a small person hops up, one quick short whoosh of fabric, soft cotton cloth, airy, clear rustle, close-up, outdoors, dry.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 62.5,
+  "limit_ms": 800,
+  "measure": {
+   "name": "player_jump_1",
+   "attack_hz": 1451.6293,
+   "clarity": 0.4496,
+   "sizzle_ratio": 0.0104,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -27.9838,
+   "centroid_hz": 1728.31,
+   "high_ratio": 0.1552,
+   "harsh_ratio": 0.1169,
+   "dominant_hz": 317.5,
+   "small_speaker": 0.9939
+  },
+  "fails": []
+ },
+ {
+  "file": "player_jump_2.wav",
+  "event": "player_jump",
+  "n": 2,
+  "seed": 3221,
+  "prompt": "TrackType: SFX, a cloth tunic flapping as a small person hops up, one quick short whoosh of fabric, soft cotton cloth, airy, clear rustle, close-up, outdoors, dry.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 43.2,
+  "limit_ms": 800,
+  "measure": {
+   "name": "player_jump_2",
+   "attack_hz": 286.27,
+   "clarity": 0.0744,
+   "sizzle_ratio": 0.0018,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -27.3205,
+   "centroid_hz": 491.9124,
+   "high_ratio": 0.0281,
+   "harsh_ratio": 0.0231,
+   "dominant_hz": 133.75,
+   "small_speaker": 0.8252
+  },
+  "fails": [
+   "muffled"
+  ]
+ },
+ {
+  "file": "player_land_1.wav",
+  "event": "player_land",
+  "n": 1,
+  "seed": 3230,
+  "prompt": "TrackType: SFX, a small person landing on short grass after a hop, one soft thud of both feet with a brief crunch of grass, soft shoes, packed earth and grass blades, low soft body with crisp leafy edge, close-up, outdoors, dry.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 800,
+  "measure": {
+   "name": "player_land_1",
+   "attack_hz": 4988.2659,
+   "clarity": 0.9017,
+   "sizzle_ratio": 0.079,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -31.4546,
+   "centroid_hz": 4909.3064,
+   "high_ratio": 0.5627,
+   "harsh_ratio": 0.3374,
+   "dominant_hz": 3293.75,
+   "small_speaker": 0.9984
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "player_land_2.wav",
+  "event": "player_land",
+  "n": 2,
+  "seed": 3231,
+  "prompt": "TrackType: SFX, a small person landing on short grass after a hop, one soft thud of both feet with a brief crunch of grass, soft shoes, packed earth and grass blades, low soft body with crisp leafy edge, close-up, outdoors, dry.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 800,
+  "measure": {
+   "name": "player_land_2",
+   "attack_hz": 3234.7448,
+   "clarity": 0.7915,
+   "sizzle_ratio": 0.1004,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -30.2424,
+   "centroid_hz": 4457.2613,
+   "high_ratio": 0.4431,
+   "harsh_ratio": 0.3844,
+   "dominant_hz": 3013.75,
+   "small_speaker": 0.9994
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "footstep_1.wav",
+  "event": "footstep",
+  "n": 1,
+  "seed": 3240,
+  "prompt": "TrackType: SFX, a single footstep of a soft shoe on short grass, one light step, quick soft crunch, very short, grass blades over soil, gentle and natural, close-up, outdoors, dry.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 800,
+  "measure": {
+   "name": "footstep_1",
+   "attack_hz": 5883.7956,
+   "clarity": 0.9635,
+   "sizzle_ratio": 0.1817,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -30.9914,
+   "centroid_hz": 5593.819,
+   "high_ratio": 0.6583,
+   "harsh_ratio": 0.4117,
+   "dominant_hz": 3758.75,
+   "small_speaker": 0.9994
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "footstep_2.wav",
+  "event": "footstep",
+  "n": 2,
+  "seed": 3241,
+  "prompt": "TrackType: SFX, a single footstep of a soft shoe on short grass, one light step, quick soft crunch, very short, grass blades over soil, gentle and natural, close-up, outdoors, dry.",
+  "generated_seconds": 1.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 800,
+  "measure": {
+   "name": "footstep_2",
+   "attack_hz": 5565.8965,
+   "clarity": 0.8119,
+   "sizzle_ratio": 0.2059,
+   "ms": 800.0,
+   "peak_db": -4.0005,
+   "rms_db": -27.5731,
+   "centroid_hz": 5196.9524,
+   "high_ratio": 0.5563,
+   "harsh_ratio": 0.4151,
+   "dominant_hz": 4995.0,
+   "small_speaker": 0.9997
+  },
+  "fails": [
+   "centroid",
+   ">4k",
+   ">9k"
+  ]
+ },
+ {
+  "file": "save_1.wav",
+  "event": "save",
+  "n": 1,
+  "seed": 3250,
+  "prompt": "TrackType: SFX, paper pages clipped together with a small wooden clip, then glass rods rubbed with a wet fingertip, a soft woody clip, followed by four short low singing tones rising one after another, gentle and reassuring, wood, paper and glass, warm low clear tones, small wooden room, light short reverb.",
+  "generated_seconds": 2.0,
+  "head_cut_ms": 42.2,
+  "limit_ms": 1300,
+  "measure": {
+   "name": "save_1",
+   "attack_hz": 5118.0993,
+   "clarity": 0.9901,
+   "sizzle_ratio": 0.0081,
+   "ms": 1300.0,
+   "peak_db": -4.0005,
+   "rms_db": -28.3819,
+   "centroid_hz": 1072.4033,
+   "high_ratio": 0.0789,
+   "harsh_ratio": 0.1206,
+   "dominant_hz": 142.3077,
+   "small_speaker": 0.9495
+  },
+  "fails": []
+ },
+ {
+  "file": "save_2.wav",
+  "event": "save",
+  "n": 2,
+  "seed": 3251,
+  "prompt": "TrackType: SFX, paper pages clipped together with a small wooden clip, then glass rods rubbed with a wet fingertip, a soft woody clip, followed by four short low singing tones rising one after another, gentle and reassuring, wood, paper and glass, warm low clear tones, small wooden room, light short reverb.",
+  "generated_seconds": 2.0,
+  "head_cut_ms": 30.7,
+  "limit_ms": 1300,
+  "measure": {
+   "name": "save_2",
+   "attack_hz": 274.212,
+   "clarity": 0.0021,
+   "sizzle_ratio": 0.0198,
+   "ms": 1300.0,
+   "peak_db": -4.0005,
+   "rms_db": -30.9747,
+   "centroid_hz": 1808.478,
+   "high_ratio": 0.1786,
+   "harsh_ratio": 0.1818,
+   "dominant_hz": 258.4615,
+   "small_speaker": 0.9369
+  },
+  "fails": [
+   ">9k",
+   "muffled"
+  ]
+ },
+ {
+  "file": "goal_1.wav",
+  "event": "goal",
+  "n": 1,
+  "seed": 3260,
+  "prompt": "TrackType: SFX, glass rods rubbed with wet fingertips, then a small bronze bell in the distance, a quick rising sequence of warm singing tones, then one distant bell strike ringing out and fading, joyful but calm, glass and cast bronze, warm low tones, not shrill, outdoors, open air, gentle natural reverb.",
+  "generated_seconds": 3.0,
+  "head_cut_ms": 8.6,
+  "limit_ms": 2300,
+  "measure": {
+   "name": "goal_1",
+   "attack_hz": 4615.8923,
+   "clarity": 0.9988,
+   "sizzle_ratio": 0.0001,
+   "ms": 2299.9773,
+   "peak_db": -4.0005,
+   "rms_db": -25.9236,
+   "centroid_hz": 1797.7645,
+   "high_ratio": 0.0062,
+   "harsh_ratio": 0.0953,
+   "dominant_hz": 1630.0161,
+   "small_speaker": 1.0
+  },
+  "fails": [
+   "main≥1100Hz"
+  ]
+ },
+ {
+  "file": "goal_2.wav",
+  "event": "goal",
+  "n": 2,
+  "seed": 3261,
+  "prompt": "TrackType: SFX, glass rods rubbed with wet fingertips, then a small bronze bell in the distance, a quick rising sequence of warm singing tones, then one distant bell strike ringing out and fading, joyful but calm, glass and cast bronze, warm low tones, not shrill, outdoors, open air, gentle natural reverb.",
+  "generated_seconds": 3.0,
+  "head_cut_ms": 0.0,
+  "limit_ms": 2300,
+  "measure": {
+   "name": "goal_2",
+   "attack_hz": 3120.5581,
+   "clarity": 0.9975,
+   "sizzle_ratio": 0.0011,
+   "ms": 2299.9773,
+   "peak_db": -4.0005,
+   "rms_db": -24.3486,
+   "centroid_hz": 1866.3413,
+   "high_ratio": 0.0234,
+   "harsh_ratio": 0.1465,
+   "dominant_hz": 1643.4945,
+   "small_speaker": 1.0
+  },
+  "fails": [
+   "main≥1100Hz"
+  ]
+ }
+]

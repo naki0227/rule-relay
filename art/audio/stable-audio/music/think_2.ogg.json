@@ -1,0 +1,53 @@
+{
+  "kind": "process",
+  "input_audio": "/Users/ibukinagase/AudioStudio/bgm_think_v2.wav",
+  "source": {
+    "kind": "generate",
+    "title": "bgm_think",
+    "original_idea": "パズルを考えているとき（静かで邪魔をしない、ゆっくり。90秒のループ）",
+    "audio_type": "music",
+    "prompt": "Calm minimal ambient piece with soft felt piano playing sparse gentle chords, warm sustained cello and viola drones, faint brushed texture and no drums, quiet, unobtrusive and thoughtful for concentrating on a puzzle.",
+    "prompt_used": "TrackType: Music, VocalType: Instrumental, Calm minimal ambient piece with soft felt piano playing sparse gentle chords, warm sustained cello and viola drones, faint brushed texture and no drums, quiet, unobtrusive and thoughtful for concentrating on a puzzle. BPM: 68.",
+    "sound_fields": {
+      "source": "",
+      "action": "",
+      "material": "",
+      "space": ""
+    },
+    "bpm": 68,
+    "seconds": 94.0,
+    "negative_prompt": null,
+    "cfg": 1.0,
+    "steps": 8,
+    "variations": 2,
+    "seed": 20261131,
+    "candidate": 2,
+    "file": "bgm_think_v2.wav",
+    "sample_rate": 44100,
+    "bit_depth": 24,
+    "created": "2026-11-20T22:40:01",
+    "backend": "sa3-mlx",
+    "model": "medium + same-l",
+    "peak_dbfs": -1.0,
+    "raw_peak_dbfs": -0.67,
+    "ceiling_gain_db": -0.33
+  },
+  "created": "2026-11-20T22:41:40",
+  "format": "ogg",
+  "sample_rate": 44100,
+  "channels": 2,
+  "seconds": 85.0,
+  "steps": [
+    "trim 0.0–87.5",
+    "loudnorm -18.0 LUFS",
+    "loop xfade 2500.0 ms"
+  ],
+  "peak": 0.671,
+  "peak_dbfs": -3.47,
+  "rms": 0.0953,
+  "input_lufs": -15.53,
+  "input_true_peak_db": -1.0,
+  "output_lufs": -18.04,
+  "loudnorm_mode": "linear",
+  "file": "think_2.ogg"
+}
