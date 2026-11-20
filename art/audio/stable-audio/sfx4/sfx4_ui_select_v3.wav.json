@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx4_ui_select",
+  "original_idea": "ui_select 4回目（2回目の試し）: 「低め・甲高いクリックを避ける」でこもった → 3回目の ui_confirm で効いた「small hard wooden block」の書き方",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a small hard wooden block struck once with a hard wooden stick, one single dry clack with a crisp click at the very start, very short, a single hit only, thick dense maple block, dry, articulate, warm woody tone, close-miked, dry, no reverb.",
+  "sound_fields": {
+    "source": "a small hard wooden block struck once with a hard wooden stick",
+    "action": "one single dry clack with a crisp click at the very start, very short, a single hit only",
+    "material": "thick dense maple block, dry, articulate, warm woody tone",
+    "space": "close-miked, dry, no reverb"
+  },
+  "bpm": null,
+  "seconds": 1.0,
+  "negative_prompt": "multiple hits, rattle, reverb tail, long ring, hiss, muffled, dull, thud, boomy, metallic",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 4,
+  "seed": 6302,
+  "candidate": 3,
+  "file": "sfx4_ui_select_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-21T00:35:25",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 0.33,
+  "ceiling_gain_db": -1.33
+}
