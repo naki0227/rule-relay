@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_goal",
+  "original_idea": "goal 作り直し（2回目の試し）: 1回目は 330〜470Hz と低くなったがこもった → はっきりした打音を足す",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, rims of glass bowls rubbed with wet fingertips, then a medium-sized bronze bell nearby, a quick rising sequence of warm singing tones, then one clear crisp bell strike ringing out and fading, joyful but calm, glass and cast bronze, warm mid-low tones, round and clear, not shrill, outdoors, open air, gentle natural reverb.",
+  "sound_fields": {
+    "source": "rims of glass bowls rubbed with wet fingertips, then a medium-sized bronze bell nearby",
+    "action": "a quick rising sequence of warm singing tones, then one clear crisp bell strike ringing out and fading, joyful but calm",
+    "material": "glass and cast bronze, warm mid-low tones, round and clear, not shrill",
+    "space": "outdoors, open air, gentle natural reverb"
+  },
+  "bpm": null,
+  "seconds": 3.0,
+  "negative_prompt": "tiny bell, tinkling, chime, glockenspiel, shrill, sparkle, sub bass rumble, muffled, distant gong",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4502,
+  "candidate": 3,
+  "file": "sfx2_goal_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:29:31",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 0.82,
+  "ceiling_gain_db": -1.82
+}

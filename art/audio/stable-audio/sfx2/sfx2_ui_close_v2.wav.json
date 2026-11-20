@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_ui_close",
+  "original_idea": "ui_close 作り直し: こもっている → アタックをはっきり（本を閉じる「パタン」）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a small cloth-bound hardcover book snapped shut, crisp transient as the covers meet with a clear clap at the start, a tiny puff of air, quick stop, board covers and paper block, warm mid-low clap, articulate attack, no hiss, close-miked, dry, no reverb.",
+  "sound_fields": {
+    "source": "a small cloth-bound hardcover book snapped shut",
+    "action": "crisp transient as the covers meet with a clear clap at the start, a tiny puff of air, quick stop",
+    "material": "board covers and paper block, warm mid-low clap, articulate attack, no hiss",
+    "space": "close-miked, dry, no reverb"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": "muffled, dull, boomy, distant, reverb, harsh, shrill, hiss, high-pitched, metallic",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4021,
+  "candidate": 2,
+  "file": "sfx2_ui_close_v2.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:09:04",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 0.77,
+  "ceiling_gain_db": -1.77
+}

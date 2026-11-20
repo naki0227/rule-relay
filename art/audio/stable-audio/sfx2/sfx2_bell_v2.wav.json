@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_bell",
+  "original_idea": "bell 作り直し（2回目の試し）: 1回目は低すぎて（77Hz）こもった → 中くらいの鐘で 400〜900Hz を狙う",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a medium-sized bronze village bell hanging in a wooden frame, struck once by its clapper, a clear crisp strike, then a warm mid-low ringing decay with slow gentle beating, cast bronze, warm mid-low tone, round and clear, not shrill, outdoors, short distance, open air.",
+  "sound_fields": {
+    "source": "a medium-sized bronze village bell hanging in a wooden frame",
+    "action": "struck once by its clapper, a clear crisp strike, then a warm mid-low ringing decay with slow gentle beating",
+    "material": "cast bronze, warm mid-low tone, round and clear, not shrill",
+    "space": "outdoors, short distance, open air"
+  },
+  "bpm": null,
+  "seconds": 3.0,
+  "negative_prompt": "tiny bell, tinkling, chime, glockenspiel, shrill, sleigh bell, sub bass rumble, muffled, distant gong",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4491,
+  "candidate": 2,
+  "file": "sfx2_bell_v2.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:26:33",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 1.7,
+  "ceiling_gain_db": -2.7
+}

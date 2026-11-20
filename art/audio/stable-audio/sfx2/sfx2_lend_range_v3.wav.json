@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_lend_range",
+  "original_idea": "lend_range 作り直し: シャーっと鳴る → 高域を抑える（法則の音がずれて広がる）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, the rims of several large glass bowls rubbed with wet fingertips one after another, a soft staggered cluster of low singing tones spreading outward, swelling and fading together, thick glass, warm low round tones slightly detuned against each other, rolled-off highs, no hiss, small wooden room, light short reverb.",
+  "sound_fields": {
+    "source": "the rims of several large glass bowls rubbed with wet fingertips one after another",
+    "action": "a soft staggered cluster of low singing tones spreading outward, swelling and fading together",
+    "material": "thick glass, warm low round tones slightly detuned against each other, rolled-off highs, no hiss",
+    "space": "small wooden room, light short reverb"
+  },
+  "bpm": null,
+  "seconds": 2.0,
+  "negative_prompt": "hiss, sizzle, crackle, harsh, bright, airy noise, shrill, white noise, high-pitched ringing",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4142,
+  "candidate": 3,
+  "file": "sfx2_lend_range_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:18:06",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 0.89,
+  "ceiling_gain_db": -1.89
+}
