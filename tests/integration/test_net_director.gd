@@ -152,6 +152,36 @@ func test_hill_top_clears_only_when_both_players_gather_at_the_goal() -> void:
 	await _until(func() -> bool: return client.progress.has_cleared(StageCatalog.HILL_ID))
 
 
+## お知らせの音（ui_notice、3回目の候補 T21）: 全員リセットの投票が始まったときと時間切れのときに、
+## ホストと参加者の両方の画面で UI の音として鳴る。開いている投票への2票目では鳴らない。
+func test_vote_start_and_expiry_play_the_notice_on_every_screen() -> void:
+	await _join()
+	await _go_intro()
+	host.lifecycle.vote_time_limit = 2.0  # 時間切れを待つ時間を短くする（本番は 30 秒）
+	var host_heard: Array[StringName] = []
+	var client_heard: Array[StringName] = []
+	host.world.sound_requested.connect(
+		func(event: StringName, _at: Vector3, positional: bool) -> void:
+			if not positional:
+				host_heard.append(event)
+	)
+	client.world.sound_requested.connect(
+		func(event: StringName, _at: Vector3, positional: bool) -> void:
+			if not positional:
+				client_heard.append(event)
+	)
+	client.request_vote()
+	await _until(func() -> bool: return client_heard.has(&"ui_notice"))
+	assert_eq(host_heard.count(&"ui_notice"), 1, "the host hears the vote start")
+	client.request_vote()  # 同じ人の2票目（開いている投票）
+	await wait_physics_frames(10)
+	assert_eq(host_heard.count(&"ui_notice"), 1, "a vote on an open poll is not a new notice")
+	await _until(func() -> bool: return not host.lifecycle.is_vote_open())
+	await _until(func() -> bool: return client_heard.count(&"ui_notice") == 2)
+	assert_eq(host_heard.count(&"ui_notice"), 2, "the host hears the expiry")
+	assert_eq(host.lifecycle.reset_count(), 0, "one of two votes expired without a reset")
+
+
 ## アバターを target へ歩かせる（移動の入力と向きだけを与える。瞬間移動しない）。
 func _walk_into(avatar: PlayerAvatar, target: Vector3) -> void:
 	for i in 300:

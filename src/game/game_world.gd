@@ -93,6 +93,8 @@ func spawn_player(at: Vector3) -> PlayerAvatar:
 	player.jumped.connect(func() -> void: _sound(&"player_jump", player.global_position))
 	player.landed.connect(func(_s: float) -> void: _sound(&"player_land", player.global_position))
 	player.footstep.connect(func() -> void: _sound(&"footstep", player.global_position))
+	# 跳躍と同じく自分の世界の音として鳴らす（ホストの音は NetWorld が参加者へ配る）
+	player.dashed.connect(func() -> void: _sound(&"dash", player.global_position))
 	camera_rig = CameraRig.new()
 	camera_rig.name = "CameraRig"
 	camera_rig.target = player

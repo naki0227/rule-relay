@@ -11,6 +11,7 @@
 - 仕上げ: 低域・シャリつきの整理、端の処理、RMS で音量をそろえる
 - 2026-11-20: 6種は Stable Audio 3 medium で生成した候補に置き換えた（ADOPTED。合成の関数は戻せるように残す）
 - 2026-11-20: 2回目の候補からさらに 15 種を置き換えた（ADOPTED の sfx2/。docs/sound-design.md）
+- 2026-11-20: 3回目の候補から 4 種を置き換え、新しい音 dash・ui_notice を足した（ADOPTED の sfx3/）
 """
 
 import wave
@@ -25,7 +26,7 @@ RNG = np.random.default_rng(20261118)
 CANDIDATES = Path(__file__).resolve().parents[2] / "art" / "audio" / "stable-audio"
 
 # Stable Audio 3 medium の候補から採用した音（docs/sound-design.md、docs/sound-candidates-2026-11-20.md、
-# docs/sound-candidates-2026-11-20-round2.md）。
+# docs/sound-candidates-2026-11-20-round2.md、docs/sound-candidates-2026-11-20-round3.md）。
 # イベント名: (候補のファイル, 置き換え前の合成音の RMS dBFS)。候補はピークでそろえてあるので、
 # ゲームの中の音量の釣り合いを変えないよう、置き換え前の RMS に合わせる（ピークは -3dBFS を超えない）
 ADOPTED = {
@@ -52,6 +53,14 @@ ADOPTED = {
     "receive_grass": ("sfx2/receive_grass_2.wav", -29.0),  # R50
     "player_land": ("sfx2/player_land_2.wav", -25.0),  # R53
     "goal": ("sfx2/goal_3.wav", -20.1),  # R63
+    # 3回目（T01〜T24）。dash・ui_notice は置き換え前の音が無いので、近い役割の音に合わせた
+    # （dash は自分の跳躍 player_jump と同じ -28.0、ui_notice は UI の ui_close と同じ -26.0）
+    "ui_confirm": ("sfx3/ui_confirm_3.wav", -28.6),  # T03
+    "ui_error": ("sfx3/ui_error_3.wav", -27.3),  # T07
+    "ui_open": ("sfx3/ui_open_1.wav", -26.1),  # T09
+    "bell": ("sfx3/bell_3.wav", -34.5),  # T15
+    "dash": ("sfx3/dash_1.wav", -28.0),  # T17
+    "ui_notice": ("sfx3/ui_notice_1.wav", -26.0),  # T21
 }
 
 # ハ長調の五音（Hz）。C4=261.63
@@ -768,16 +777,32 @@ def bell():
     return finish(room(norm(droop(tone, -8, 0.2)), 1.0, 0.15, 130), -19, keep_low=True)
 
 
+def dash():
+    """ダッシュ（T17 をやめるときの合成版）: 踏み込みの土の「ドッ」と、短い風。"""
+    soil = hit("stone", 110, 0.12, 0.3, seed=140)
+    air = band(np.random.default_rng(141).standard_normal(int(0.3 * SR)), 300, 2500)
+    air *= envelope(int(0.3 * SR), 0.06, 0.2)
+    x = mix(0.4, (soil, 0.0, 1.0), (norm(air), 0.03, 0.5))
+    return finish(fade(x, 0.001, 0.08), -28, keep_low=True)
+
+
+def ui_notice():
+    """お知らせ（T21 をやめるときの合成版）: 木の音板を1回打つ（G4）。"""
+    bar = hit("wood", NOTE["G4"], 0.3, 0.6, seed=150)
+    return finish(room(fade(bar, 0.001, 0.08), 0.4, 0.1, 150), -26)
+
+
 SOUNDS = {
     "ui_hover": lambda: adopted("ui_hover"),  # 合成版は ui_hover()
     "ui_select": ui_select,
-    "ui_confirm": ui_confirm,
+    "ui_confirm": lambda: adopted("ui_confirm"),  # 合成版は ui_confirm()
     "ui_cancel": lambda: adopted("ui_cancel"),  # 合成版は ui_cancel()
-    "ui_open": ui_open,
+    "ui_open": lambda: adopted("ui_open"),  # 合成版は ui_open()
     "ui_close": lambda: adopted("ui_close"),  # 合成版は ui_close()
     "ui_pick": lambda: adopted("ui_pick"),  # 合成版は ui_pick()
     "ui_drop": lambda: adopted("ui_drop"),  # 合成版は ui_drop()
-    "ui_error": ui_error,
+    "ui_error": lambda: adopted("ui_error"),  # 合成版は ui_error()
+    "ui_notice": lambda: adopted("ui_notice"),  # 合成版は ui_notice()
     "radial_open": lambda: adopted("radial_open"),  # 合成版は radial_open()
     "lend": lambda: adopted("lend"),  # 合成版は lend()
     "lend_range": lambda: adopted("lend_range"),  # 合成版は lend_range()
@@ -797,7 +822,8 @@ SOUNDS = {
     "footstep_3": lambda: footstep(3),
     "save": lambda: adopted("save"),  # 合成版は save()
     "goal": lambda: adopted("goal"),  # 合成版は goal()
-    "bell": bell,
+    "bell": lambda: adopted("bell"),  # 合成版は bell()
+    "dash": lambda: adopted("dash"),  # 合成版は dash()
 }
 
 
