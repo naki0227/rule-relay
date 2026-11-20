@@ -90,12 +90,13 @@ static func _resolve_cell(w: GameWorld, value: Variant) -> Node3D:
 ## 受け取った能力の置き場の UI は未決（引き継ぎ仕様 7-7）。これは仮の選び方。
 static func giveable_token(ledger: RuleLedger, player_id: int, slot: int) -> int:
 	var v := ledger.hotbar_vessel(slot, player_id)
+	var bans_ok := ledger.allow_prohibition_to_player
 	var carried := PartyQuery.carried_tokens(ledger, player_id).filter(
-		func(t: RuleToken) -> bool: return not t.is_prohibition
+		func(t: RuleToken) -> bool: return bans_ok or not t.is_prohibition
 	)
 	if v != null:
 		var own := ledger.token(v.token_id)
-		if own.is_in_vessel() and not own.is_prohibition:
+		if own.is_in_vessel() and (bans_ok or not own.is_prohibition):
 			return own.id
 		carried = carried.filter(func(t: RuleToken) -> bool: return t.action == own.action)
 	return -1 if carried.is_empty() else (carried[0] as RuleToken).id

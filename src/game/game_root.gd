@@ -5,6 +5,7 @@ extends Node
 ## ステージが変わるたびに HUD と入力を新しい島へつなぎ直す。
 ## コマンドラインでタイトルを飛ばせる（試すとき用。`--` の後ろに書く）:
 ##   --solo / --host[=ポート] / --join=IPアドレス[:ポート] / --profile=名前
+##   --allow-prohibition-give（部屋のオプション: 禁止をプレイヤーへ直接渡せる）
 ## テストは PrototypeIsland や PartyDirector だけを木に追加し、HUD と入力なしで操作する。
 
 const SESSION_KEY_DIR := "user://session"
@@ -13,6 +14,8 @@ var director: PartyDirector
 var net: NetWorld
 var sounds: SoundBank
 var migration: HostMigration
+## 部屋のオプション（部屋を作るときに使う）: 禁止をプレイヤーへ直接渡せる。
+var room_allow_prohibition: bool = false
 
 var _title: TitleMenu
 var _hud: Hud
@@ -33,6 +36,7 @@ func _ready() -> void:
 	add_child(_title)
 	_title.solo_chosen.connect(start_solo)
 	_title.host_chosen.connect(start_host)
+	_title.prohibition_option_toggled.connect(func(on: bool) -> void: room_allow_prohibition = on)
 	_title.join_chosen.connect(start_join)
 
 
@@ -49,6 +53,7 @@ func start_host(profile: String, port: int) -> void:
 		_show_error("部屋を作れませんでした（ポート %d が使われているかも）" % port)
 		return
 	_make_director(profile)
+	director.allow_prohibition_to_player = room_allow_prohibition
 	director.enter_stage(StageCatalog.HUB_ID)
 	net = _make_net(self)
 	net.world = director.world
@@ -161,6 +166,7 @@ func shutdown() -> void:
 
 func _start_from_arguments(args: Dictionary) -> void:
 	var profile := String(args.get("profile", "player"))
+	room_allow_prohibition = args.has("allow-prohibition-give")
 	if args.has("join"):
 		var target := String(args["join"]).split(":")
 		var port := int(target[1]) if target.size() > 1 else TitleMenu.DEFAULT_PORT

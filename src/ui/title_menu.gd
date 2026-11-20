@@ -6,6 +6,7 @@ extends Control
 signal solo_chosen(profile: String)
 signal host_chosen(profile: String, port: int)
 signal join_chosen(profile: String, address: String, port: int)
+signal prohibition_option_toggled(on: bool)
 
 const DEFAULT_PORT: int = 24565
 
@@ -39,6 +40,11 @@ func _ready() -> void:
 	# ゲームパッドでも選べるよう、最初のボタンに焦点を置く（十字キーで移動、A で決定）
 	first.call_deferred(&"grab_focus")
 	_add_button(box, "部屋を作る（友だちを待つ）", _host)
+	var option := CheckBox.new()
+	option.text = "部屋のオプション: 禁止を仲間へ直接渡せる（いたずら向け）"
+	option.add_theme_font_size_override("font_size", UiTheme.SIZE_SMALL)
+	option.toggled.connect(func(on: bool) -> void: prohibition_option_toggled.emit(on))
+	box.add_child(option)
 	_address = _add_field(box, "部屋に入る: ホストの IP アドレス", "127.0.0.1")
 	_port = _add_field(box, "ポート", str(DEFAULT_PORT))
 	_add_button(box, "部屋に入る", _join)

@@ -124,7 +124,17 @@ func test_cannot_give_what_you_do_not_hold() -> void:
 	assert_eq(from_inventory, RuleLedger.LendResult.NOT_IN_HOTBAR)
 	var ban := ledger.give_player_item(FORWARD, true, 3, A)
 	var ban_result := ledger.give_to_player(ban.token_id, A, B)
-	assert_eq(ban_result, RuleLedger.LendResult.PROHIBITION_TO_PLAYER, "undecided: not allowed")
+	assert_eq(ban_result, RuleLedger.LendResult.PROHIBITION_TO_PLAYER, "not allowed by default")
+
+
+## 部屋のオプション（ホストが選ぶ）で、禁止を仲間へ直接渡せる。受け取った人に禁止が効く。
+func test_room_option_lets_a_prohibition_go_to_a_player() -> void:
+	ledger.allow_prohibition_to_player = true
+	var ban := ledger.give_player_item(FORWARD, true, 3, A)
+	assert_eq(ledger.give_to_player(ban.token_id, A, B), RuleLedger.LendResult.OK)
+	assert_true(ledger.player_prohibited(FORWARD, B), "B is now banned from moving forward")
+	assert_false(ledger.player_prohibited(FORWARD, A), "A no longer carries it")
+	_valid()
 
 
 func test_lend_still_refuses_player_targets() -> void:

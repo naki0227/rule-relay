@@ -47,6 +47,9 @@ enum EquipResult {
 const PLAYER_ID: int = 1
 const HOTBAR_SIZE: int = 9
 
+## 禁止をプレイヤーへ直接渡せるか。既定は渡せない（仲間を詰ませるいたずらを防ぐ）。
+## ホストが部屋を作るときのオプションでだけ有効にする（2026-11-20 本人の判断）。
+var allow_prohibition_to_player: bool = false
 var _entities: Dictionary[int, EntityKind.Kind] = {}
 var _tokens: Dictionary[int, RuleToken] = {}
 var _vessels: Dictionary[int, RuleVessel] = {}
@@ -410,7 +413,7 @@ func give_to_player(token_id: int, from_player: int, to_player: int) -> LendResu
 	var t := token(token_id)
 	if t == null:
 		return LendResult.NO_SUCH_VESSEL
-	if t.is_prohibition:
+	if t.is_prohibition and not allow_prohibition_to_player:
 		return LendResult.PROHIBITION_TO_PLAYER
 	if to_player == from_player or not _present.has(to_player):
 		return LendResult.UNKNOWN_TARGET
