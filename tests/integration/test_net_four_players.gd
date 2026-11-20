@@ -73,14 +73,14 @@ func _assert_cleared_by_everyone(stage_id: String) -> void:
 	await party.assert_consistent("after the clear")
 
 
-## 導入（跳ぶ力を貸す）。岩棚の上面 y = 2、ゴールの窪み y = 1（x -2〜3, z -8〜-6）。
+## 導入（跳ぶ力を貸す）。岩棚の上面 y = 2、ゴールの窪み y = 1（x -2〜3, z -9〜-7。数える箱は 0.3 内側）。
 ## 持ち上げ台（x 0〜1, z -5〜-4）は使わず、その西の岩棚の縁で受け渡す。
 func _intro_route() -> void:
 	var queue: Array[Vector3] = []
 	var goals: Array[Vector3] = []
 	for i in party.count():
 		queue.append(Vector3(-4.3 + 1.1 * float(i), 0.0, -2.5))
-		goals.append(Vector3(-1.4 + 1.2 * float(i), 1.0, -7.0))
+		goals.append(Vector3(-1.4 + 1.2 * float(i), 1.0, -8.0))
 	await _pool_jumps_and_climb(queue, Vector3(-2.5, 0.0, -4.3), Vector3(-2.5, 2.0, -5.5), goals)
 	await _assert_cleared_by_everyone(StageCatalog.INTRO_ID)
 

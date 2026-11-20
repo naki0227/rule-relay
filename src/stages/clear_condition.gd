@@ -21,6 +21,11 @@ enum Kind { NONE, REACH_HEIGHT, ALL_AT_GOAL, CARRY_OBJECT, ACTIVATE, ALL_OF }
 
 ## 足もとの高さの誤差（物理で 2.999 のように少し沈むため）。仮値。
 const HEIGHT_TOLERANCE: float = 0.05
+## ゴールの箱を水平（x・z）に内側へ縮める幅（プレイヤーのカプセルの半径と同じ 0.3）。
+## 窪みの縁の角に乗ったまま、体の中心が窪みの上へ少し（実測 0.22 m まで）出た人を、ゴールに数えない
+## （docs/reports/2026-11-20-goal-probes.md G3。2026-11-20 決定）。床に立つ人の中心は壁から 0.3 より
+## 近づけないので、窪みの中の人はこれまでどおり数えられる。ルールは足さず、箱の形だけで決める。
+const GOAL_INSET: float = 0.3
 
 var kind: Kind = Kind.NONE
 ## REACH_HEIGHT は水平（x・z）の範囲だけ、ALL_AT_GOAL / CARRY_OBJECT は箱の中を見る。
@@ -46,12 +51,19 @@ static func reach_height(p_area: AABB, p_height: float) -> ClearCondition:
 	return c
 
 
-## 操作中の正式参加者が全員、ゴールの箱の中にいる。
+## 操作中の正式参加者が全員、ゴールの箱の中にいる。goal は窪み（床の広さ）の箱で、数える範囲は
+## 水平に GOAL_INSET だけ内側へ縮める（全ステージ共通。goal_area() も縮めた箱を返す）。
 static func all_at_goal(goal: AABB) -> ClearCondition:
 	var c := ClearCondition.new()
 	c.kind = Kind.ALL_AT_GOAL
-	c.area = goal
+	c.area = inset_goal(goal)
 	return c
+
+
+## ゴールの箱を水平（x・z）に GOAL_INSET だけ内側へ縮める（高さはそのまま）。
+static func inset_goal(goal: AABB) -> AABB:
+	var shrink := Vector3(GOAL_INSET, 0.0, GOAL_INSET)
+	return AABB(goal.position + shrink, goal.size - shrink * 2.0)
 
 
 ## 物体（key）が箱の中にある。
