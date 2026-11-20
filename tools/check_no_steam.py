@@ -46,6 +46,8 @@ FORBIDDEN_NAMES = ("steam_appid.txt", "steam_api.dll", "steam_api64.dll", "libst
 FORBIDDEN_PARTS = ("godotsteam", "steam_api", "steam_appid")
 # pck のファイル一覧にあってはいけないパス（res:// を除いた形）。
 FORBIDDEN_PREFIXES = ("addons/godotsteam/", "src/steam/")
+## ソースの検査で名前を見ないフォルダ（書き出しに入らない道具と文書）。
+SOURCE_TOOLING_DIRS = ("tools/", "docs/")
 UID_CACHE = ".godot/uid_cache.bin"
 # uid_cache.bin に載っていてよい印（Steam 版のフォルダのパス文字列）。
 UID_CACHE_ALLOWED = (b"src/steam/", b"steam_transport")
@@ -102,6 +104,9 @@ def check_source() -> list[str]:
         ["git", "ls-files"], cwd=ROOT, check=True, capture_output=True, text=True
     ).stdout.splitlines()
     for path in tracked:
+        # 取得用のスクリプトと文書は、名前に godotsteam を含んでも書き出しには入らないので対象外
+        if path.startswith(SOURCE_TOOLING_DIRS):
+            continue
         if path.startswith("addons/godotsteam/") or forbidden_name(path):
             problems.append(f"Git に入っている: {path}（GodotSteam は tools/fetch_godotsteam.sh で取る）")
     project = (ROOT / "project.godot").read_text(encoding="utf-8")
