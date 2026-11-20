@@ -49,9 +49,23 @@ func test_lend_jump_and_land_make_sounds() -> void:
 	island.lend_to(island.row[0], false)
 	island.press_action(RuleAction.Kind.JUMP)
 	await wait_physics_frames(70)
-	assert_true(heard.has(&"lend"))
+	assert_true(heard.has(&"lend@9"), "the rule tone at Jump's pitch: %s" % str(heard))
+	assert_true(heard.has(&"receive_wood"), "the wooden block answers in its own voice")
 	assert_true(heard.has(&"block_jump"))
 	assert_true(heard.has(&"block_land"))
+
+
+func test_each_ability_has_its_own_pitch_and_materials_answer() -> void:
+	assert_eq(RuleAction.motif_semitone(RuleAction.Kind.FORWARD), 0)
+	assert_eq(RuleAction.motif_semitone(RuleAction.Kind.JUMP), 9)
+	assert_true(sounds.play_at(&"lend@7", Vector3.ZERO), "pitched variant of a known event")
+	assert_eq(sounds.last_event, &"lend")
+	assert_eq(WorldQueries.receive_sound(island.creature), &"receive_creature")
+	assert_eq(WorldQueries.receive_sound(island.row[0]), &"receive_wood")
+	var cell := TerrainPromotion.promote(island, Vector3i(-3, -1, 1))
+	assert_eq(WorldQueries.receive_sound(cell), &"receive_grass")
+	var rock := TerrainPromotion.promote(island, Vector3i(4, 2, -6))
+	assert_eq(WorldQueries.receive_sound(rock), &"receive_stone")
 
 
 func test_failures_use_soft_error_sounds() -> void:

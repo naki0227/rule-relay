@@ -44,7 +44,7 @@ jobs:
       - name: Install Godot (checksum verified)
         run: tools/install_godot.sh "$HOME/godot"
 
-      - name: Run quality gate and Windows export
+      - name: Run quality gate and Windows / macOS export
         run: GODOT="$HOME/godot/godot" tools/check.sh --build
 
       - name: Upload logs
@@ -60,6 +60,13 @@ jobs:
         with:
           name: rule-relay-windows
           path: build/windows
+          retention-days: 14
+
+      - name: Upload macOS build
+        uses: actions/upload-artifact@v5
+        with:
+          name: rule-relay-macos
+          path: build/macos
           retention-days: 14
 
   windows-smoke:
@@ -85,3 +92,29 @@ jobs:
           if ((Test-Path $log) -and (Select-String -Path $log -Pattern '^(SCRIPT )?ERROR:' -Quiet)) {
             throw "errors in log"
           }
+
+  macos-smoke:
+    name: macOS launch smoke test
+    needs: checks
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          name: rule-relay-macos
+          path: build
+
+      - name: Launch exported app headless (solo)
+        run: |
+          cd build
+          unzip -q rule-relay.zip
+          app="$(ls -d *.app | head -n 1)"
+          bin="$app/Contents/MacOS/$(ls "$app/Contents/MacOS" | head -n 1)"
+          log="$PWD/smoke.log"
+          "$bin" --headless --quit-after 300 --log-file "$log" -- --solo --profile=ci_smoke
+          cat "$log"
+          if grep -E '^(SCRIPT )?ERROR:' "$log"; then
+            echo "errors in log"
+            exit 1
+          fi
+

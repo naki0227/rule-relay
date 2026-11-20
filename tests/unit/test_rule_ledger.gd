@@ -71,7 +71,7 @@ func test_block_lend_requires_supported_mode() -> void:
 func test_creature_receives_ability_without_mode() -> void:
 	var result := ledger.lend(jump_vessel.id, PackedInt32Array([CREATURE]), SINGLE)
 	assert_eq(result, RuleLedger.LendResult.OK)
-	assert_eq(ledger.token_of_vessel(jump_vessel.id).mode, TriggerMode.Kind.NONE)
+	assert_eq(PartyQuery.token_of_vessel(ledger, jump_vessel.id).mode, TriggerMode.Kind.NONE)
 	assert_eq(ledger.pending_single_shots(JUMP).size(), 0, "creatures are not remote-triggered")
 
 

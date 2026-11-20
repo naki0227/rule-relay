@@ -28,6 +28,10 @@ const EVENTS: Dictionary[StringName, Dictionary] = {
 	&"lend_range": {"pitch": 0.02, "volume": 1.0},
 	&"recall": {"pitch": 0.02, "volume": 1.0},
 	&"prohibit": {"pitch": 0.03, "volume": 1.0},
+	&"receive_wood": {"pitch": 0.04, "volume": 1.0},
+	&"receive_stone": {"pitch": 0.04, "volume": 1.0},
+	&"receive_grass": {"pitch": 0.04, "volume": 1.0},
+	&"receive_creature": {"pitch": 0.04, "volume": 1.0},
 	&"block_jump": {"pitch": 0.06, "volume": 1.5},
 	&"block_land": {"pitch": 0.06, "volume": 1.5},
 	&"block_step": {"pitch": 0.05, "volume": 1.5},
@@ -94,15 +98,20 @@ func play_ui(event: StringName, pitch_semitones: int = 0) -> bool:
 	return true
 
 
-## 世界の音（位置あり）。
+## 世界の音（位置あり）。名前の後ろに「@半音」を付けると音程をずらす（例: lend@7。法則の音の能力ごとの音程）。
 func play_at(event: StringName, at: Vector3) -> bool:
+	var semitones := 0
+	var event_name := String(event)
+	if event_name.contains("@"):
+		semitones = int(event_name.get_slice("@", 1))
+		event = StringName(event_name.get_slice("@", 0))
 	var stream := _stream_for(event)
 	if stream == null or _too_soon(event) or not is_inside_tree():
 		return false
 	var player := _free_world_player()
 	player.stream = stream
 	player.global_position = at
-	_apply_variation(player, event, 0)
+	_apply_variation(player, event, semitones)
 	_start(player)
 	last_event = event
 	return true

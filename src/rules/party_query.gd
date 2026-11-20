@@ -36,3 +36,9 @@ static func entity_count(ledger: RuleLedger, entity_id: int, action: RuleAction.
 		if not t.is_prohibition and t.action == action:
 			count += 1
 	return count
+
+
+## 器に宿っているトークン（器が無ければ null）。
+static func token_of_vessel(ledger: RuleLedger, vessel_id: int) -> RuleToken:
+	var v := ledger.vessel(vessel_id)
+	return null if v == null else ledger.token(v.token_id)
