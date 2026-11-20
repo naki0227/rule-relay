@@ -1,7 +1,7 @@
 class_name SoundBank
 extends Node
 ## 効果音を鳴らす窓口（設計は docs/sound-design.md）。音は tools/sfx/build_sfx.py で作った
-## assets/audio/sfx/*.wav（合成した音と、Stable Audio 3 の候補から採用した 21 種）。
+## assets/audio/sfx/*.wav（合成した音と、Stable Audio 3 の候補から採用した 27 種）。
 ## 鳴らすたびに音程と音量を少し揺らし、同じ音の繰り返しで疲れないようにする。
 ## UI の音と世界の音は別のバスに分け、世界の音は位置から鳴らす（遠いと小さい）。
 
@@ -24,6 +24,8 @@ const EVENTS: Dictionary[StringName, Dictionary] = {
 	&"ui_pick": {"pitch": 0.05, "volume": 1.0},
 	&"ui_drop": {"pitch": 0.04, "volume": 1.0},
 	&"ui_error": {"pitch": 0.02, "volume": 0.5},
+	# 全員に関わるお知らせ（全員リセットの投票の開始・時間切れ）。UI のバスで鳴らす
+	&"ui_notice": {"pitch": 0.0, "volume": 0.5},
 	&"radial_open": {"pitch": 0.03, "volume": 1.0},
 	&"lend": {"pitch": 0.02, "volume": 1.0},
 	&"lend_range": {"pitch": 0.02, "volume": 1.0},
@@ -39,6 +41,7 @@ const EVENTS: Dictionary[StringName, Dictionary] = {
 	&"bell": {"pitch": 0.02, "volume": 0.5},
 	&"player_jump": {"pitch": 0.05, "volume": 1.5},
 	&"player_land": {"pitch": 0.05, "volume": 1.5},
+	&"dash": {"pitch": 0.05, "volume": 1.5},
 	&"footstep": {"pitch": 0.08, "volume": 2.0, "variants": 3},
 	&"save": {"pitch": 0.0, "volume": 0.0},
 	&"goal": {"pitch": 0.0, "volume": 0.0},

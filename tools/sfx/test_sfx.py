@@ -13,10 +13,12 @@ import analyze  # noqa: E402
 import build_sfx  # noqa: E402
 
 IMPACTS = {"block_land", "block_jump"}  # 低い胴鳴りが本体の衝撃音
-LONG = {"goal": 2300, "save": 1300, "bell": 2300}
-# 音程の無い雑音だけの音（服・草・足音）。主な周波数は偶然の山なので、音程の判定から外す
+# 長さの上限の例外（ms）。dash は 3 マスの突進（約 0.2 秒）に合わせて 500ms（2026-11-20 3回目の候補）。
+# ui_notice（投票の開始・時間切れ）は名前が ui_ なので、ほかの UI と同じ 450ms
+LONG = {"goal": 2300, "save": 1300, "bell": 2300, "dash": 500}
+# 音程の無い雑音だけの音（服・草・足音・ダッシュの風）。主な周波数は偶然の山なので、音程の判定から外す
 UNPITCHED = {
-    "player_jump", "player_land", "footstep_1", "footstep_2", "footstep_3",
+    "player_jump", "player_land", "footstep_1", "footstep_2", "footstep_3", "dash",
     "block_step", "radial_open",  # こする音、紙をはじく音
     "ui_hover", "ui_cancel", "ui_open", "ui_pick", "ui_drop",  # 紙の札・本の音（音程の無い雑音）
 }

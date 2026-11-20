@@ -10,6 +10,7 @@ extends Node
 ## - 全員リセット: V 長押しで投票（過半数、または死亡観戦がいるとき生存者全員）。成立したら世界を丸ごと戻し、
 ##   途中参加の人を合流させ、人数が変わっていれば人数別補助を作り直す
 ## - 投票の時間切れ: 開いた投票は PartyLifecycle.VOTE_TIME_LIMIT 秒（仮 30 秒）で権威が閉じる（試遊 G4）
+## - 投票の始まりと時間切れは、全員の画面でお知らせの音（ui_notice）を鳴らす
 ## - ゴールにまだ来ていない人: 協力中、島の条件がそろうか誰かがゴールに入ったら HUD に名前を出す
 ##   （試遊 G5。情報だけで、外したり止めたりはしない）
 ## - クリア: ステージのクリア条件を満たしたら、資格のある人に報酬を配り、しばらくしてハブへ戻る
@@ -224,6 +225,7 @@ func _check_vote_timeout(delta: float) -> bool:
 		return false
 	lifecycle.cancel_vote()
 	world.message_posted.emit("全員リセットの投票は時間切れになりました")
+	_notice_everyone()
 	return true
 
 
@@ -360,7 +362,11 @@ func request_vote() -> void:
 func _vote_as(player_id: int, seen_resets: int) -> void:
 	if seen_resets < lifecycle.reset_count():
 		return  # 賛成したリセットはもう決まった
+	var was_open := lifecycle.is_vote_open()
 	if lifecycle.vote_reset(player_id):
+		# 新しく開いた投票だけ知らせる（2票目以降と、1票でその場で決まったときは鳴らさない）
+		if not was_open and lifecycle.is_vote_open():
+			_notice_everyone()
 		world.message_posted.emit(
 			(
 				"全員リセットの投票 %d / %d（%s 長押しで賛成）"
@@ -647,6 +653,14 @@ func _broadcast_party() -> void:
 		_party.rpc(lifecycle.to_dict(), goal_missing)
 
 
+## 全員に関わるお知らせの音（投票の開始・時間切れ）。権威が鳴らし、参加者の画面へも頼む。
+## 投票の文言はホストにしか出ないが、参加者は札（PartyBanner）で投票を見ているので、音だけを送る。
+func _notice_everyone() -> void:
+	world.sound_requested.emit(&"ui_notice", Vector3.ZERO, false)
+	if _online() and net.is_host():
+		_notice_sound.rpc()
+
+
 ## 権威がプレイヤーを動かす。自分ならその場で、仲間ならその人の画面へ頼む（アバターは各自が動かすため）。
 func _teleport(player_id: int, at: Vector3) -> void:
 	if player_id == local_id():
@@ -686,6 +700,12 @@ func _party(state: Dictionary, missing: PackedInt32Array) -> void:
 		lifecycle = replica
 		goal_missing = missing
 		party_changed.emit()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _notice_sound() -> void:
+	if world != null:
+		world.sound_requested.emit(&"ui_notice", Vector3.ZERO, false)
 
 
 @rpc("authority", "call_remote", "reliable")
