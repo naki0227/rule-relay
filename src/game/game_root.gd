@@ -48,6 +48,7 @@ func _ready() -> void:
 	_title = TitleMenu.new()
 	_title.name = "Title"
 	add_child(_title)
+	_title.settings_menu.play_sound = func(event: StringName) -> void: sounds.play_ui(event)
 	_title.solo_chosen.connect(start_solo)
 	_title.host_chosen.connect(start_host)
 	_title.prohibition_option_toggled.connect(func(on: bool) -> void: room_allow_prohibition = on)
@@ -203,6 +204,15 @@ func _on_world_changed(world: StageWorld) -> void:
 	_input.hud = _hud
 	_input.party = self
 	add_child(_input)
+
+
+## いまの島の HUD と入力（島が変わるたびに作り直す。テスト用）。
+func current_hud() -> Hud:
+	return _hud
+
+
+func current_input() -> PlayerInput:
+	return _input
 
 
 ## PlayerInput から: V（全員リセットの投票）。

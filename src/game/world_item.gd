@@ -35,9 +35,9 @@ func setup(v: RuleVessel, t: RuleToken) -> void:
 	shadow.position.y = 0.02
 	shadow.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(shadow)
-	var label := Label3D.new()
+	var label := KeyLabel3D.new()
 	var item_label := v.item_name if v.item_name != "" else t.describe()
-	label.text = "%s（%s で拾う）" % [item_label, InputMode.key(&"interact")]
+	label.template = "%s（%s で拾う）" % [item_label, InputMode.token(&"interact")]
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position.y = 1.25
 	label.pixel_size = 0.004

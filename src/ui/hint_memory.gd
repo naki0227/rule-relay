@@ -32,6 +32,11 @@ func used(key: String) -> void:
 		save()
 
 
+## その操作をした回数（慣れた後は LEARN_AFTER で止まることがある）。
+func uses(key: String) -> int:
+	return _counts.get(key, 0)
+
+
 func should_show(key: String) -> bool:
 	return _counts.get(key, 0) < LEARN_AFTER
 

@@ -68,7 +68,8 @@ func _ready() -> void:
 	goal_box = AABB(Vector3(2.0, 2.9, -11.0), Vector3(6.0, 3.0, 6.0))
 	_add_model("checkpoint_pad", checkpoint_center)
 	_add_label(
-		checkpoint_center + Vector3(0.0, 1.9, 0.0), "チェックポイント（%s で保存）" % InputMode.key(&"interact")
+		checkpoint_center + Vector3(0.0, 1.9, 0.0),
+		"チェックポイント（%s で保存）" % InputMode.token(&"interact")
 	)
 	var goal_flag := GoalMarker.new()
 	goal_flag.setup(AABB(Vector3(6.6, 3.0, -10.4), Vector3.ZERO))
@@ -230,10 +231,11 @@ func _add_label(at: Vector3, text: String) -> void:
 	add_label(self, at, text)
 
 
-## 空中に浮かぶ案内の文字（ステージの島でも使う）。
-static func add_label(parent: Node, at: Vector3, text: String) -> Label3D:
-	var label := Label3D.new()
-	label.text = text
+## 空中に浮かぶ案内の文字（ステージの島でも使う）。text の `{key:操作}` は、その人のいまの
+## 割り当てで描き、割り当てや入力の種類が変わったら描き直す（KeyLabel3D）。
+static func add_label(parent: Node, at: Vector3, text: String) -> KeyLabel3D:
+	var label := KeyLabel3D.new()
+	label.template = text
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position = at
 	label.pixel_size = 0.005

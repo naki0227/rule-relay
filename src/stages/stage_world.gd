@@ -60,13 +60,17 @@ func _ready() -> void:
 	for i in def.checkpoints.size():
 		_add_pad(def.checkpoints[i], "チェックポイント", "checkpoint_pad", 1.9)
 	for pad in def.return_pads:
-		_add_pad(pad, "広場へ戻る（%s）" % InputMode.key(&"interact"), "entrance_gate", GATE_LABEL_HEIGHT)
-	for e in def.entrances:
+		_add_pad(
+			pad, "広場へ戻る（%s）" % InputMode.token(&"interact"), "entrance_gate", GATE_LABEL_HEIGHT
+		)
+	for i in def.entrances.size():
+		var e := def.entrances[i]
 		var stage := StageCatalog.by_id(e.stage_id)
-		var caption := "%s\n目安 %d 分（仮）・%s"
+		# 最初の入口（いちばん短い導入）にだけ「はじめはここから」を添える。説明はしない
+		var caption := ("はじめはここから\n" if i == 0 else "") + "%s\n目安 %d 分（仮）・%s"
 		_add_pad(
 			e.position,
-			caption % [stage.display_name, stage.target_minutes, InputMode.key(&"interact")],
+			caption % [stage.display_name, stage.target_minutes, InputMode.token(&"interact")],
 			"entrance_gate",
 			GATE_LABEL_HEIGHT
 		)

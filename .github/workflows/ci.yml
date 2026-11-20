@@ -71,6 +71,13 @@ jobs:
           path: build/macos
           retention-days: 14
 
+      - name: Upload submission ZIPs (Windows / macOS, with LICENSES.txt)
+        uses: actions/upload-artifact@v5
+        with:
+          name: rule-relay-submission
+          path: build/submission
+          retention-days: 14
+
       - name: Upload Linux build (Steam Deck)
         uses: actions/upload-artifact@v5
         with:
