@@ -327,7 +327,7 @@ static func _explain(entry: InventoryQuery.Entry) -> String:
 		RuleAction.Kind.CLIMB:
 			action = "壁を登る力。装備しているときだけ自分に効く。ブロックに渡すと、隣でいちばん高い所の高さまで登ってつかまる。"
 	if t.is_prohibition:
-		var lent_note := "\n\nいまは貸し出し中なので、自分には効いていない。" if t.is_lent() else ""
+		var lent_note := "\n\nいまは貸し出し中なので、自分には効いていない。" if not t.is_in_vessel() else ""
 		return (
 			("「%s」を自分から始められなくする禁止。ホットバーでも、かばんでも、持っている限り自分に効く。" % RuleAction.label(t.action))
 			+ lent_note

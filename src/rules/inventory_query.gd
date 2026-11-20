@@ -66,9 +66,9 @@ static func describe(ledger: RuleLedger, v: RuleVessel) -> Entry:
 	entry.part = v.part
 	if v.is_equipment() and v.item_name != "":
 		entry.label = v.item_name
-	if t.is_lent():
+	if not t.is_in_vessel():
 		entry.state = State.LENT
-		var target := "範囲%d個" % t.holder_ids.size() if t.is_range else "単体"
+		var target := _away_text(t)
 		var mode := "" if t.mode == TriggerMode.Kind.NONE else "・" + TriggerMode.label(t.mode)
 		entry.state_text = "貸出中（%s%s）" % [target, mode]
 		if v.location == RuleVessel.Location.EQUIPPED:
@@ -188,3 +188,12 @@ static func _all_vessels(ledger: RuleLedger) -> Array[RuleVessel]:
 			result.append(equipped)
 	result.append_array(ledger.inventory_vessels())
 	return result
+
+
+## 器を離れた能力がどこにあるか（貸出中の表示用）。
+static func _away_text(t: RuleToken) -> String:
+	if t.carrier_id != -1:
+		return "仲間が持っている"
+	if t.dropped:
+		return "落ちている"
+	return "範囲%d個" % t.holder_ids.size() if t.is_range else "単体"

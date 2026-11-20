@@ -14,11 +14,14 @@ class Route:
 	var single_shot_token_ids: PackedInt32Array = PackedInt32Array()
 
 
-static func route_press(ledger: RuleLedger, action: RuleAction.Kind) -> Route:
+## player_id はキーを押したプレイヤー。単発はその人が直前に付与したものだけが起動する。
+static func route_press(
+	ledger: RuleLedger, action: RuleAction.Kind, player_id: int = RuleLedger.PLAYER_ID
+) -> Route:
 	var route := Route.new()
-	route.player_acts = ledger.player_can(action)
-	if ledger.player_prohibited(action):
+	route.player_acts = ledger.player_can(action, player_id)
+	if ledger.player_prohibited(action, player_id):
 		return route
-	for t in ledger.pending_single_shots(action):
+	for t in ledger.pending_single_shots(action, player_id):
 		route.single_shot_token_ids.append(t.id)
 	return route

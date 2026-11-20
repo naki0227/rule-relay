@@ -22,6 +22,8 @@ var part: Part = Part.NONE
 var item_name: String = ""
 ## WORLD のときの位置。
 var world_position: Vector3 = Vector3.ZERO
+## 器を持っているプレイヤー。WORLD（未回収）のときは -1。能力を仲間へ渡しても器は持ち主に残る。
+var owner_id: int = RuleLedger.PLAYER_ID
 
 
 func is_equipment() -> bool:
@@ -50,6 +52,7 @@ func to_dict() -> Dictionary:
 		"part": part,
 		"item_name": item_name,
 		"world_position": world_position,
+		"owner_id": owner_id,
 	}
 
 
@@ -62,4 +65,6 @@ static func from_dict(data: Dictionary) -> RuleVessel:
 	vessel.part = int(data.get("part", Part.NONE)) as Part
 	vessel.item_name = String(data.get("item_name", ""))
 	vessel.world_position = data.get("world_position", Vector3.ZERO) as Vector3
+	var legacy_owner := -1 if vessel.location == Location.WORLD else RuleLedger.PLAYER_ID
+	vessel.owner_id = int(data.get("owner_id", legacy_owner))
 	return vessel

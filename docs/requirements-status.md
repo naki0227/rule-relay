@@ -102,9 +102,31 @@
 
 1〜7 は `tests/integration/test_acceptance.gd` に番号どおりに書いた（7 は 7a・7b の2通り）。
 
+## マルチプレイ（2026-11-20 引き継ぎ仕様）
+
+出典: `docs/handoff/2026-11-20-multiplayer-handoff.md`（Vault Draft PR #44 の 14〜44 節と突き合わせ済み。食い違いなし）。
+確認日: 2026-11-20、main 5a050fa にブランチ `claude/p3-1-party-ledger` を重ねた時点。上の 4〜11 は1人用プロトタイプの表で、ここはその後の新仕様。
+番号は引き継ぎ仕様 9 の受け入れテスト候補。**ルール層（台帳）だけ**で確かめた項目は「台帳のみ」と書き、ゲーム画面・物理・ネットワークではまだ動かない。
+
+| # | 要件 | 状態 | 実装 | テスト |
+|---|---|---|---|---|
+| 1 | 1人用の既存挙動をすべて保つ | 実装＋テスト | `player_id` を省略すると `PLAYER_ID` | 既存の unit・integration 全件 |
+| 2 | プレイヤー間で能力を直接渡す（承認なし）。受け取った人はさらに人・ブロックへ渡せる | 台帳のみ | `RuleLedger.give_to_player`・`lend_token` | `test_party_ledger` 2 |
+| 3 | 同じ能力を集めると数だけ強まる（ジャンプ×4、W×4、投げる×4）。空の器は数えない | 台帳のみ（数まで）。高さ・速度・射程の倍率は未実装 | `RuleLedger.ability_count` | `test_party_ledger` 3 |
+| 4 | 器は元の人に残り、能力はその人に効かない。トークンは世界に1つ | 台帳のみ | `RuleVessel.owner_id`、`RuleToken.carrier_id` | `test_party_ledger` 4 |
+| 5 | F で回収した人が受け取る（元の持ち主へ戻さない） | 台帳のみ | `RuleLedger.recall(token, by_player)` | `test_party_ledger` 5 |
+| 6 | 単発成功は直前の付与者へ返る。4個束ねても ID は別々 | 台帳のみ | `RuleToken.lender_id`、`complete_single_shot` | `test_party_ledger` 6 |
+| 7 | 退出者がブロックへ付けた能力は残り、F で回収できる | 台帳のみ | `RuleLedger.set_player_present` | `test_party_ledger` 7 |
+| 8 | 付与者が退出していたら単発成功で現場に落ち、拾える（複製しない） | 台帳のみ。落ちる場所の選び方・見た目は未実装 | `RuleToken.dropped`、`pickup_token` | `test_party_ledger` 8 |
+| 9 | 循環譲渡でも出自を書き換えない | 台帳のみ | `vessel_id` を不変にした | `test_party_ledger` 9 |
+| 10〜23 | 人数別補助・死亡観戦・共通チェックポイント・投票・途中参加・ホスト移譲・報酬・導入ステージ | 未実装 | — | — |
+
+台帳で仮に決めた挙動（禁止をプレイヤーへ渡せない、付与者が退出していて単発が失敗したらブロックに残す、受け取った能力は持っていれば効く）は `docs/adr/0005-party-token-ledger.md` の「未決のため仮にした挙動」。
+
 ## まだ満たしていないもの・人の確認が要るもの
 
 - 他者による15分プレイテスト（P0-3 の判定）。人がいないとできない
 - Windows 11 実機での起動と操作感の確認（CI の Windows 起動確認は通っている）
 - キーの割り当て変更・明暗や点滅の調整（8 の検討項目）
 - 未決事項（`docs/TODO.md` の要確認）への本人の判断
+- マルチプレイの 10〜23 と、2〜9 のゲーム画面・物理・ネットワークへの組み込み（上の表）

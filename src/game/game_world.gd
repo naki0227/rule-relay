@@ -229,7 +229,7 @@ func _throw_unavailable_reason() -> String:
 	if ledger.player_prohibited(RuleAction.Kind.THROW):
 		return "投げる禁止を持っています"
 	for t: RuleToken in _player_tokens(RuleAction.Kind.THROW):
-		if t.is_lent():
+		if not t.is_in_vessel():
 			return "貸出中です（F で回収）"
 	return "ホットバーにありません"
 
@@ -334,7 +334,7 @@ func _range_refusal(target: Node3D) -> String:
 	if v == null:
 		return "ホットバー %d は空です" % (selected_slot + 1)
 	var t := ledger.token(v.token_id)
-	if t.is_lent():
+	if not t.is_in_vessel():
 		return "%s は貸出中です" % t.describe()
 	return _range_target_refusal(target)
 

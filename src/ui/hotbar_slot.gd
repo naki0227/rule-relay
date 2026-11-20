@@ -33,7 +33,7 @@ func describe() -> String:
 	if token == null:
 		return "%d: 空" % (slot_index + 1)
 	var state := ""
-	if token.is_lent():
+	if not token.is_in_vessel():
 		state = "・貸出中（%s）" % TriggerMode.label(token.mode)
 	elif token.is_prohibition:
 		state = "・適用中"
