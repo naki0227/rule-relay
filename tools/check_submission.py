@@ -285,7 +285,7 @@ def _project_sections() -> list[str]:
         "",
         font_license,
         "",
-        "■ 生成 AI で作った効果音（6 種）",
+        "■ 生成 AI で作った音（効果音 6 種と BGM 3 曲）",
         "  モデル: Stable Audio 3 medium（Stability AI）。手元の PC で生成しました。",
         "  モデルのライセンス: Stability AI Community License",
         "  効果音の残りと 3D モデル・アイコンは、このゲームのために作ったスクリプトで生成したものです。",
@@ -378,7 +378,7 @@ def main(argv: list[str]) -> int:
     print("  - Godot Engine（MIT）と、エンジンに組み込まれた部品（Jolt Physics ほか。LICENSES.txt に全文）")
     for name in sorted(found):
         print(f"  - {name}（SIL Open Font License 1.1）")
-    print("  - 効果音 6 種: Stable Audio 3 medium の生成物（Stability AI Community License）")
+    print("  - 効果音 6 種と BGM 3 曲: Stable Audio 3 medium の生成物（Stability AI Community License）")
     for out in targets:
         print(f"submission: OK {out.relative_to(ROOT)} ({out.stat().st_size:,} bytes)")
     return 0

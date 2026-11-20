@@ -103,7 +103,7 @@ DAMAGES, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF THE USE OR INABILITY TO USE THE FONT SOFTWARE OR FROM
 OTHER DEALINGS IN THE FONT SOFTWARE.
 
-■ 生成 AI で作った効果音（6 種）
+■ 生成 AI で作った音（効果音 6 種と BGM 3 曲）
   モデル: Stable Audio 3 medium（Stability AI）。手元の PC で生成しました。
   モデルのライセンス: Stability AI Community License
   効果音の残りと 3D モデル・アイコンは、このゲームのために作ったスクリプトで生成したものです。

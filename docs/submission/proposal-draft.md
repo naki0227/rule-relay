@@ -99,7 +99,7 @@
 ### 2.5 ストーリー・世界観設定（目的と舞台）
 
 【未決・本人が決める】世界観・物語・最終目的は決まっていない（引き継ぎ仕様 2-4「世界全体の物語・最終目的は未決」）。
-別のブランチで世界観の案を作っている。決まったら `docs/worldview/` の案から、ここに次を書く。
+世界観の案は `docs/worldview/`（4 案と推奨案の深掘り。状態は「提案」）にある。本人が選んだら、ここに次を書く。
 
 - 舞台: 【未決・本人が決める】（`docs/worldview/` を参照）
 - 目的（なぜ能力を貸し借りするのか、なぜ島を巡るのか）: 【未決・本人が決める】（`docs/worldview/` を参照）
@@ -255,7 +255,7 @@
 | Jolt Physics | 3D 物理（Godot に組み込み） | MIT | ADR 0001（`physics/3d/physics_engine` で明示） |
 | Godot に組み込まれたそのほかの部品（FreeType・HarfBuzz・ICU・ENet・Ogg Vorbis など） | 文字の描画・和文の折り返し・通信・音声など | 各部品のライセンス（Expat（MIT）・BSD・Zlib・Apache-2.0・MPL-2.0 など。`LICENSES.txt` に Godot が報告する一覧と本文） | `tools/dump_engine_licenses.gd` |
 | Zen Maru Gothic（Medium・Bold） | UI の書体。収録する文字を絞った改変版 | SIL Open Font License 1.1 | `assets/fonts/README.md` |
-| 効果音 6 種（Stable Audio 3 medium の生成物） | ホバー・石の応え・ブロックのジャンプと移動・自分のジャンプ・保存 | モデルは Stability AI Community License | `docs/sound-design.md`、下の 3.6 |
+| 効果音 6 種と BGM 3 曲（Stable Audio 3 medium の生成物） | 効果音: ホバー・石の応え・ブロックのジャンプと移動・自分のジャンプ・保存。BGM: タイトル・ハブ・島（仮の選曲） | モデルは Stability AI Community License | `docs/sound-design.md`、下の 3.6 |
 | 自作の素材 | 3D モデル 15 点・アイコン・残りの効果音は、このゲームのために書いたスクリプト（Blender の Python・Python の合成）で生成 | 自作 | `art/README.md`、`docs/sound-design.md` |
 
 - 外部のアドオンはゲームに入れていない（ADR 0002「Godot のゲーム本体には、外部アドオンを入れていない」）。
@@ -279,7 +279,7 @@
 | AI ツール | AI モデル・バージョン | 使用工程と用途 | 使用時期 | 人の確認 |
 |---|---|---|---|---|
 | Claude Code（Anthropic） | 【本人が記入】（提出時に本人がサービスの表示で確かめる。`docs/ai-usage.md`） | プログラミングコードの生成（ゲームのルール・物理・通信・UI）、テスト・CI、技術選定の比較、3D モデルとアイコンを生成する Blender のスクリプト、効果音の合成と取り込みのスクリプト、効果音の候補の測定と選定、記録の作成 | 2026-11-18〜（作業が続くあいだ。終わりの日は【本人が記入】） | 本人が PR でレビュー |
-| Stable Audio 3 medium（Stability AI）。Audio Studio MCP 1.2.0 を通して、本人の Mac の中で生成（外部のサービスには送っていない） | Hugging Face `stabilityai/stable-audio-3-optimized` の MLX 版、リビジョン `30cb264` | 効果音の候補の生成（BGM 3 場面×2、効果音 27 種×2）。うち効果音 6 種をゲームに採用。加工は人の書いたスクリプトでのフィルター・切り出し・音量調整だけ。BGM は採用していない | 2026-11-20 | 採用は AI（Claude Code）が測定値で選んだ。本人の試聴は【本人が記入】 |
+| Stable Audio 3 medium（Stability AI）。Audio Studio MCP 1.2.0 を通して、本人の Mac の中で生成（外部のサービスには送っていない） | Hugging Face `stabilityai/stable-audio-3-optimized` の MLX 版、リビジョン `30cb264` | 音楽の作曲・効果音の生成。候補（1 回目: BGM 3 場面×2、効果音 27 種×2。2 回目: 効果音 21 種×3）を生成し、効果音 6 種と BGM 3 曲（タイトル・ハブ・島）をゲームに採用。効果音の加工は人の書いたスクリプトでのフィルター・切り出し・音量調整だけ、BGM は加工なし。2 回目の候補はまだゲームに入れていない | 2026-11-20 | 効果音は AI（Claude Code）が測定値で選び、BGM は AI の仮の選曲（AI は音を聴けない）。本人の試聴は【本人が記入】 |
 | ChatGPT（OpenAI） | 【本人が記入】 | 企画の相談（仕様は本人が選択） | 2026-11-17 | 本人が仕様を選択 |
 
 - 使っていないもの: 画像生成 AI・3D 生成 AI（3D モデルとアイコンはスクリプトで生成。`art/README.md`）。ゲームの中で動く AI もない。
@@ -290,10 +290,10 @@
 
 | 項目 | 内容 | 根拠 |
 |---|---|---|
-| 自動テスト | **492 件**（2026-11-20、main `f5c3d0d` で `tools/check.sh --build` を実行し、492 件成功・0 件失敗）。ルールの単体テストと、物理を 60fps 固定で進める結合テスト | `tests/`、`tools/check.sh` |
+| 自動テスト | **508 件**（2026-11-20、main `4de236a` の上で `tools/check.sh --build` を実行し、508 件成功・0 件失敗）。ルールの単体テストと、物理を 60fps 固定で進める結合テスト | `tests/`、`tools/check.sh` |
 | 通しプレイ | 全ステージを、プレイヤーと同じ操作（歩く・跳ぶ・渡す・拾う・鐘を鳴らす。瞬間移動なし）で最初から最後まで遊び、クリアできることを毎回確かめる。島によっては 2〜3 通りの道と協力の近道も | ADR 0011 決定 7、`tests/integration/test_open_islands*.gd` |
 | 協力 | 同じ PC の中で ENet の 2〜4 端をつなぎ、受け渡し・回収・死亡観戦・投票・途中参加・報酬・ホスト移譲・4 人の同時操作の競合（トークンが増減しない）を確かめる | `docs/requirements-status.md`「マルチプレイ」、`test_net_*` |
-| 敵対的な試遊 | 抜け道・詰みを探す自動プレイ。見つけた 7 件（F1〜F7）は本人が「直す／残す」を判断し、残すと決めた技もテストで固定した。遠征の詰み（F8）は本人の判断待ち | `docs/reports/2026-11-20-island-playtest-findings.md`、`docs/reports/2026-11-20-goal-probes.md`、ADR 0011 |
+| 敵対的な試遊 | 抜け道・詰みを探す自動プレイ。見つけた 7 件（F1〜F7）は本人が「直す／残す」を判断し、残すと決めた技もテストで固定した。遠征の詰み（F8）は本人の判断でチェックポイントの判定を直した | `docs/reports/2026-11-20-island-playtest-findings.md`、`docs/reports/2026-11-20-goal-probes.md`、ADR 0011 |
 | CI | GitHub Actions で、整形・静的検査・効果音の基準・全テスト・起動確認・Windows/macOS/Linux の書き出しを毎回。Windows と macOS のランナーで書き出した実行ファイルを起動。提出版に Steam・秘密・原本が入っていないことと `LICENSES.txt` を確かめる | ADR 0002・0012、`.github/workflows/ci.yml` |
 | まだやっていないこと | 他者による試遊、Windows 11 実機・別々の PC・インターネット越しの協力、見た目と世界観 | `docs/requirements-status.md` の最後 |
 
@@ -348,4 +348,3 @@
 | レーティング | 4.5 |
 | Mac 版の署名・公証 | `docs/macos-signing.md` |
 | AI のモデル・バージョンの記入（Claude Code・ChatGPT） | 各サービスの表示 |
-| 遠征の詰み F8 の扱い | ADR 0011 |
