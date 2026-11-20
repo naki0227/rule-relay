@@ -191,7 +191,9 @@ func test_a_first_timer_follows_the_hints_from_the_hub_to_the_clear() -> void:
 	for i: int in 300:
 		if game.director.last_clear_text != "":
 			break
-		if _world().player.global_position.y > 2.05:
+		var at := _world().player.global_position
+		# 岩棚に上がったら前へ。窪みに降りたあとも、ゴールの真ん中（z -8.5 付近）まで歩く
+		if at.y > 2.05 or (at.y > 0.5 and at.z > -8.4):
 			Input.action_press(&"move_forward")
 		else:
 			Input.action_release(&"move_forward")
