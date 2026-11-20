@@ -14,6 +14,7 @@ const PAD_LABELS := {
 	"V": "十字↓",
 	"Esc": "Start",
 	"Space": "A",
+	"Shift": "B",
 	"1〜9": "LB / RB",
 }
 

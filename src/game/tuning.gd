@@ -20,6 +20,8 @@ const PLAYER_JUMP_HEIGHT: float = 1.3  # 1ブロックの段差を登れ、2ブ�
 const STEP_ASSIST_HEIGHT: float = 0.4  # 企画書 4-6: P0 の初期値 0.4 ブロック
 const BOOTS_JUMP_HEIGHT: float = 2.3  # ジャンプブーツ: 企画書 7「約2ブロック」。2段の段差に上がれる
 const CLIMB_SPEED: float = 2.5  # クライミンググローブで壁を登る速さ（m/秒）
+const DASH_CELLS: int = 3  # ダッシュの基礎距離（マス）。n 個持てば 3n マス（仮値）
+const DASH_SPEED: float = 14.0  # ダッシュの速さ（m/秒、仮値）
 const FALL_LIMIT_Y: float = -12.0
 ## いちばん低い床（谷底）の上面。これより下にあるブロックは「落ちている途中」とみなす。
 const LOWEST_FLOOR_Y: float = -1.0

@@ -110,7 +110,14 @@ func test_catalog_definitions_are_consistent() -> void:
 	for def in defs:
 		assert_true(def.problems().is_empty(), "%s: %s" % [def.stage_id, def.problems()])
 		assert_eq(StageCatalog.by_id(def.stage_id).stage_id, def.stage_id)
-	assert_eq(StageCatalog.all_stages().size(), 3)
+	assert_eq(StageCatalog.all_stages().size(), 7)
+	var minutes: Array[int] = []
+	for def in StageCatalog.all_stages():
+		minutes.append(def.target_minutes)
+	var sorted := minutes.duplicate()
+	sorted.sort()
+	assert_eq(minutes, sorted, "stages are listed from the shortest target time")
+	assert_false(minutes.has(0), "every stage has a target time")
 	assert_eq(StageCatalog.by_id("nope"), null)
 
 
@@ -118,7 +125,7 @@ func test_stages_use_different_clear_conditions() -> void:
 	var kinds := {}
 	for def in StageCatalog.all_stages():
 		kinds[def.clear_condition.kind] = true
-	assert_eq(kinds.size(), 3, "not every stage is 'reach the goal'")
+	assert_gt(kinds.size(), 2, "not every stage is 'reach the goal'")
 	assert_eq(StageCatalog.hub().clear_condition.kind, ClearCondition.Kind.NONE)
 
 
