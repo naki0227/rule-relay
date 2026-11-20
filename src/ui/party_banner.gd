@@ -38,18 +38,22 @@ static func describe(d: PartyDirector) -> String:
 	if d.in_stage():
 		var state := d.lifecycle.state_of(d.local_id())
 		if state == PartyLifecycle.State.DEAD_SPECTATING:
-			parts.append("観戦中（仲間が台座で F を押すと復活）")
+			parts.append("観戦中（仲間が台座で %s を押すと復活）" % InputMode.key(&"interact"))
 		elif state == PartyLifecycle.State.WAITING_SPECTATOR:
 			parts.append("観戦中（次の全員リセットで合流）")
 		if d.lifecycle.is_vote_open():
 			parts.append(
 				(
-					"全員リセットの投票 %d / %d（V 長押しで賛成）"
-					% [d.lifecycle.yes_vote_count(), d.lifecycle.required_votes()]
+					"全員リセットの投票 %d / %d（%s 長押しで賛成）"
+					% [
+						d.lifecycle.yes_vote_count(),
+						d.lifecycle.required_votes(),
+						InputMode.key(&"vote_reset")
+					]
 				)
 			)
 		else:
-			parts.append("V 長押し: 全員リセットの投票")
+			parts.append("%s 長押し: 全員リセットの投票" % InputMode.key(&"vote_reset"))
 	if d.last_clear_text != "" and d.in_stage():
 		parts.append(d.last_clear_text)
 	return "　".join(parts)

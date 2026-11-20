@@ -92,13 +92,6 @@ func test_quarry_banned_lift_after_moving_the_ban_away() -> void:
 	assert_true(await _cleared(), "rode the freed lift out of the quarry")
 
 
-func _free_slot() -> int:
-	for slot in RuleLedger.HOTBAR_SIZE:
-		if w.ledger.hotbar_vessel(slot, _me().player_id) == null:
-			return slot
-	return -1
-
-
 # --- 三つの鐘の島 --------------------------------------------------------------
 
 

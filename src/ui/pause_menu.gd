@@ -12,10 +12,13 @@ const ITEMS: Array[Array] = [
 	["latest", "チェックポイントへもどる", "最後に保存したときの世界に、まるごともどります。"],
 	["previous", "ひとつ前の保存へもどる", "最後の保存を取り消します。詰んだまま保存してしまったときに。"],
 	["restart", "島のはじめから", "保存をすべて消して、島に来たときにもどります。"],
+	["settings", "せってい", "キー割り当て・文字の大きさ・視点の速さ・音の大きさを変えます。"],
 	["quit", "ゲームをやめる", "ゲームを終了します。"],
 ]
 
 var world: GameWorld
+## 設定の画面（「せってい」で開く。この札の上に重ねる）。
+var settings_menu: SettingsMenu
 ## 効果音を鳴らす関数（Hud.play_ui）。無ければ鳴らさない。
 var play_sound: Callable
 
@@ -55,6 +58,8 @@ func open() -> void:
 
 
 func close() -> void:
+	if settings_menu.is_open():
+		settings_menu.close()
 	if visible:
 		_sound(&"ui_close")
 	visible = false
@@ -96,6 +101,9 @@ func choose(item: String) -> void:
 				_restart_armed = true
 				refresh()
 				_describe("もう一度えらぶと、保存をすべて消して島のはじめにもどります。")
+		"settings":
+			_card.visible = false
+			settings_menu.open()
 		"quit":
 			get_tree().paused = false
 			get_tree().quit()
@@ -152,9 +160,20 @@ func _build() -> void:
 	column.add_child(rule)
 	_description = Label.new()
 	_description.theme_type_variation = &"Note"
-	_description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	UiTheme.wrap_text(_description)
 	_description.custom_minimum_size = Vector2(480, 56)
 	column.add_child(_description)
+	# 設定の画面は最後の子にして、Esc・B を札より先に受け取る（設定を閉じて札にもどる）
+	settings_menu = SettingsMenu.new()
+	settings_menu.play_sound = func(event: StringName) -> void: _sound(event)
+	settings_menu.closed.connect(_on_settings_closed)
+	add_child(settings_menu)
+
+
+func _on_settings_closed() -> void:
+	_card.visible = true
+	if visible:
+		_buttons["settings"].grab_focus()
 
 
 func _describe(text: String) -> void:

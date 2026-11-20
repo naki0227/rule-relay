@@ -49,6 +49,11 @@ func is_inventory_open() -> bool:
 	return inventory != null and inventory.visible
 
 
+## メニュー（Esc・その上の「せってい」・持ち物）を開いているか。BGM を少し下げるのに使う。
+func is_menu_open() -> bool:
+	return is_inventory_open() or (pause_menu != null and pause_menu.is_open())
+
+
 func toggle_inventory() -> bool:
 	if inventory.visible:
 		inventory.close()
@@ -138,7 +143,7 @@ func update_context(target: Node3D, in_reach: bool, on_checkpoint: bool) -> void
 			prompts.append(["C", "遠すぎる"])
 		elif world.can_throw():
 			prompts.append(["C", "投げるで届く"])
-	var key := str(prompts) + str(InputMode.using_pad)
+	var key := str(prompts) + str(InputMode.using_pad) + str(KeyBindings.revision)
 	if _context.get_meta("key", "") == key:
 		return
 	_context.set_meta("key", key)

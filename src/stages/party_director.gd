@@ -51,7 +51,7 @@ var _runs: Array[StageRunRewards] = []
 ## 一度でもこの部屋に来たプレイヤー（初めて来たときだけ出現地点へ動かす。再接続・ホスト移譲では動かさない）。
 var _known_players: Dictionary[int, bool] = {}
 ## 「チェックポイントにできない」を一度伝えた人（台座の上で毎フレーム出さないため）。
-var _warned_checkpoint: Dictionary[int, bool] = {}
+var _warned_checkpoint: Dictionary[int, int] = {}
 
 
 func _ready() -> void:
@@ -144,7 +144,11 @@ func _build(new_stage_id: String, run_id: String) -> void:
 		)
 		world.ledger.changed.connect(func() -> void: tracker.observe(world.ledger))
 	world.message_posted.emit(
-		"%s に来ました" % world.def.display_name if in_stage() else "ハブ: 入口で F を押すとステージへ"
+		(
+			"%s に来ました" % world.def.display_name
+			if in_stage()
+			else "ハブ: 入口で %s を押すとステージへ" % InputMode.key(&"interact")
+		)
 	)
 	world_changed.emit(world)
 
@@ -220,30 +224,41 @@ func _check_checkpoints() -> bool:
 	for player_id in lifecycle.players_in(PartyLifecycle.State.ACTIVE):
 		var avatar := world.avatar_of(player_id)
 		var cp := "" if avatar == null else world.checkpoint_at(avatar.global_position)
-		if cp != "" and not _safe_to_save(player_id, avatar):
-			_warn_unsafe_checkpoint(player_id)
+		if cp == "":
+			_warned_checkpoint.erase(player_id)
+		elif not _safe_to_save(player_id, avatar):
+			_warn_unsafe_checkpoint(player_id, avatar)
 			continue
 		if cp != "" and lifecycle.activate_checkpoint(player_id, cp):
 			_snapshots[cp] = _capture()
-			world.message_posted.emit("チェックポイントがチーム共通になりました（台座で F: 全員復活）")
+			world.message_posted.emit(
+				"チェックポイントがチーム共通になりました（台座で %s: 全員復活）" % InputMode.key(&"interact")
+			)
 			world.sound_requested.emit(&"save", Vector3.ZERO, false)
 			changed = true
 	return changed
 
 
-## 詰みにつながる状態（自分で一歩も歩けない・空中）では、チェックポイントを有効にしない
-## （2026-11-20 試遊で、歩けないままダッシュで台座に入ると抜け出せない状態が保存された）。
+## 詰みにつながる状態（自分で一歩も歩けない・空中・ジャンプを遠くへ貸したまま）では、
+## チェックポイントを有効にしない（2026-11-20 試遊 F4・F8）。
 func _safe_to_save(player_id: int, avatar: PlayerAvatar) -> bool:
+	return _save_blockers(player_id, avatar).is_empty()
+
+
+func _save_blockers(player_id: int, avatar: PlayerAvatar) -> Array[CheckpointPolicy.Blocker]:
 	var on_floor := avatar.is_on_floor() if avatar == world.player else avatar.remote_on_floor
-	return CheckpointPolicy.save_blockers(world.ledger, on_floor, 0, player_id).is_empty()
+	return CheckpointPolicy.save_blockers(world.ledger, on_floor, 0, player_id)
 
 
-func _warn_unsafe_checkpoint(player_id: int) -> void:
-	if _warned_checkpoint.has(player_id):
+## 理由が変わったとき・台座に乗り直したときだけ伝える（台座の上で毎フレーム出さない）。
+func _warn_unsafe_checkpoint(player_id: int, avatar: PlayerAvatar) -> void:
+	var blockers := _save_blockers(player_id, avatar)
+	if blockers.is_empty() or blockers[0] == CheckpointPolicy.Blocker.AIRBORNE:
 		return
-	_warned_checkpoint[player_id] = true
-	var why := "W/A/S/D のどれかを手元に戻してから台座に触れてください"
-	world.message_posted.emit("チェックポイントにできません（%s）" % why)
+	if _warned_checkpoint.get(player_id, -1) == blockers[0]:
+		return
+	_warned_checkpoint[player_id] = blockers[0]
+	world.message_posted.emit("チェックポイントにできません（%s）" % CheckpointPolicy.describe(blockers[0]))
 
 
 func _check_clear() -> void:
@@ -309,7 +324,14 @@ func _vote_as(player_id: int, seen_resets: int) -> void:
 		return  # 賛成したリセットはもう決まった
 	if lifecycle.vote_reset(player_id):
 		world.message_posted.emit(
-			"全員リセットの投票 %d / %d（V 長押しで賛成）" % [lifecycle.yes_vote_count(), lifecycle.required_votes()]
+			(
+				"全員リセットの投票 %d / %d（%s 長押しで賛成）"
+				% [
+					lifecycle.yes_vote_count(),
+					lifecycle.required_votes(),
+					InputMode.key(&"vote_reset")
+				]
+			)
 		)
 	_broadcast_party()
 
@@ -678,5 +700,7 @@ func _leave() -> void:
 	world.ledger.set_player_present(sender, false, drop_at)
 	world.message_posted.emit(_name(sender) + "が部屋を出ました（持っていた物はその場に落ちています）")
 	if in_stage():
-		world.message_posted.emit("人数が変わりました。V 長押しで、今の人数に合わせてやり直せます")
+		world.message_posted.emit(
+			"人数が変わりました。%s 長押しで、今の人数に合わせてやり直せます" % InputMode.key(&"vote_reset")
+		)
 	_broadcast_party()
