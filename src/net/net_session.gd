@@ -219,7 +219,9 @@ func _reply(sender: int, seq: int, result: Dictionary) -> void:
 
 func _broadcast() -> void:
 	state_changed.emit(generation)
-	_state.rpc(generation, ledger.snapshot())
+	var peer := multiplayer.multiplayer_peer
+	if peer != null and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		_state.rpc(generation, ledger.snapshot())
 
 
 func _on_peer_disconnected(peer: int) -> void:

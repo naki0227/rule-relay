@@ -19,7 +19,7 @@
 
 | # | 要件 | 状態 | 実装 | テスト |
 |---|---|---|---|---|
-| 5.1 | ブロック: 単体・範囲。生き物: 単体のみ。プレイヤー: 対象外 | 実装＋テスト | `rule_ledger.gd` `_validate_targets`、`game_world.gd` `lend_to` | `test_rule_ledger`、`test_creature` |
+| 5.1 | ブロック: 単体・範囲（2026-11-19 本人の判断: 地形を含むどのブロックにも渡せる）。生き物: 単体のみ。プレイヤー: 対象外 | 実装＋テスト（`test_any_block`） | `rule_ledger.gd` `_validate_targets`、`game_world.gd` `lend_to` | `test_rule_ledger`、`test_creature` |
 | 5.1 | C で触る／投げる、左クリック＝単体、右クリック＝範囲 | 実装＋テスト | `player_input.gd`、`game_world.gd` `toggle_reach` | `test_throw_pickup_shuttle` |
 | 5.1 | 投げるも譲渡可能。貸すと遠距離付与できないが、触るとFの回収は残す | 実装＋テスト | `RuleAction.THROW`、`game_world.gd` `reach`／`_within_touch` | `test_throw_and_pickup`、`test_throw_pickup_shuttle` |
 | 5.2 | 単発: 対応キーで1回だけ試み、成功で自動返還。付与直後に勝手に実行しない | 実装＋テスト | `input_router.gd`、`rule_ledger.gd` `complete_single_shot` | `test_acceptance` 4 |
@@ -134,8 +134,7 @@
 | 22 | 再送・競合で状態・報酬が一意 | 一部（依頼の再送・報酬の再送・投票の重複はテスト済み。同時 F 回収の競合はホストが順に処理する作りで、専用テストなし） | `NetSession`、`StageRunRewards`、`PartyLifecycle` | `test_net_session`、`test_stage_run_rewards`、`test_party_lifecycle` |
 | 23 | 導入ステージをソロでも2〜4人でも攻略できる | 一部（ソロのクリアは結合テスト。2〜4人の別解は ×n の式が仮のため未確認） | `StageCatalog.intro_jump_lend` | `test_party_director`、`test_stage_rules` |
 | ハブ | ハブを歩いて入口を見つけ、F でステージへ。クリア後はハブへ戻る | 実装＋テスト（見た目は仮） | `StageCatalog.hub`、`StageWorld`、`PartyDirector` | `test_party_director` |
-| 入口 | タイトル（ひとりで／部屋を作る／相棒ボットと／部屋に入る） | 実装（起動確認のみ） | `TitleMenu`、`GameRoot` | `tools/check.sh` の起動確認 |
-| 相棒ボット | （仕様外・試遊用）参加者として入り、ついてくる・能力を渡す・回収する | 実装＋テスト | `CompanionBot` | `test_companion_bot` |
+| 入口 | タイトル（ひとりで／部屋を作る／部屋に入る） | 実装（起動確認のみ） | `TitleMenu`、`GameRoot` | `tools/check.sh` の起動確認 |
 | Steam 版 | ロビー・招待・P2P | 差し替え口のみ（**未検証**） | `SteamTransport` | `test_steam_transport`（使えないときの動作だけ） |
 
 台帳で仮に決めた挙動（禁止をプレイヤーへ渡せない、付与者が退出していて単発が失敗したらブロックに残す、受け取った能力は持っていれば効く）は `docs/adr/0005-party-token-ledger.md` の「未決のため仮にした挙動」。

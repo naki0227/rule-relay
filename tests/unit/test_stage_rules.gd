@@ -156,7 +156,9 @@ func test_intro_loadout_for_one_to_four_players() -> void:
 		for p in ids:
 			for slot in 5:
 				assert_ne(ledger.hotbar_vessel(slot, p), null, "%d players: slot %d" % [n, slot])
-			assert_eq(ledger.token_of_vessel(ledger.hotbar_vessel(4, p).id).action, JUMP)
+			assert_eq(
+				PartyQuery.token_of_vessel(ledger, ledger.hotbar_vessel(4, p).id).action, JUMP
+			)
 			assert_true(ledger.player_can(JUMP, p))
 			assert_false(ledger.player_has_ability(THROW, p), "no throw: lend by touch")
 		assert_eq(ledger.all_tokens().size(), 5 * n, "%d players: no helpers in the intro" % n)

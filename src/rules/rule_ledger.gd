@@ -96,6 +96,12 @@ func players() -> PackedInt32Array:
 	return ids
 
 
+## 付与先を取り除く（地形から動くブロックにしたセルを、地形へ戻すとき）。付いていたトークンは戻らないので、
+## 呼ぶ側で先に回収するか、台帳ごと restore すること。
+func unregister_entity(entity_id: int) -> void:
+	_entities.erase(entity_id)
+
+
 func entity_kind(entity_id: int) -> EntityKind.Kind:
 	return _entities[entity_id]
 
@@ -189,11 +195,6 @@ func world_vessels() -> Array[RuleVessel]:
 			result.append(v)
 	result.sort_custom(func(a: RuleVessel, b: RuleVessel) -> bool: return a.id < b.id)
 	return result
-
-
-func token_of_vessel(vessel_id: int) -> RuleToken:
-	var v := vessel(vessel_id)
-	return null if v == null else token(v.token_id)
 
 
 ## すべてのトークン（ID 順。PartyQuery・LedgerValidator など読み取り専用の問い合わせ用）。

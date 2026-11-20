@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ローカルとCIで同じ品質ゲートを実行する。
 #   tools/check.sh            format / lint / import / static / test / smoke
-#   tools/check.sh --build    上記に加えて Windows 実行ファイルをエクスポート
+#   tools/check.sh --build    上記に加えて Windows 実行ファイルと macOS アプリをエクスポート
 #   tools/check.sh --fix      gdformat で整形してから検査
 # 環境変数 GODOT で Godot 実行ファイルを指定できる（既定: godot）。
 set -euo pipefail
@@ -67,9 +67,9 @@ run_godot test --headless --fixed-fps 60 --script res://tests/run_tests.gd
 step "smoke (main scene, 180 frames)"
 run_godot smoke --headless --fixed-fps 60 --quit-after 180
 
-step "smoke (solo / host + companion bot, 300 frames)"
+step "smoke (solo / host, 300 frames)"
 run_godot smoke_solo --headless --fixed-fps 60 --quit-after 300 -- --solo --profile=zz_smoke
-run_godot smoke_host --headless --fixed-fps 60 --quit-after 300 -- --host=24991 --bot --profile=zz_smoke
+run_godot smoke_host --headless --fixed-fps 60 --quit-after 300 -- --host=24991 --profile=zz_smoke
 
 if [ "$BUILD" -eq 1 ]; then
   step "build (Windows Desktop)"
@@ -77,6 +77,11 @@ if [ "$BUILD" -eq 1 ]; then
   run_godot export --headless --export-release "Windows Desktop" build/windows/rule-relay.exe
   test -s build/windows/rule-relay.exe
   ls -la build/windows
+  step "build (macOS, Intel + Apple Silicon)"
+  mkdir -p build/macos
+  run_godot export_macos --headless --export-release "macOS" build/macos/rule-relay.zip
+  test -s build/macos/rule-relay.zip
+  ls -la build/macos
 fi
 
 printf '\nall checks passed\n'

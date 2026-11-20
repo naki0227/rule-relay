@@ -91,11 +91,8 @@ func test_lending_jump_to_the_lift_clears_and_saves_rewards() -> void:
 		if director.last_clear_text != "":
 			break
 		# ブロックが跳んだ頂点で岩棚の上へ歩く
-		_player().move_intent = (
-			Vector2(0.0, 1.0)
-			if lift.velocity_y < 0.5 and lift.global_position.y > 2.0
-			else Vector2.ZERO
-		)
+		var above_ledge := _player().global_position.y > 2.05
+		_player().move_intent = Vector2(0.0, 1.0) if above_ledge else Vector2.ZERO
 		_player().view_yaw = 0.0
 		await tree.physics_frame
 	_player().move_intent = Vector2.ZERO

@@ -37,6 +37,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	for migration in migrations:
+		migration.net = null
 	for net in nets:
 		net.close()
 	for side in sides:

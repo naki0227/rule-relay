@@ -168,3 +168,17 @@ func test_client_single_shot_fires_on_the_host_and_returns() -> void:
 	await _until(func() -> bool: return host_block.global_position.y > start_y + 0.5)
 	await _until(func() -> bool: return host_world.ledger.ability_count(JUMP, B) == 1)
 	assert_false(host_world.ledger.can_initiate(host_block.entity_id, JUMP), "returned to B")
+
+
+func test_client_lends_to_a_terrain_cell_and_sees_it_become_a_block() -> void:
+	var cell := Vector3i(-2, -1, 2)
+	assert_true(host_world.terrain.has_cell(cell), "the island has this terrain cell")
+	await _place_client(Vector3(cell) + Vector3(0.5, 1.0, 1.8))
+	client_world.select_slot(JUMP_SLOT)
+	client_world.set_lend_mode(TriggerMode.Kind.REPEAT)
+	client_world.lend_to(client_world.terrain_target(cell), false)
+	await _until(func() -> bool: return host_world.promoted.has(cell))
+	var id := host_world.promoted[cell]
+	assert_true(host_world.ledger.can_initiate(id, JUMP), "the cell got the client's jump")
+	await _until(func() -> bool: return client_world.promoted.has(cell))
+	assert_true(client_world.blocks[id].remote, "the client's copy follows the host")

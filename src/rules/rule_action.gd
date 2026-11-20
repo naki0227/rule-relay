@@ -60,6 +60,12 @@ static func is_horizontal(kind: Kind) -> bool:
 	return world_direction(kind) != Vector3i.ZERO
 
 
+## 法則の音の音程（半音）。能力ごとに決まっていて、渡す・回収するときに鳴らす（ハ長調の五音で上がる）。
+## どの能力が動いたかを、耳でも分かるようにする（docs/sound-design.md）。
+static func motif_semitone(kind: Kind) -> int:
+	return [0, 2, 4, 7, 9, 12, 14, 16][int(kind)]
+
+
 ## ブロックが自分から「1回の行動」として起こす行動（発動方式が要る）。
 ## それ以外（投げる・高跳び・登る）は持っているだけで効く／効果のない性質で、方式を持たない。
 static func is_triggered(kind: Kind) -> bool:

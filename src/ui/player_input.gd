@@ -13,7 +13,7 @@ const ACTION_KEYS: Dictionary[StringName, RuleAction.Kind] = {
 
 var world: GameWorld
 var hud: Hud
-## 投票・相棒ボットへの頼みごとを受け取る（GameRoot）。無ければ無視する。
+## 全員リセットの投票を受け取る（GameRoot）。無ければ無視する。
 var party: Node
 
 
@@ -156,12 +156,9 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## V（全員リセットの投票）と G/H/R（相棒ボット）。押されたら true。
+## V（全員リセットの投票）。押されたら true。
 func _party_action(event: InputEvent) -> bool:
-	if party == null:
+	if party == null or not event.is_action_pressed(&"vote_reset"):
 		return false
-	for action: StringName in [&"vote_reset", &"bot_follow", &"bot_give", &"bot_recall"]:
-		if event.is_action_pressed(action):
-			party.call(&"handle_party_action", action)
-			return true
-	return false
+	party.call(&"handle_party_action", &"vote_reset")
+	return true

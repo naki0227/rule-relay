@@ -44,11 +44,12 @@ func _ready() -> void:
 		_build_visuals()
 
 
-func setup(id: int, cell: Vector3i, color: Color) -> void:
+func setup(id: int, cell: Vector3i, color: Color, model_name: String = "ability_block") -> void:
 	entity_id = id
 	name = "Block%d" % id
 	position = cell_center(cell)
 	set_meta("color", color)
+	set_meta("model", model_name)
 
 
 static func cell_center(cell: Vector3i) -> Vector3:
@@ -291,15 +292,20 @@ func _update_outline() -> void:
 
 func _build_visuals() -> void:
 	var color: Color = get_meta("color", Color(0.85, 0.65, 0.35))
-	# 見た目は Blender のモデル（art/source/ability_block.blend）。各面のパネルをブロックの色にする
-	var model := ModelLibrary.instantiate("ability_block")
+	# 見た目は Blender のモデル（art/source/*.blend）。能力のブロックは各面のパネルをブロックの色にする。
+	# 地形から動くブロックにしたセルは、その種類のセルの形（grass_cell など）
+	var model_name := String(get_meta("model", "ability_block"))
+	var model := ModelLibrary.instantiate(model_name)
 	model.name = "Model"
-	ModelLibrary.tint_material(model, "Panel", color)
+	if model_name == "ability_block":
+		ModelLibrary.tint_material(model, "Panel", color)
 	add_child(model)
 
 	var shape := CollisionShape3D.new()
 	var box_shape := BoxShape3D.new()
-	box_shape.size = Vector3.ONE * SIZE
+	# 横は少しだけ細くする。となりの地形と面がぴったり接していると、物理エンジン（Jolt）の
+	# 動きの判定が、最初から重なっているとみなして床を見落とした（地形のセルを動くブロックにしたとき）
+	box_shape.size = Vector3(SIZE * 0.98, SIZE, SIZE * 0.98)
 	shape.shape = box_shape
 	add_child(shape)
 
@@ -348,8 +354,12 @@ func _build_visuals() -> void:
 # --- 音波（企画書 5.2 信号・5.4 音源） ---------------------------------------
 
 
-## 発射台にする（「投げる」を渡すと direction へ玉を撃つ）。撃つ向きに矢印の札を付ける。
+## 発射台にする（「投げる」を渡すと direction へ玉を撃つ）。モデル（launcher.glb）の筒と矢印は +X 向きなので、
+## 撃つ方角へ回す。撃つ向きの札も付ける。
 func make_launcher(direction: Vector3i) -> void:
+	var model := get_node_or_null("Model") as Node3D
+	if model != null:
+		model.rotation.y = atan2(-float(direction.z), float(direction.x))
 	var note := Label3D.new()
 	note.text = "発射台 → %s" % _direction_name(direction)
 	note.billboard = BaseMaterial3D.BILLBOARD_ENABLED

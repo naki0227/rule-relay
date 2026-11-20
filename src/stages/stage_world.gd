@@ -10,11 +10,6 @@ signal checkpoint_interacted(player_id: int, checkpoint_id: String)
 ## ハブの入口で F を押したとき。
 signal entrance_chosen(player_id: int, stage_id: String)
 
-const TERRAIN_COLORS := {
-	"grass": Color(0.56, 0.74, 0.42),
-	"rock": Color(0.62, 0.6, 0.58),
-	"sand": Color(0.86, 0.78, 0.58)
-}
 const CHECKPOINT_RADIUS: float = 1.3
 
 var def: StageDef
@@ -39,10 +34,8 @@ func _ready() -> void:
 	# チェックポイント・落下は PartyDirector が受け持つ（GameWorld の1人用の保存と復元を使わない）
 	networked = true
 	PrototypeIsland.build_environment(self)
-	for box: Array in def.terrain_boxes:
-		var kind := String(box[2]) if box.size() > 2 else "grass"
-		var color := TERRAIN_COLORS.get(kind, TERRAIN_COLORS["grass"]) as Color
-		TerrainBuilder.add_box(self, box[0] as Vector3i, box[1] as Vector3i, color)
+	# 地形のどのセルにも能力を渡せる（渡したセルは動くブロックになる）
+	build_terrain(def.terrain_boxes)
 	for b in def.blocks:
 		var block := (
 			add_launcher(b.cell, b.launcher_direction)

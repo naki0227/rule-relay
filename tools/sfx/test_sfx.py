@@ -15,7 +15,11 @@ import build_sfx  # noqa: E402
 IMPACTS = {"block_land", "block_jump"}  # 低い胴鳴りが本体の衝撃音
 LONG = {"goal": 2300, "save": 1300, "bell": 2300}
 # 音程の無い雑音だけの音（服・草・足音）。主な周波数は偶然の山なので、音程の判定から外す
-UNPITCHED = {"player_jump", "player_land", "footstep_1", "footstep_2", "footstep_3"}
+UNPITCHED = {
+    "player_jump", "player_land", "footstep_1", "footstep_2", "footstep_3",
+    "block_step", "radial_open",  # こする音、紙をはじく音
+    "ui_hover", "ui_cancel", "ui_open", "ui_pick", "ui_drop",  # 紙の札・本の音（音程の無い雑音）
+}
 
 
 class SoundBudget(unittest.TestCase):

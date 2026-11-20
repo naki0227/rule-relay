@@ -34,7 +34,7 @@ var stage_id: String = ""
 var stage_run_id: String = ""
 ## 最後にクリアした結果の文（HUD の表示用）。
 var last_clear_text: String = ""
-## ステージの島を置く親（既定は自分。相棒ボットは物理の世界を分けるため SubViewport を渡す）。
+## ステージの島を置く親（既定は自分。物理の世界を分けたいときは SubViewport を渡す）。
 var world_parent: Node
 
 ## チェックポイント ID → その時点の記録 {"world": WorldSnapshot, "loadout": StageLoadout の状態}

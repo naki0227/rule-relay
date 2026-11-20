@@ -202,7 +202,7 @@ func _action(op: Dictionary, choice: Dictionary) -> void:
 
 ## 位置のある効果音は全員へ。
 func _relay_sound(event: StringName, at: Vector3, positional: bool) -> void:
-	if positional and world.post_sink.is_null():
+	if positional and world.post_sink.is_null() and is_online():
 		_sound.rpc(event, at)
 
 
