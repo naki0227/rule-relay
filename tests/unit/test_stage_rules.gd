@@ -121,12 +121,30 @@ func test_catalog_definitions_are_consistent() -> void:
 	assert_eq(StageCatalog.by_id("nope"), null)
 
 
+## どのステージも「島の条件＋生きている全員がゴールに集まる」（docs/adr/0011 決定 9）。
+## 島の条件（ゴール以外の部分）はステージごとに違う（ゴールだけ・鐘・要石を運ぶ）。
 func test_stages_use_different_clear_conditions() -> void:
 	var kinds := {}
 	for def in StageCatalog.all_stages():
-		kinds[def.clear_condition.kind] = true
-	assert_gt(kinds.size(), 2, "not every stage is 'reach the goal'")
+		assert_true(def.clear_condition.goal_area().has_volume(), "%s has a goal" % def.stage_id)
+		if def.clear_condition.kind == ClearCondition.Kind.ALL_AT_GOAL:
+			kinds[ClearCondition.Kind.NONE] = true
+		for part in def.clear_condition.parts:
+			if part.kind != ClearCondition.Kind.ALL_AT_GOAL:
+				kinds[part.kind] = true
+	assert_gt(kinds.size(), 2, "the stages' own conditions differ")
 	assert_eq(StageCatalog.hub().clear_condition.kind, ClearCondition.Kind.NONE)
+	assert_false(StageCatalog.hub().clear_condition.goal_area().has_volume(), "the hub has no goal")
+
+
+func test_goal_area_is_found_inside_all_of() -> void:
+	var goal := AABB(Vector3(0, 0, 0), Vector3(2, 3, 2))
+	var parts: Array[ClearCondition] = [
+		ClearCondition.activate("bell"), ClearCondition.all_at_goal(goal)
+	]
+	assert_eq(ClearCondition.all_of(parts).goal_area(), goal)
+	assert_eq(ClearCondition.all_at_goal(goal).goal_area(), goal)
+	assert_false(ClearCondition.activate("bell").goal_area().has_volume())
 
 
 func test_hub_has_an_entrance_for_every_stage() -> void:
@@ -153,7 +171,10 @@ func test_problems_reports_broken_definitions() -> void:
 	]
 	def.world_items = [StageDef.PlacementSpec.on_block(JUMP, "missing", REPEAT)]
 	var text := str(def.problems())
-	for expected: String in ["stage_id", "spawn points", "used twice", "unknown block", "clear"]:
+	var expected_texts: Array[String] = [
+		"stage_id", "spawn points", "used twice", "unknown block", "clear", "gather at a goal"
+	]
+	for expected in expected_texts:
 		assert_true(text.contains(expected), "reports %s: %s" % [expected, text])
 
 
@@ -384,7 +405,7 @@ func test_intro_geometry_teaches_lending_jump() -> void:
 	var def := StageCatalog.intro_jump_lend()
 	var ground := _top_at(def, 0, 4)
 	var step := _top_at(def, 0, 0)
-	var ledge := _top_at(def, 0, -7)
+	var ledge := _top_at(def, 0, -6)
 	assert_eq(ground, 0.0)
 	assert_lt(step - ground, Tuning.PLAYER_JUMP_HEIGHT, "the small step can be jumped")
 	assert_gt(ledge - ground, Tuning.PLAYER_JUMP_HEIGHT, "the ledge cannot be jumped")
@@ -399,9 +420,18 @@ func test_intro_geometry_teaches_lending_jump() -> void:
 	# ブロックは岩棚の目の前で、乗ってジャンプすれば届く（余裕 0.4 以上）
 	assert_eq(_top_at(def, lift.x, lift.z - 1), ledge, "the ledge is right behind the lift")
 	assert_gt(float(lift.y + 1) + Tuning.BLOCK_JUMP_HEIGHT, ledge + 0.4)
-	assert_eq(def.clear_condition.kind, ClearCondition.Kind.REACH_HEIGHT)
-	assert_eq(def.clear_condition.height, ledge)
-	# 2人以上: ジャンプ×2 で自分で届く想定（ジャンプ×n の高さは未決。線形なら 2.6）
+	# ゴールは岩棚の上の窪み（1 段下げ、まわりに縁が残る）。全員がここに集まればクリア
+	assert_eq(def.clear_condition.kind, ClearCondition.Kind.ALL_AT_GOAL)
+	var goal := def.clear_condition.area
+	var hollow := _top_at(def, 0, -7)
+	assert_eq(hollow, ledge - 1.0, "the goal is one step below the ledge")
+	assert_lt(ledge - hollow, Tuning.PLAYER_JUMP_HEIGHT, "own jump climbs out of the hollow")
+	assert_gt(ledge - hollow, Tuning.STEP_ASSIST_HEIGHT, "not a mere step")
+	for edge: Vector2i in [Vector2i(0, -9), Vector2i(-3, -7), Vector2i(3, -7)]:
+		assert_eq(_top_at(def, edge.x, edge.y), ledge, "lip at %s" % edge)
+	assert_true(goal.has_point(Vector3(0.5, hollow, -7.5)), "standing in the hollow")
+	assert_false(goal.has_point(Vector3(0.5, ledge, -5.5)), "the lip is outside the goal")
+	# 2人以上: ジャンプ×2 で自分で届く（到達高度は数に比例して 2.6）
 	assert_gt(Tuning.PLAYER_JUMP_HEIGHT * 2.0, ledge - ground)
 	var spawn := def.spawn_point(0)
 	assert_eq(_top_at(def, floori(spawn.x), floori(spawn.z)), ground)

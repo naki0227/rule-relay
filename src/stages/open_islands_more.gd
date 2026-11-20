@@ -8,6 +8,8 @@ extends RefCounted
 ## 配置・目安時間はすべて仮。数値の目安は OpenIslands の冒頭と同じ（Tuning）:
 ## 自分のジャンプ 1.3（2 段は無理）・ブーツ 2.3・ブロックのジャンプ 2.5（×2 で 5.0）・走って跳ぶと 3 マスまで。
 ## 鐘は、触る距離（胸から 3.5 + 0.5）が下の段から届かないよう、段の縁から 4.5 マス以上離す。
+## クリアは「島の条件＋生きている全員がゴールに集まる」。ゴールは縁より 1 段低い窪み
+## （OpenIslands.goal_hollow。窪みの中からは下の段の仲間を狙えない）。
 
 const LOADOUT: Array[RuleAction.Kind] = [
 	RuleAction.Kind.FORWARD,
@@ -32,6 +34,7 @@ const WIND_COLOR := Color(0.55, 0.78, 0.86)
 ## 4. グローブ: 段の東の端から、幅 1 の谷を跳んだ先の風車の丘にある。肩と頂の崖を登る
 ## 協力: ジャンプ×2（2.6）なら段差 2 をそのまま跳べる。東の谷筋の「突風の台」は頂の崖（高さ 4）の下にあり、
 ## ジャンプ×2 を単発で渡す（5.0）と頂へ直接上がれる近道（ひとりのジャンプ 1 個では 2.5 しか上がらない）。
+## ゴール: 頂の奥（北）の窪み（高さ 5、5×2）。全員がここに集まればクリア。
 static func windy_ridge() -> StageDef:
 	var def := _base("windy_ridge", "風の尾根", 15)
 	var m := IslandMap.blank(Vector2i(-20, -26), 38, 35)
@@ -44,6 +47,7 @@ static func windy_ridge() -> StageDef:
 	m.fill(14, -12, 17, -8, 2)
 	# 西の小島（谷の幅 4）
 	m.fill(-20, -4, -17, 2, 0)
+	var goal := OpenIslands.goal_hollow(m, -4, -25, 0, -24)
 	var rusty := _lift(def, m, Vector2i(6, -6), "rusty_lift", RUSTY_COLOR)
 	rusty.tokens.append(StageDef.TokenSpec.new(RuleAction.Kind.JUMP, true))
 	_lift(def, m, Vector2i(-7, -13), "wind_lift_a", WIND_COLOR)
@@ -61,9 +65,7 @@ static func windy_ridge() -> StageDef:
 	)
 	def.spawn_points = _spawns(Vector3(0.0, 0.0, 5.5))
 	def.checkpoints = [Vector3(9.5, 2.0, -9.5), Vector3(-8.5, 4.0, -16.5)]
-	def.clear_condition = ClearCondition.reach_height(
-		AABB(Vector3(-6.0, 5.9, -26.0), Vector3(9.0, 3.0, 6.0)), 6.0
-	)
+	def.clear_condition = ClearCondition.all_at_goal(goal)
 	return def
 
 
@@ -77,6 +79,7 @@ static func windy_ridge() -> StageDef:
 ## 要石を窪みへ: (1) 東へ押して柱で止め、壁の切れ目から南へ押す (2) 西へ押して櫓の壁で止め、櫓の脇から
 ##   南へ落とし、下の郭で東へ押す (3) 要石の正面の崩れた壁を地形ごと南へ押し出してから、まっすぐ南へ押す
 ## 協力: 櫓の正面（下の郭）の窪みのブロックにジャンプ×2 を単発で渡す（5.0）と、上の郭を飛ばして櫓へ直接。
+## ゴール: 櫓の上の奥（北）の窪み（高さ 3、5×2）。鐘と要石に加えて、全員がここに集まればクリア。
 static func ruined_fort() -> StageDef:
 	var def := _base("ruined_fort", "砦跡", 25)
 	var m := IslandMap.blank(Vector2i(-20, -24), 39, 37)
@@ -99,6 +102,7 @@ static func ruined_fort() -> StageDef:
 	for x in range(8, 11):
 		for z in range(3, 6):
 			m.pit(x, z)
+	var goal := OpenIslands.goal_hollow(m, -2, -15, 2, -14)
 	_lift(def, m, Vector2i(6, -6), "court_lift")
 	_lift(def, m, Vector2i(0, -6), "gate_lift")
 	_lift(def, m, Vector2i(5, -14), "keep_lift")
@@ -121,6 +125,7 @@ static func ruined_fort() -> StageDef:
 				ClearCondition.carry_object(
 					"keystone", AABB(Vector3(8.0, -1.2, 3.0), Vector3(3.0, 1.0, 3.0))
 				),
+				ClearCondition.all_at_goal(goal),
 			]
 		)
 	)

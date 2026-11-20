@@ -100,6 +100,19 @@ func is_met(snapshot: Dictionary) -> bool:
 	return false
 
 
+## ゴールの箱（ALL_AT_GOAL。ALL_OF の中も探す）。無ければ大きさ 0 の AABB。
+## 「島の条件＋生きている全員がゴールに集まる」（docs/adr/0011 決定 9）の目印・検査に使う。
+func goal_area() -> AABB:
+	if kind == Kind.ALL_AT_GOAL:
+		return area
+	if kind == Kind.ALL_OF:
+		for c in parts:
+			var found := c.goal_area()
+			if found.has_volume():
+				return found
+	return AABB()
+
+
 func describe() -> String:
 	if kind == Kind.ALL_OF:
 		var texts := PackedStringArray()

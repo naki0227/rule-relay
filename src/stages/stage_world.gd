@@ -13,6 +13,8 @@ signal entrance_chosen(player_id: int, stage_id: String)
 signal return_chosen(player_id: int)
 
 const CHECKPOINT_RADIUS: float = 1.3
+## ゴールの床の目印の色（仮。夕日の色を半透明に）。
+const GOAL_COLOR := Color(0.98, 0.62, 0.32, 0.55)
 
 var def: StageDef
 ## ステージの key → 台帳の entity_id。
@@ -62,6 +64,9 @@ func _ready() -> void:
 	for e in def.entrances:
 		var stage := StageCatalog.by_id(e.stage_id)
 		_add_pad(e.position, "%s\n目安 %d 分（仮）・F" % [stage.display_name, stage.target_minutes])
+	var goal := def.clear_condition.goal_area()
+	if goal.has_volume():
+		_add_goal_marker(goal)
 	spawn_player(def.spawn_point(0))
 
 
@@ -179,6 +184,24 @@ func _near_any(points: Array[Vector3], at: Vector3) -> bool:
 func _mark_activated(key: String) -> void:
 	if not activated.has(key):
 		activated.append(key)
+
+
+## ゴールの目印（仮の見た目）: 床に薄い板を敷き、看板を立てる。当たり判定は持たない（光線も遮らない）。
+func _add_goal_marker(goal: AABB) -> void:
+	var floor_y := goal.position.y + 0.1
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(goal.size.x - 0.2, 0.04, goal.size.z - 0.2)
+	var material := StandardMaterial3D.new()
+	material.albedo_color = GOAL_COLOR
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mesh.material = material
+	var plate := MeshInstance3D.new()
+	plate.name = "GoalMarker"
+	plate.mesh = mesh
+	plate.position = Vector3(goal.get_center().x, floor_y + 0.03, goal.get_center().z)
+	add_child(plate)
+	var label_at := Vector3(goal.get_center().x, floor_y + 2.2, goal.get_center().z)
+	PrototypeIsland.add_label(self, label_at, "ゴール（全員で集まる）")
 
 
 func _add_pad(at: Vector3, text: String) -> void:

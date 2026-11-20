@@ -151,10 +151,55 @@ func test_mid_stage_joiner_waits_until_the_reset_vote() -> void:
 func test_clear_gives_rewards_to_both_players() -> void:
 	await _join()
 	await _go_intro()
-	var ledge_top := Vector3(0.5, float(StageCatalog.INTRO_LEDGE_MAX.y + 1) + 0.1, -7.5)
-	host.world.player.global_position = ledge_top
+	# 岩棚の上のゴールの窪み（上面 y = 1）に2人とも置く（クリアは生きている全員がゴールに集まること）
+	var in_goal := Vector3(0.5, float(StageCatalog.INTRO_GOAL_MAX.y + 1) + 0.1, -7.5)
+	host.world.player.global_position = in_goal
+	client.world.player.global_position = in_goal + Vector3(-1.0, 0.0, 0.0)
 	await _until(func() -> bool: return host.last_clear_text != "")
 	await _until(func() -> bool: return client.progress.has_cleared(StageCatalog.INTRO_ID))
 	assert_true(host.progress.has_cleared(StageCatalog.INTRO_ID))
 	assert_true(ProgressStore.new().exists(CLIENT_PROFILE), "the client saved its own progress")
 	await _until(func() -> bool: return client.stage_id == StageCatalog.HUB_ID)
+
+
+## 2026-11-20 本人の判断（docs/adr/0011 決定 9）: クリアは「島の条件＋生きている全員がゴールに集まる」。
+## 丘の上の旗で、1人だけゴールに入ってもクリアしない・2人とも入るとクリアすることを、
+## 頂上の縁から窪みのゴールへ歩いて入る操作で確かめる。
+func test_hill_top_clears_only_when_both_players_gather_at_the_goal() -> void:
+	await _join()
+	host.enter_stage(StageCatalog.HILL_ID)
+	await _until(func() -> bool: return client.stage_id == StageCatalog.HILL_ID)
+	await _until(
+		func() -> bool: return client.world.ledger.ability_count(RuleAction.Kind.JUMP, B) == 1
+	)
+	await wait_physics_frames(10)
+	var goal := host.world.def.clear_condition.goal_area()
+	var center := goal.get_center()
+	# 頂上の南の縁（ゴールの外）に2人を置く
+	host.world.player.global_position = Vector3(0.5, 4.1, -4.5)
+	client.world.player.global_position = Vector3(-0.5, 4.1, -4.5)
+	await wait_physics_frames(20)
+	assert_eq(host.last_clear_text, "", "nobody is in the goal yet")
+	await _walk_into(host.world.player, Vector3(center.x + 0.6, goal.position.y + 0.1, center.z))
+	assert_true(goal.has_point(host.world.player.global_position), "the host is in the goal")
+	await wait_physics_frames(60)
+	assert_eq(host.last_clear_text, "", "one of two players at the goal does not clear")
+	await _walk_into(client.world.player, Vector3(center.x - 0.6, goal.position.y + 0.1, center.z))
+	await _until(func() -> bool: return host.last_clear_text != "")
+	assert_true(host.progress.has_cleared(StageCatalog.HILL_ID), "both at the goal clears")
+	await _until(func() -> bool: return client.progress.has_cleared(StageCatalog.HILL_ID))
+
+
+## アバターを target へ歩かせる（移動の入力と向きだけを与える。瞬間移動しない）。
+func _walk_into(avatar: PlayerAvatar, target: Vector3) -> void:
+	for i in 300:
+		var flat := Vector3(
+			target.x - avatar.global_position.x, 0.0, target.z - avatar.global_position.z
+		)
+		if flat.length() <= 0.3 and absf(avatar.global_position.y - target.y) < 0.5:
+			break
+		avatar.view_yaw = atan2(-flat.x, -flat.z)
+		avatar.move_intent = Vector2(0.0, 1.0)
+		await tree.physics_frame
+	avatar.move_intent = Vector2.ZERO
+	await wait_physics_frames(5)

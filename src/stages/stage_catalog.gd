@@ -21,6 +21,9 @@ const INTRO_LEDGE_MAX := Vector3i(5, 1, -6)
 const INTRO_STEP_MIN := Vector3i(-2, 0, -1)
 const INTRO_STEP_MAX := Vector3i(2, 0, 0)
 const INTRO_LIFT_CELL := Vector3i(0, -1, -5)
+## 導入のゴール: 岩棚の真ん中の窪み（上面 y = 1。まわりの岩棚より 1 段低い）。
+const INTRO_GOAL_MIN := Vector3i(-2, 0, -8)
+const INTRO_GOAL_MAX := Vector3i(2, 0, -7)
 
 ## 鐘の谷: 発射台（東向き）と、谷の向こうの小島の鐘。
 const BELL_LAUNCHER_CELL := Vector3i(0, 0, 0)
@@ -66,8 +69,11 @@ static func by_id(stage_id: String) -> StageDef:
 ## 岩棚の手前の窪みにブロックがあり、上面が地面と同じ高さなので、跳べなくなってもそのまま乗れる。
 ## ジャンプをブロックへ渡す（単発・繰り返し）→ 乗って持ち上げられる（2.5）→ 岩棚へ。
 ## 地面から降りずに済むので、渡した後もブロックへ歩いて戻って F で回収できる（詰まない）。
-## 2〜4人では別解もある: ジャンプを1人に集めて自分で跳ぶ（×2 で届く想定。ジャンプ×n の高さは未決）、
+## 2〜4人では別解もある: ジャンプを1人に集めて自分で跳ぶ（×2 で届く想定）、
 ## 1人がブロックに乗り、もう1人が渡す など。地形は人数によらず同じで、人数別補助は置かない。
+## クリアは、生きている全員が岩棚の上の窪み（ゴール）に集まること（docs/adr/0011 決定 9）。ひとりなら
+## 岩棚へ上がって窪みに降りるだけ。窪みの縁が下の地面への光線を遮るので、窪みの中からは下の仲間へ
+## 能力を渡せない（渡すなら岩棚の縁まで出る。ルールでは禁止しない）。
 static func intro_jump_lend() -> StageDef:
 	var def := StageDef.new()
 	def.stage_id = INTRO_ID
@@ -82,17 +88,25 @@ static func intro_jump_lend() -> StageDef:
 		[INTRO_LIFT_CELL + Vector3i(0, -1, 0), INTRO_LIFT_CELL + Vector3i(0, -1, 0), "rock"],
 		# 自分で跳べる小段差（道の真ん中。横を回っても進める）
 		[INTRO_STEP_MIN, INTRO_STEP_MAX, "sand"],
-		# 跳べない岩棚（ゴール）
-		[INTRO_LEDGE_MIN, INTRO_LEDGE_MAX, "rock"],
+		# 跳べない岩棚（INTRO_LEDGE_MIN〜MAX）。真ん中を 1 段下げて、ゴールの窪みにする（縁が 1 マス残る）
+		[Vector3i(-5, 0, -9), Vector3i(5, 1, -9), "rock"],
+		[Vector3i(-5, 0, -6), Vector3i(5, 1, -6), "rock"],
+		[Vector3i(-5, 0, -8), Vector3i(-3, 1, -7), "rock"],
+		[Vector3i(3, 0, -8), Vector3i(5, 1, -7), "rock"],
+		[INTRO_GOAL_MIN, INTRO_GOAL_MAX, "rock"],
 	]
 	def.spawn_points = _spawn_row(Vector3(0.0, 0.0, 4.5))
 	def.blocks = [StageDef.BlockSpec.new("lift", INTRO_LIFT_CELL)]
 	def.blocks[0].color = Color(0.7, 0.58, 0.86)
 	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP]))
 	def.checkpoints = [Vector3(3.5, 0.0, -2.5)]
-	var top := float(INTRO_LEDGE_MAX.y + 1)
-	def.clear_condition = ClearCondition.reach_height(
-		_top_area(INTRO_LEDGE_MIN, INTRO_LEDGE_MAX), top
+	var goal_size := Vector3(INTRO_GOAL_MAX - INTRO_GOAL_MIN + Vector3i.ONE)
+	var floor_y := float(INTRO_GOAL_MAX.y + 1)
+	def.clear_condition = ClearCondition.all_at_goal(
+		AABB(
+			Vector3(INTRO_GOAL_MIN.x, floor_y - 0.1, INTRO_GOAL_MIN.z),
+			Vector3(goal_size.x, 3.0, goal_size.z)
+		)
 	)
 	return def
 
@@ -128,7 +142,9 @@ static func relay_carry() -> StageDef:
 
 ## 鐘の谷（配置は仮）。このステージは全員ジャンプ禁止（ステージの禁止）。
 ## 谷（底なし、幅 4）の向こうの小島に鐘があり、岸からは触って鳴らせない（届く距離の外）。
-## 岸の発射台へ「投げる」を渡すと玉を撃ち、玉が鐘に当たって鳴る → クリア（ACTIVATE）。
+## 岸の発射台へ「投げる」を渡すと玉を撃ち、玉が鐘に当たって鳴る。鐘が鳴り、生きている全員が
+## 岸の北西の隅の旗（ゴール）に集まればクリア（ALL_OF。docs/adr/0011 決定 9）。
+## 全員ジャンプ禁止の平らな岸なので、ゴールは窪みにしない（降りたら出られなくなる）。
 static func bell_valley() -> StageDef:
 	var def := StageDef.new()
 	def.stage_id = BELL_ID
@@ -146,7 +162,15 @@ static func bell_valley() -> StageDef:
 	def.set_loadout_for_all(_moves_and([RuleAction.Kind.THROW]))
 	def.prohibitions = [RuleAction.Kind.JUMP]
 	def.checkpoints = [Vector3(-4.0, 0.0, 0.5)]
-	def.clear_condition = ClearCondition.activate("valley_bell")
+	def.clear_condition = (
+		ClearCondition
+		. all_of(
+			[
+				ClearCondition.activate("valley_bell"),
+				ClearCondition.all_at_goal(AABB(Vector3(-5.0, -0.1, -3.0), Vector3(3.0, 3.0, 3.0))),
+			]
+		)
+	)
 	return def
 
 
@@ -185,9 +209,3 @@ static func _moves_and(extra: Array[RuleAction.Kind]) -> Array[RuleAction.Kind]:
 	var result: Array[RuleAction.Kind] = _MOVES.duplicate()
 	result.append_array(extra)
 	return result
-
-
-## 箱の上面の水平な範囲（REACH_HEIGHT 用。y は上面の少し下から）。
-static func _top_area(cell_min: Vector3i, cell_max: Vector3i) -> AABB:
-	var size := Vector3(cell_max - cell_min + Vector3i.ONE)
-	return AABB(Vector3(cell_min.x, cell_max.y + 0.9, cell_min.z), Vector3(size.x, 3.0, size.z))
