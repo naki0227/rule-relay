@@ -34,11 +34,15 @@ const REVIVE_AT_OLDER_CHECKPOINTS: bool = true
 const DEAD_CAN_VOTE: bool = true
 ## 仮（7-3）: 死亡観戦者がいるとき、生存者全員の賛成でも全員リセットが成立する（過半数と並ぶ経路）。
 const SURVIVORS_CAN_RESET_EARLY: bool = true
+## 仮（2026-11-20 本人の判断・試遊 G4）: 全員リセットの投票は、開いてからこの秒数で時間切れになる。
+## 後から入った票では延びない。時間切れで票は消え、次の V 長押しが新しい投票の提案になる。
+const VOTE_TIME_LIMIT: float = 30.0
 
 ## 上の仮の既定値。テストや将来の設定で部屋ごとに切り替えられるように変数にしてある。
 var revive_at_older_checkpoints: bool = REVIVE_AT_OLDER_CHECKPOINTS
 var dead_can_vote: bool = DEAD_CAN_VOTE
 var survivors_can_reset_early: bool = SURVIVORS_CAN_RESET_EARLY
+var vote_time_limit: float = VOTE_TIME_LIMIT
 
 var _states: Dictionary[int, State] = {}
 ## 通信切断中の人が、切れる前に生きていたか死んでいたか（再接続で戻す）
@@ -47,6 +51,8 @@ var _state_before_disconnect: Dictionary[int, State] = {}
 var _checkpoints: PackedStringArray = PackedStringArray()
 var _vote_open: bool = false
 var _yes_votes: Dictionary[int, bool] = {}
+## 開いている投票の残り秒数。時刻ではなく残りを持つので、ホスト移譲で別の PC へ渡しても同じ意味になる。
+var _vote_seconds_left: float = 0.0
 var _reset_count: int = 0
 ## 人数別補助をいま何人用に組んでいるか（ステージ開始と全員リセットのときだけ変わる）
 var _headcount: int = 0
@@ -180,6 +186,8 @@ func activated_checkpoints() -> PackedStringArray:
 func vote_reset(player_id: int) -> bool:
 	if not _is_formal_present(state_of(player_id)):
 		return false
+	if not _vote_open:
+		_vote_seconds_left = vote_time_limit
 	_vote_open = true
 	_yes_votes[player_id] = true
 	_evaluate_vote()
@@ -203,6 +211,20 @@ func cancel_vote() -> void:
 
 func is_vote_open() -> bool:
 	return _vote_open
+
+
+## 開いている投票の残り秒数（閉じていれば 0）。
+func vote_seconds_left() -> float:
+	return _vote_seconds_left if _vote_open else 0.0
+
+
+## 投票の残り時間を delta 秒進める。開いている投票の残りが 0 になったら true
+## （閉じるのは呼び出し側。権威は cancel_vote して知らせ、参加者は表示を 0 で止めてホストを待つ）。
+func tick_vote(delta: float) -> bool:
+	if not _vote_open:
+		return false
+	_vote_seconds_left = maxf(_vote_seconds_left - delta, 0.0)
+	return _vote_seconds_left <= 0.0
 
 
 ## いま数えている賛成票（投票権のある人の票だけ）。
@@ -313,6 +335,7 @@ func to_dict() -> Dictionary:
 		"players": players,
 		"checkpoints": _checkpoints.duplicate(),
 		"vote_open": _vote_open,
+		"vote_seconds_left": _vote_seconds_left,
 		"yes_votes": votes,
 		"reset_count": _reset_count,
 		"headcount": _headcount,
@@ -331,6 +354,7 @@ static func from_dict(data: Dictionary) -> PartyLifecycle:
 			lc._state_before_disconnect[id] = before as State
 	lc._checkpoints = PackedStringArray(data["checkpoints"])
 	lc._vote_open = bool(data["vote_open"])
+	lc._vote_seconds_left = float(data.get("vote_seconds_left", VOTE_TIME_LIMIT))
 	for id: int in PackedInt32Array(data["yes_votes"]):
 		lc._yes_votes[id] = true
 	lc._reset_count = int(data["reset_count"])
@@ -405,4 +429,5 @@ func _full_reset(reason: PartyResetDecision.Reason) -> void:
 
 func _close_vote() -> void:
 	_vote_open = false
+	_vote_seconds_left = 0.0
 	_yes_votes.clear()

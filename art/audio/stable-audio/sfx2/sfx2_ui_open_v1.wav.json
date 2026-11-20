@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_ui_open",
+  "original_idea": "ui_open 作り直し（2回目の試し）: シャーっと鳴る → 高域を抑える（本を開く）。生成は既定の cfg、高域は加工のローパス",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a small cloth-bound hardcover book being opened, the cover lifts with a clear soft knock of the spine, then a short flutter of thick pages settling, thick old paper and cloth board, warm, close and clear, close-up, dry, small room.",
+  "sound_fields": {
+    "source": "a small cloth-bound hardcover book being opened",
+    "action": "the cover lifts with a clear soft knock of the spine, then a short flutter of thick pages settling",
+    "material": "thick old paper and cloth board, warm, close and clear",
+    "space": "close-up, dry, small room"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": null,
+  "cfg": 1.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4400,
+  "candidate": 1,
+  "file": "sfx2_ui_open_v1.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:24:33",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -10.52,
+  "raw_peak_dbfs": -10.52,
+  "ceiling_gain_db": 0.0
+}

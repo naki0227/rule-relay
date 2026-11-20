@@ -21,11 +21,22 @@ static func section(title: String) -> Control:
 
 ## 視点の速さのつまみ（倍率）。パッドでは左右で 0.1 ずつ動く。
 static func slider(on_changed: Callable) -> HSlider:
+	return _bar(GameSettings.SENSITIVITY_MIN, GameSettings.SENSITIVITY_MAX, 0.1, 1.0, on_changed)
+
+
+## 音の大きさのつまみ（0〜100%）。パッドでは左右で 5% ずつ動く。
+static func volume_slider(on_changed: Callable) -> HSlider:
+	return _bar(0.0, 100.0, 5.0, 100.0, on_changed)
+
+
+static func _bar(
+	low: float, high: float, step: float, value: float, on_changed: Callable
+) -> HSlider:
 	var bar := HSlider.new()
-	bar.min_value = GameSettings.SENSITIVITY_MIN
-	bar.max_value = GameSettings.SENSITIVITY_MAX
-	bar.step = 0.1
-	bar.value = 1.0
+	bar.min_value = low
+	bar.max_value = high
+	bar.step = step
+	bar.value = value
 	bar.custom_minimum_size = Vector2(440, 40)
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.focus_mode = Control.FOCUS_ALL

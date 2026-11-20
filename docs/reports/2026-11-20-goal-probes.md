@@ -15,6 +15,20 @@
 - `test_gate_*` は守られていた関所、`test_finding_*` は**試遊した時点の挙動**、`test_accepted_*` は本人の判断で受け入れた挙動。G1・G3 は直して `test_gate_*` に、G2 は `test_accepted_*` にした（「決定」の節）。以下の G1〜G3 の本文は、直す前に測った記録。
 - `src/` は変えていない。数値はすべてヘッドレス・60fps の自動プレイで測った。
 
+## 決定（2026-11-20 本人）
+
+| # | 決定 | 実装 |
+|---|---|---|
+| G4 | **投票に時間切れを付ける**（仮 30 秒） | `PartyLifecycle.VOTE_TIME_LIMIT`・`tick_vote`。権威が `PartyDirector._check_vote_timeout` で閉じ、「全員リセットの投票は時間切れになりました」と出す。札に残り秒数を出す。残り秒数はホスト移譲で引き継ぐ |
+| G5 | **ゴールにまだ来ていない人を HUD に出す**（情報だけ。外す・強制する仕組みは足さない） | `ClearCondition.goal_stragglers`・`PartyDirector.goal_missing`。島の条件がそろうか誰かがゴールに入ると、札の2行目に「ゴールにまだ来ていない: プレイヤー2」。ひとり・クリア後は出さない。クリアの条件（生きている全員がゴール）は変えない |
+
+- G4 の `test_finding_bell_griefing_recall_vote_and_the_dead_partner` は `test_gate_lone_vote_expires_and_a_later_death_does_not_reset` に書き換えた。1 票だけの投票が時間切れになり、そのあと A が落ちても全員リセットは決まらない。B が新しく V を押すと、新しい投票として成立する。
+- G5 の `test_finding_one_player_outside_blocks_the_clear_until_they_die` は `test_accepted_one_player_outside_blocks_the_clear_but_is_named` にした。クリアが止まるのは設計どおり（受け入れた挙動）で、札に名前が出ることを確かめる。2 人ともゴールに入れば一覧は出ずにクリアする（`test_gate_both_in_the_goal_show_no_list_and_clear`）。
+- 単体テスト: 投票の時間切れ・新しい投票の残り秒数・ホスト移譲での引き継ぎ（`test_party_lifecycle.gd`）、2 人の一覧の中身（`test_stage_rules.gd`）。
+- 決定の実装後、`--filter=goal_probes` は 14 件成功、`timeout 1200 tools/check.sh` は「all checks passed」（497 件）。
+- 設計の記録は ADR 0010 決定 8。G1〜G3 は未決のまま。
+- 下の各節は、試遊した時点（決定の前）の記録として残す。
+
 ## まとめ
 
 | # | 島 | 内容 | 重さ |
