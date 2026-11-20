@@ -78,6 +78,11 @@ ADOPTED = {
 # 4回目の候補は 38〜134ms の打音で、置き換え前（足音 100ms、ui_select 390ms の余韻つき）と長さも形も違う。
 # 全体の RMS でそろえると、足音どうしで当たりが 5.4dB ばらつき、ui_select は当たりが 8.8dB 小さくなった（docs/sound-design.md 6回目）
 MATCH_HIT = {"footstep_1", "footstep_2", "footstep_3", "footstep_4", "ui_select"}
+# 当たりの位置をそろえる音（当たりの 20ms 前から始め、2ms でフェードイン）。足音は 0.34 秒ごとに順番に鳴るので、
+# 当たりがファイルの 8〜122ms のどこにあるかがばらばらだと、歩く拍がぶれて足を引きずるように聞こえる（6回目の測定）。
+# 当たりの前の草の音は削れる（AI の判断、2026-11-20。聴いて草の音を残したいときはここから外す）
+ALIGN_HIT = {"footstep_1", "footstep_2", "footstep_3", "footstep_4"}
+ALIGN_LEAD = 0.020
 
 # ハ長調の五音（Hz）。C4=261.63
 NOTE = {
@@ -262,6 +267,8 @@ def adopted(name):
     with wave.open(str(CANDIDATES / file)) as w:
         assert w.getframerate() == SR and w.getnchannels() == 1 and w.getsampwidth() == 2
         x = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(float) / 32768
+    if name in ALIGN_HIT:
+        x = _align_hit(x)
     current = analyze.hit_db(x, SR) if name in MATCH_HIT else 20 * np.log10(np.sqrt(np.mean(x**2)) + 1e-12)
     x = x * 10 ** ((level_db - current) / 20)
     limit = 10 ** (-3 / 20)
@@ -269,6 +276,19 @@ def adopted(name):
     if peak > limit:
         x *= limit / peak
     return x
+
+
+def _align_hit(x):
+    """いちばん大きい 5ms の窓（当たり）の ALIGN_LEAD 前から始める。頭は 2ms でフェードイン。"""
+    win = int(0.005 * SR)
+    energy = np.convolve(x**2, np.ones(win), mode="valid")
+    offset = int(np.argmax(energy)) - int(ALIGN_LEAD * SR)
+    if offset < 0:
+        return np.concatenate([np.zeros(-offset), x])  # 当たりが頭に近い音は、前に無音を足してそろえる
+    y = x[offset:].copy()
+    fade = min(len(y), int(0.002 * SR))
+    y[:fade] *= np.linspace(0.0, 1.0, fade)
+    return y
 
 
 # --- 楽器（世界観: ゆるふわの木のおもちゃの箱庭） -----------------------------
