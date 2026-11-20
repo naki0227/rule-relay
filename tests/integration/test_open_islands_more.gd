@@ -141,6 +141,17 @@ func _wait_for(key: String, frames: int = 400) -> void:
 	assert_true(w.activated.has(key), "%s rang" % key)
 
 
+## via を順に歩いてから、ゴールの窪みの真ん中へ歩いて入る（docs/adr/0011 決定 9。瞬間移動しない）。
+func _walk_into_goal(via: Array[Vector3] = []) -> void:
+	for p in via:
+		await _walk_to(p)
+	var goal := w.def.clear_condition.goal_area()
+	var center := goal.get_center()
+	await _walk_to(Vector3(center.x, goal.position.y + 0.1, center.z))
+	await wait_physics_frames(10)  # 窪みへ降りきるまで待つ
+	assert_true(goal.has_point(_me().global_position), "standing in the goal")
+
+
 func _cleared(frames: int = 180) -> bool:
 	for i in frames:
 		if director.last_clear_text != "":
@@ -188,7 +199,9 @@ func test_windy_ridge_by_the_ban_and_the_wind_bell() -> void:
 	_lend(w.terrain_target(Vector3i(-5, 3, -15)), 6, TriggerMode.Kind.NONE)
 	assert_false(w.ledger.player_prohibited(JUMP, me), "got rid of the ban")
 	await _lift_up("summit_lift", Vector3(-1.5, 4.0, -18.5), Vector3(-1.5, 6.0, -22.5))
-	assert_true(await _cleared(), "reached the summit")
+	assert_eq(director.last_clear_text, "", "the summit's edge is not the goal")
+	await _walk_into_goal()
+	assert_true(await _cleared(), "reached the goal on the summit")
 
 
 ## 段の縁の地形のセルを押し出して、1 段ずつの階段を 3 回作る道（ブロックも装備も使わない）。
@@ -209,6 +222,7 @@ func test_windy_ridge_by_pushing_the_cliff_edges() -> void:
 	await _walk_to(Vector3(0.5, 5.0, -19.5))
 	await _walk_to(Vector3(0.5, 5.0, -20.5))
 	await _walk_to(Vector3(0.5, 6.0, -22.5))
+	await _walk_into_goal()
 	assert_true(await _cleared(), "climbed the crumbled edges to the summit")
 
 
@@ -236,6 +250,9 @@ func test_ruined_fort_alone() -> void:
 	assert_eq(stone.cell(), Vector3i(10, 2, -16), "the pillar stopped the keystone")
 	await _recall_all_from("keystone")
 	_lend(stone, _slot_of(BACK), TriggerMode.Kind.REPEAT)
+	# 鐘と要石だけではクリアしない。東の郭の窪みのブロックで櫓へ上がり、奥のゴールに入る
+	await _lift_up("keep_lift", Vector3(6.5, 2.0, -14.5), Vector3(3.5, 4.0, -14.5))
+	await _walk_into_goal()
 	assert_true(await _cleared(3600), "the keystone sits in the socket and the bell has rung")
 	for i in 400:
 		if stone.cell() == Vector3i(10, -1, 5):
@@ -271,4 +288,5 @@ func test_windy_ridge_gust_lift_needs_two_jumps() -> void:
 	_lend(gust, 7, TriggerMode.Kind.SINGLE_SHOT)
 	w.press_action(JUMP)
 	await _ride_onto(Vector3(1.5, 6.0, -22.5), "gust_lift")
+	await _walk_into_goal()
 	assert_true(await _cleared(), "two jumps reach the summit directly")

@@ -11,8 +11,10 @@ func test_hill_top_by_the_lift() -> void:
 	await _enter(StageCatalog.HILL_ID)
 	await _walk_to(Vector3(0.5, 1.0, 1.5))
 	await _walk_to(Vector3(-0.5, 2.0, -1.5))
-	await _lift_up("lift", Vector3(-0.5, 2.0, -1.5), Vector3(0.5, 4.0, -5.5))
-	assert_true(await _cleared(), "reached the summit")
+	await _lift_up("lift", Vector3(-0.5, 2.0, -1.5), Vector3(0.5, 4.0, -4.5))
+	assert_eq(director.last_clear_text, "", "the summit's edge is not the goal")
+	await _walk_into_goal()
+	assert_true(await _cleared(), "reached the goal on the summit")
 
 
 func test_hill_top_by_the_boots() -> void:
@@ -24,7 +26,8 @@ func test_hill_top_by_the_boots() -> void:
 	await _pick_and_wear(Vector3(7.5, 3.0, -5.0), RuleVessel.Part.FEET)
 	await _walk_to(Vector3(5.5, 1.0, -3.5))
 	await _walk_to(Vector3(3.5, 2.0, -3.5))
-	await _walk_to(Vector3(1.5, 4.0, -5.5))
+	await _walk_to(Vector3(1.5, 4.0, -4.5))
+	await _walk_into_goal()
 	assert_true(await _cleared(), "jumped onto the summit with the boots")
 
 
@@ -43,6 +46,7 @@ func test_quarry_by_pushing_a_stone_and_the_ledge_lift() -> void:
 	await _walk_to(Vector3(-4.5, 2.0, -6.5))
 	await _walk_to(Vector3(1.5, 3.0, -7.5))
 	await _lift_up("ledge_lift", Vector3(1.5, 3.0, -7.5), Vector3(0.5, 5.0, -9.5))
+	await _walk_into_goal()
 	assert_true(await _cleared(), "climbed out of the quarry")
 
 
@@ -69,7 +73,9 @@ func test_three_bells_alone() -> void:
 	await _walk_to(Vector3(3.5, 3.0, -16.5))
 	await _lift_up("north_lift", Vector3(0.5, 3.0, -16.5), Vector3(-0.5, 5.0, -18.5))
 	await _ring("north_bell")
-	assert_true(await _cleared(), "all three bells")
+	assert_eq(director.last_clear_text, "", "all bells rang but nobody is at the goal yet")
+	await _walk_into_goal([Vector3(2.0, 5.0, -21.5), Vector3(1.5, 4.0, -24.2)])
+	assert_true(await _cleared(), "all three bells and everyone at the goal")
 
 
 func test_floating_isles_alone() -> void:
@@ -94,4 +100,11 @@ func test_floating_isles_alone() -> void:
 	await _jump_across(Vector3(0.5, 0.0, 9.3), Vector3(0.5, 0.0, 4.0))
 	await _jump_across(Vector3(-5.7, 0.0, 0.5), Vector3(-11.8, 0.0, 0.5))
 	await _ring("west_bell")
-	assert_true(await _cleared(), "all three bells")
+	assert_eq(director.last_clear_text, "", "all bells rang but nobody is at the goal yet")
+	# ブーツのまま谷 4 を戻り、塔（高さ 2）へ跳び上がって、谷 3 を越えて北の浮島のゴールへ
+	await _jump_across(Vector3(-10.3, 0.0, 0.5), Vector3(-4.5, 0.0, 0.5))
+	await _walk_to(Vector3(-1.5, 0.0, -2.5))
+	await _walk_to(Vector3(-1.5, 2.0, -4.5))
+	await _jump_across(Vector3(-1.5, 2.0, -5.7), Vector3(-1.5, 2.0, -11.0))
+	await _walk_into_goal([Vector3(-1.5, 1.0, -16.0)])
+	assert_true(await _cleared(), "all three bells and everyone at the goal")

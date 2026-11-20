@@ -198,6 +198,9 @@ func problems() -> PackedStringArray:
 			errors.append("placement refers to unknown block %s" % spec.block_key)
 	if clear_condition.kind == ClearCondition.Kind.NONE and not is_hub():
 		errors.append("a stage needs a clear condition")
+	# どのステージも「島の条件＋生きている全員がゴールに集まる」（docs/adr/0011 決定 9）
+	if not is_hub() and not clear_condition.goal_area().has_volume():
+		errors.append("a stage needs everyone to gather at a goal")
 	return errors
 
 
