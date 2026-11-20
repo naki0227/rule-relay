@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx3_ui_confirm",
+  "original_idea": "ui_confirm 3回目: 判を押すは使わない。乾いた硬い「カッ」「コッ」（dry wooden clack, crisp click, small hardwood block）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a small hardwood block struck with a hard wooden stick, one dry wooden clack with a crisp click at the very start, very short decay, dense maple block, dry, articulate, woody mid tone, close-miked, dry, no reverb.",
+  "sound_fields": {
+    "source": "a small hardwood block struck with a hard wooden stick",
+    "action": "one dry wooden clack with a crisp click at the very start, very short decay",
+    "material": "dense maple block, dry, articulate, woody mid tone",
+    "space": "close-miked, dry, no reverb"
+  },
+  "bpm": null,
+  "seconds": 1.0,
+  "negative_prompt": "muffled, dull, boomy, distant, reverb, thud, low-pass filtered, metallic",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 4,
+  "seed": 5003,
+  "candidate": 4,
+  "file": "sfx3_ui_confirm_v4.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:51:40",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 3.53,
+  "ceiling_gain_db": -4.53
+}

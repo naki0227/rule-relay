@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx3_bell",
+  "original_idea": "bell 3回目（3回目の試し）: medium＋硬い木槌はそのまま、高い倍音を negative_prompt で抑える",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a medium-sized bronze village bell hanging in a wooden frame, struck with a hard wooden mallet, a clear crisp knock of the mallet at the very start, then a warm mid-low ring that sustains and slowly fades, cast bronze, warm mid-low pitch, mellow overtones, round, outdoors, close, open air.",
+  "sound_fields": {
+    "source": "a medium-sized bronze village bell hanging in a wooden frame, struck with a hard wooden mallet",
+    "action": "a clear crisp knock of the mallet at the very start, then a warm mid-low ring that sustains and slowly fades",
+    "material": "cast bronze, warm mid-low pitch, mellow overtones, round",
+    "space": "outdoors, close, open air"
+  },
+  "bpm": null,
+  "seconds": 3.0,
+  "negative_prompt": "soft mallet, felt, muffled, dull, distant, high-pitched ringing, shrill overtones, tinkling, chime, glockenspiel, sub bass rumble, gong",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 4,
+  "seed": 5633,
+  "candidate": 4,
+  "file": "sfx3_bell_v4.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:58:26",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 2.84,
+  "ceiling_gain_db": -3.84
+}

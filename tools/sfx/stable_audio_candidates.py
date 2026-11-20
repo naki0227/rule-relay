@@ -1,12 +1,12 @@
 """Stable Audio 3 で生成した効果音の候補を、ゲームの効果音と同じ形にそろえて測る（聴き比べ用。assets/ には触らない）。
 
     uv run --with numpy --with scipy --with soundfile python tools/sfx/stable_audio_candidates.py ~/AudioStudio
-    uv run --with numpy --with scipy --with soundfile python tools/sfx/stable_audio_candidates.py ~/AudioStudio --round 2
+    uv run --with numpy --with scipy --with soundfile python tools/sfx/stable_audio_candidates.py ~/AudioStudio --round 2   # 3 も同じ
 
-入力: <dir>/sfx_<イベント>_v<n>.wav（2回目は sfx2_<イベント>_v<n>.wav。44.1kHz 24bit ステレオ、.json に prompt・seed）
-出力: art/audio/stable-audio/sfx/<イベント>_<n>.wav（2回目は sfx2/）。16bit モノラル 44.1kHz と measurements.json
+入力: <dir>/sfx_<イベント>_v<n>.wav（2回目は sfx2_、3回目は sfx3_<イベント>_v<n>.wav。44.1kHz 24bit ステレオ、.json に prompt・seed）
+出力: art/audio/stable-audio/sfx/<イベント>_<n>.wav（2回目は sfx2/、3回目は sfx3/）。16bit モノラル 44.1kHz と measurements.json
 加工: モノラルにする → build_sfx.finish と同じフィルター（150Hz 未満を切る。衝撃音と鐘は 45Hz 未満だけ。9kHz より上を弱める）
-      （2回目は、シャーっと鳴ったイベントだけ ROUND2_LOWPASS の周波数でさらにローパス）
+      （2回目・3回目は、イベントごとに ROUND2_LOWPASS・ROUND3_LOWPASS の周波数でさらにローパス）
       → 頭の無音を切る（ピークから −40dB を最初に超える 3ms 前から）→ 長さの上限で切って 15ms で消す
       → ピークをそろえる（ホバー −12dBFS、UI −9dBFS、ほか −4dBFS。UI はゲームの音より小さく）
 基準は tools/sfx/test_sfx.py と同じ。外れても消さず、印を付けるだけ。
@@ -45,16 +45,21 @@ ROUND2_EVENTS = [
 ]
 # 2回目で、シャーっと鳴ったイベントに追加で掛けるローパス（Hz、4次）。生成で高域が抑えきれなかった分の加工
 ROUND2_LOWPASS = {"ui_select": 3500, "ui_drop": 6000, "prohibit": 6000, "radial_open": 6000, "receive_grass": 3500, "player_land": 3500, "footstep": 3500}
+# 3回目（2026-11-20）: 2回目でも合格が無かった4つと、新しい音2つ（dash、ui_notice）。seed を変えて 4 つずつ
+ROUND3_EVENTS = ["ui_confirm", "ui_error", "ui_open", "bell", "dash", "ui_notice"]
+ROUND3_LOWPASS = {"ui_error": 6000, "dash": 4500}
 ROUNDS = {
     1: {"prefix": "sfx_", "out": OUT, "events": EVENTS, "count": 2, "lowpass": {}},
     2: {"prefix": "sfx2_", "out": OUT.parent / "sfx2", "events": ROUND2_EVENTS, "count": 3, "lowpass": ROUND2_LOWPASS},
+    3: {"prefix": "sfx3_", "out": OUT.parent / "sfx3", "events": ROUND3_EVENTS, "count": 4, "lowpass": ROUND3_LOWPASS},
 }
 # test_sfx.py と同じ分類（footstep は footstep_1〜3 と同じ扱い）
 IMPACTS = {"block_land", "block_jump"}
-LONG = {"goal": 2300, "save": 1300, "bell": 2300}
+LONG = {"goal": 2300, "save": 1300, "bell": 2300, "dash": 500}  # dash は 3マスの突進（0.3〜0.5 秒）
 UNPITCHED = {
     "player_jump", "player_land", "footstep", "block_step", "radial_open",
     "ui_hover", "ui_cancel", "ui_open", "ui_pick", "ui_drop",
+    "dash",  # 風を切る音（音程の無い雑音）
 }
 
 

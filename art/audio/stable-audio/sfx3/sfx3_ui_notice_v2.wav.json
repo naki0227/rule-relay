@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx3_ui_notice",
+  "original_idea": "ui_notice（新しい音）: 投票が始まった／時間切れになった。やわらかく注意をひく1音、高すぎない（soft wooden chime, low and gentle, clear attack）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a single wooden tone bar struck once with a hard wooden mallet, one gentle attention-getting note with a clear crisp attack, then a short warm resonant ring that fades, rosewood bar over a wooden resonator box, low-mid pitch, warm and round, not shrill, close-miked, small wooden room, light short reverb.",
+  "sound_fields": {
+    "source": "a single wooden tone bar struck once with a hard wooden mallet",
+    "action": "one gentle attention-getting note with a clear crisp attack, then a short warm resonant ring that fades",
+    "material": "rosewood bar over a wooden resonator box, low-mid pitch, warm and round, not shrill",
+    "space": "close-miked, small wooden room, light short reverb"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": "muffled, dull, distant, high-pitched, shrill, tinkling, glockenspiel, metal chime, beep, electronic, alarm, sub bass rumble",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 4,
+  "seed": 5051,
+  "candidate": 2,
+  "file": "sfx3_ui_notice_v2.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:59:44",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 2.78,
+  "ceiling_gain_db": -3.78
+}
