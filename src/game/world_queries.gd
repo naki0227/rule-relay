@@ -53,6 +53,8 @@ static func target_ref(w: GameWorld, target: Node3D) -> Dictionary:
 		return {"kind": "bell", "id": w.bells.find(target as Bell)}
 	if target is RuleBlock or target is Creature:
 		return {"kind": "entity", "id": int(target.get("entity_id"))}
+	if target is TerrainCell:
+		return {"kind": "cell", "id": -1, "cell": (target as TerrainCell).cell}
 	return {"kind": "none", "id": -1}
 
 
@@ -68,7 +70,19 @@ static func resolve_target(w: GameWorld, ref: Dictionary) -> Node3D:
 			if w.blocks.has(id):
 				return w.blocks[id]
 			return w.creatures.get(id) as Node3D
+		"cell":
+			return _resolve_cell(w, ref.get("cell"))
 	return null
+
+
+## 地形のセル（動くブロックになっていればそのブロック）。
+static func _resolve_cell(w: GameWorld, value: Variant) -> Node3D:
+	if typeof(value) != TYPE_VECTOR3I or w.terrain == null:
+		return null
+	var cell := value as Vector3i
+	if w.promoted.has(cell):
+		return w.blocks[w.promoted[cell]]
+	return w.terrain_target(cell) if w.terrain.has_cell(cell) else null
 
 
 ## 仲間へ渡すトークン（無ければ -1）。選んでいる枠の器に能力があればそれ、
@@ -97,3 +111,15 @@ static func nearest_dropped(ledger: RuleLedger, at: Vector3) -> int:
 			best = t.id
 			best_distance = d
 	return best
+
+
+## 能力を受け取った物が鳴らす音（材質ごと）。木のブロック・発射台は木、石・砂岩のセルは石、草のセルは草、生き物。
+static func receive_sound(target: Node3D) -> StringName:
+	if target is Creature:
+		return &"receive_creature"
+	match String(target.get_meta("model", "ability_block")):
+		"grass_cell":
+			return &"receive_grass"
+		"rock_cell", "sandstone_cell":
+			return &"receive_stone"
+	return &"receive_wood"

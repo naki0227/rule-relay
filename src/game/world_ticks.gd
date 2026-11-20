@@ -70,3 +70,80 @@ static func _return_lent(w: GameWorld, entity_id: int) -> int:
 		if t.vessel_id != -1 and w.ledger.recall(t.id, to):
 			returned += 1
 	return returned
+
+
+## 繰り返し方式: 周期ごとに行動を試みる（同じ行動の能力が n 個なら n 倍）。
+static func repeats(w: GameWorld, delta: float) -> void:
+	for id in w.blocks:
+		var actions := w.ledger.repeat_actions(id)
+		if actions.is_empty():
+			w._repeat_timers[id] = 0.0
+			continue
+		w._repeat_timers[id] += delta
+		if w._repeat_timers[id] < Tuning.REPEAT_PERIOD:
+			continue
+		w._repeat_timers[id] -= Tuning.REPEAT_PERIOD
+		var action := w._repeat_cursors[id].next_action(actions) as RuleAction.Kind
+		var block := w.blocks[id]
+		var result := BlockRules.attempt(w.ledger, id, action, block.is_ready_for(action))
+		if result == BlockRules.Attempt.SUCCESS:
+			block.perform(action, w._high(id), PartyQuery.entity_count(w.ledger, id, action))
+
+
+## 信号方式: 音波が届いている間だけ、繰り返しと同じ周期で行動を試みる。途絶えると次の動作は
+## 休止し（周期の途中で止まる）、再び届くと続きから再開する。トークンは自動では戻らない（企画書 5.2）。
+static func signals(w: GameWorld, delta: float) -> void:
+	for id in w.blocks:
+		var actions := w.ledger.signal_actions(id)
+		var receiving := not actions.is_empty() and w.is_receiving_signal(id)
+		w.blocks[id].set_signal_state(not actions.is_empty(), receiving)
+		if actions.is_empty():
+			w._signal_timers[id] = 0.0
+			continue
+		if not receiving:
+			continue
+		w._signal_timers[id] += delta
+		if w._signal_timers[id] < Tuning.REPEAT_PERIOD:
+			continue
+		w._signal_timers[id] -= Tuning.REPEAT_PERIOD
+		var action := w._signal_cursors[id].next_action(actions) as RuleAction.Kind
+		var block := w.blocks[id]
+		var result := BlockRules.attempt(w.ledger, id, action, block.is_ready_for(action))
+		if result == BlockRules.Attempt.SUCCESS:
+			block.perform(action, w._high(id), PartyQuery.entity_count(w.ledger, id, action))
+
+
+## 単発をまとめて起動する。同じブロックに同じ行動の単発が n 個あれば、1回だけ n 倍で試みる
+## （例: 4人分のジャンプを単発で渡す → 1回の高いジャンプ。2026-11-19 本人確定）。
+## 起動したトークンは成否によらず、直前に付与した人へ戻る（付与者が退出していれば落ちる）。
+static func fire_single_shots(w: GameWorld, token_ids: PackedInt32Array) -> void:
+	var by_holder := {}
+	for token_id in token_ids:
+		for holder in w.ledger.token(token_id).holder_ids:
+			by_holder[holder] = int(by_holder.get(holder, 0)) + 1
+	var outcome := {}
+	for holder: int in by_holder:
+		var action := w.ledger.token(token_ids[0]).action
+		var block := w.blocks[holder]
+		var result := BlockRules.attempt(w.ledger, holder, action, block.is_ready_for(action))
+		if result == BlockRules.Attempt.SUCCESS:
+			block.perform(action, w._high(holder), int(by_holder[holder]))
+		outcome[holder] = result
+	for token_id in token_ids:
+		_finish_single_shot(w, token_id, outcome)
+
+
+static func _finish_single_shot(w: GameWorld, token_id: int, outcome: Dictionary) -> void:
+	var t := w.ledger.token(token_id)
+	var results: Array[BlockRules.Attempt] = []
+	for holder in t.holder_ids:
+		results.append(outcome[holder] as BlockRules.Attempt)
+	var label := t.describe()
+	var drop_at := w.blocks[t.holder_ids[0]].global_position + Vector3(0.0, 0.8, 0.0)
+	w.ledger.complete_single_shot(token_id, results, drop_at)
+	if BlockRules.single_shot_succeeded(results):
+		w._post("単発の %s が成功して戻りました" % label)
+	else:
+		w._post("単発の %s は動けなかったので、そのまま戻りました" % label)
+		var blocked := results.has(BlockRules.Attempt.PROHIBITED)
+		w._ui_sound(&"prohibit" if blocked else &"ui_error")

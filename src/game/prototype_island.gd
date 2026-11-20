@@ -59,11 +59,8 @@ var _time: float = 0.0
 func _ready() -> void:
 	super._ready()
 	build_environment(self)
-	# 当たり判定は直方体ごとの箱。見た目は、全部のセルをつないで外に出た角を丸めた1つのモデル
-	# （art/scripts/build_terrain.py。地形を変えたら tools/export_terrain.gd → Blender で作り直す）
-	for box: Array in terrain_boxes():
-		TerrainBuilder.add_box(self, box[0] as Vector3i, box[1] as Vector3i, Color.WHITE, "", false)
-	_add_model("island_terrain", Vector3.ZERO)
+	# 地形はどのセルにも能力を渡せる（渡したセルは動くブロックになる）。見た目はつないで角を丸めたメッシュ
+	build_terrain(terrain_boxes())
 	_build_scenery()
 	_build_blocks()
 	_build_creature()

@@ -34,7 +34,7 @@ var stage_id: String = ""
 var stage_run_id: String = ""
 ## 最後にクリアした結果の文（HUD の表示用）。
 var last_clear_text: String = ""
-## ステージの島を置く親（既定は自分。相棒ボットは物理の世界を分けるため SubViewport を渡す）。
+## ステージの島を置く親（既定は自分。物理の世界を分けたいときは SubViewport を渡す）。
 var world_parent: Node
 
 ## チェックポイント ID → その時点の記録 {"world": WorldSnapshot, "loadout": StageLoadout の状態}
@@ -43,6 +43,8 @@ var _run_serial: int = 0
 var _clear_timer: float = -1.0
 ## 報酬を配った回（再接続した人へ後から渡すため、部屋がある間は残す）。
 var _runs: Array[StageRunRewards] = []
+## 一度でもこの部屋に来たプレイヤー（初めて来たときだけ出現地点へ動かす。再接続・ホスト移譲では動かさない）。
+var _known_players: Dictionary[int, bool] = {}
 
 
 func _ready() -> void:
@@ -101,12 +103,13 @@ func enter_stage(new_stage_id: String) -> void:
 	_snapshots = {PartyLifecycle.STAGE_START: _capture()}
 	for player_id in players:
 		_teleport(player_id, world.spawn_for(player_id))
-	if net != null:
+	if _online():
 		_enter.rpc(new_stage_id, run_id)
 	_broadcast_party()
 
 
 func _build(new_stage_id: String, run_id: String) -> void:
+	var me := local_id()
 	if world != null:
 		world.queue_free()
 		world.name = "Leaving"
@@ -117,6 +120,8 @@ func _build(new_stage_id: String, run_id: String) -> void:
 	world.setup(StageCatalog.by_id(new_stage_id))
 	world.vote_request = request_vote
 	(world_parent if world_parent != null else self).add_child(world)
+	world.player.player_id = me
+	world.ledger_actions.player_id = me
 	if net != null:
 		net.manage_falls = false
 		net.bind(world)
@@ -295,7 +300,7 @@ func _on_clear() -> void:
 		% [tracker.seconds, tracker.abilities_used, tracker.hand_offs]
 	)
 	_show_clear(text)
-	if net != null:
+	if _online():
 		_cleared.rpc(text)
 	deliver_rewards()
 
@@ -376,6 +381,56 @@ func _update_spectate() -> void:
 # --- オンライン -------------------------------------------------------------
 
 
+## ホスト移譲に備えて、進行の状態をまるごと書き出す（ホストが参加者へ定期的に配る）。
+func export_state() -> Dictionary:
+	var runs: Array[Dictionary] = []
+	for rewards in _runs:
+		runs.append(rewards.to_dict())
+	return {
+		"stage_id": stage_id,
+		"run_id": stage_run_id,
+		"world": WorldSnapshot.capture(world),
+		"loadout": loadout.capture_state() if loadout != null else {},
+		"lifecycle": lifecycle.to_dict(),
+		"snapshots": _snapshots,
+		"tracker": tracker.to_dict(),
+		"runs": runs,
+		"host_id": local_id(),
+	}
+
+
+## ホスト移譲: 新しいホストになった自分が、前のホストの最後の状態から続ける。
+## 世界を権威として作り直し、台帳・ブロック・進行を戻す（自分のアバターの位置はいまの位置のまま）。
+## 前のホストは「通信が切れた人」になる（戻ってくれば同じプレイヤーに戻る）。
+func adopt_state(state: Dictionary) -> void:
+	var here := world.player.global_position if world != null else Vector3.ZERO
+	_build(String(state["stage_id"]), String(state["run_id"]))
+	WorldSnapshot.apply(world, state["world"] as Dictionary)
+	world.player.global_position = here
+	world.player.velocity = Vector3.ZERO
+	loadout = StageLoadout.new(world.def, world.entity_ids)
+	if not (state["loadout"] as Dictionary).is_empty():
+		loadout.restore_state(state["loadout"] as Dictionary)
+	var restored := PartyLifecycle.from_dict(state["lifecycle"] as Dictionary)
+	lifecycle = restored if restored != null else PartyLifecycle.new()
+	_snapshots = state["snapshots"] as Dictionary
+	tracker.restore(state["tracker"] as Dictionary, world.ledger)
+	_runs.clear()
+	for data: Dictionary in state["runs"] as Array:
+		var rewards := StageRunRewards.from_dict(data)
+		if rewards != null:
+			_runs.append(rewards)
+	for player_id in world.ledger.players():
+		_known_players[player_id] = true
+	# 前のホストも、つなぎ直してくる人も、入ってくるまでは「通信が切れた人」
+	if in_stage():
+		for player_id in lifecycle.formal_participants():
+			if player_id != local_id():
+				lifecycle.disconnect_player(player_id)
+	world.message_posted.emit("あなたがホストになりました")
+	_broadcast_party()
+
+
 ## 参加者: ホストから「このステージへ」と届くまで、仮のハブを作っておく（NetWorld をつなぐ先）。
 func prepare_client() -> void:
 	_build(StageCatalog.HUB_ID, "")
@@ -387,8 +442,10 @@ func attach_net(new_net: NetWorld) -> void:
 	net.manage_falls = false
 	net.give_starting_items = _give_join_items
 	if net.is_host():
-		net.session.player_joined.connect(_on_player_joined)
-		net.session.player_disconnected.connect(_on_player_disconnected)
+		if not net.session.player_joined.is_connected(_on_player_joined):
+			net.session.player_joined.connect(_on_player_joined)
+		if not net.session.player_disconnected.is_connected(_on_player_disconnected):
+			net.session.player_disconnected.connect(_on_player_disconnected)
 
 
 func _give_join_items(player_id: int) -> void:
@@ -397,7 +454,7 @@ func _give_join_items(player_id: int) -> void:
 
 
 func _on_player_joined(player_id: int) -> void:
-	if net != null:
+	if _online():
 		_enter.rpc_id(net.session.peer_of_player(player_id), stage_id, stage_run_id)
 	if in_stage():
 		if (
@@ -408,7 +465,9 @@ func _on_player_joined(player_id: int) -> void:
 			world.message_posted.emit(_name(player_id) + "が来ました（次の全員リセットで合流）")
 		else:
 			lifecycle.reconnect(player_id)
-	_teleport(player_id, world.spawn_for(player_id))
+	if not _known_players.has(player_id):
+		_known_players[player_id] = true
+		_teleport(player_id, world.spawn_for(player_id))
 	_broadcast_party()
 	deliver_rewards()
 
@@ -429,7 +488,7 @@ func leave_room() -> void:
 
 func _broadcast_party() -> void:
 	party_changed.emit()
-	if net != null and net.is_host():
+	if _online() and net.is_host():
 		_party.rpc(lifecycle.to_dict())
 
 
@@ -443,8 +502,12 @@ func _teleport(player_id: int, at: Vector3) -> void:
 	if avatar != null:
 		avatar.global_position = at
 		avatar.apply_remote(at, avatar.remote_yaw, false, true)
-	if net != null and net.session.peer_of_player(player_id) != -1:
+	if _online() and net.session.peer_of_player(player_id) != -1:
 		_moved.rpc_id(net.session.peer_of_player(player_id), at)
+
+
+func _online() -> bool:
+	return net != null and net.is_online()
 
 
 func _name(player_id: int) -> String:
@@ -509,7 +572,7 @@ func _vote() -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _leave() -> void:
 	var sender := net.session.player_of_peer(multiplayer.get_remote_sender_id())
-	if not is_authority() or sender == -1 or sender == RuleLedger.PLAYER_ID:
+	if not is_authority() or sender == -1 or sender == local_id():
 		return
 	if in_stage():
 		lifecycle.leave(sender)

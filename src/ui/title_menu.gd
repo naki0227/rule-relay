@@ -1,10 +1,10 @@
 class_name TitleMenu
 extends Control
-## 起動したときの入口: ひとりで遊ぶ／部屋を作る／相棒ボットと遊ぶ／部屋に入る（docs/adr/0006）。
+## 起動したときの入口: ひとりで遊ぶ／部屋を作る／部屋に入る（docs/adr/0006）。
 ## 提出版は Steam なしの直接接続（IP アドレスとポート）。Steam 版では、部屋に入るはロビーと招待に変わる。
 
 signal solo_chosen(profile: String)
-signal host_chosen(profile: String, port: int, with_bot: bool)
+signal host_chosen(profile: String, port: int)
 signal join_chosen(profile: String, address: String, port: int)
 
 const DEFAULT_PORT: int = 24565
@@ -36,8 +36,7 @@ func _ready() -> void:
 	_add_label(box, "ルールは厳格に。解法は自由に。", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_profile = _add_field(box, "記録の名前（同じ PC で2つ起動するときは別の名前に）", "player")
 	_add_button(box, "ひとりで遊ぶ", func() -> void: solo_chosen.emit(profile_name()))
-	_add_button(box, "部屋を作る（友だちを待つ）", func() -> void: _host(false))
-	_add_button(box, "相棒ボットと遊ぶ（部屋を作ってボットを呼ぶ）", func() -> void: _host(true))
+	_add_button(box, "部屋を作る（友だちを待つ）", _host)
 	_address = _add_field(box, "部屋に入る: ホストの IP アドレス", "127.0.0.1")
 	_port = _add_field(box, "ポート", str(DEFAULT_PORT))
 	_add_button(box, "部屋に入る", _join)
@@ -54,8 +53,8 @@ func show_error(text: String) -> void:
 	_status.text = text
 
 
-func _host(with_bot: bool) -> void:
-	host_chosen.emit(profile_name(), _port_number(), with_bot)
+func _host() -> void:
+	host_chosen.emit(profile_name(), _port_number())
 
 
 func _join() -> void:

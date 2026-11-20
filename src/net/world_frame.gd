@@ -27,6 +27,7 @@ static func capture(w: GameWorld) -> Dictionary:
 	for ball in w.get_tree().get_nodes_in_group(&"thrown_balls"):
 		balls.append((ball as Node3D).global_position)
 	return {
+		"promoted": w.promoted.keys(),
 		"blocks": block_states,
 		"creatures": creature_states,
 		"avatars": avatar_states,
@@ -37,6 +38,7 @@ static func capture(w: GameWorld) -> Dictionary:
 
 ## 参加者の画面に反映する。知らない ID・壊れた値は無視する（通信から来た値なので信用しない）。
 static func apply(w: GameWorld, data: Dictionary, ghosts: Array[MeshInstance3D]) -> void:
+	_apply_promoted(w, data.get("promoted", []) as Array)
 	var block_states := data.get("blocks", {}) as Dictionary
 	for id: int in block_states:
 		if w.blocks.has(id) and typeof(block_states[id]) == TYPE_VECTOR3:
@@ -51,6 +53,22 @@ static func apply(w: GameWorld, data: Dictionary, ghosts: Array[MeshInstance3D])
 	for i in mini(bell_states.size(), w.bells.size()):
 		w.bells[i].remaining = float(bell_states[i])
 	_apply_balls(w, data.get("balls", []) as Array, ghosts)
+
+
+## ホストで動くブロックになった地形のセルを、参加者の画面でもブロックにする（戻ったセルは地形へ）。
+static func _apply_promoted(w: GameWorld, cells: Array) -> void:
+	if w.terrain == null:
+		return
+	var wanted := {}
+	for value: Variant in cells:
+		if typeof(value) == TYPE_VECTOR3I:
+			wanted[value] = true
+	for cell: Vector3i in wanted:
+		if not w.promoted.has(cell) and w.terrain.has_cell(cell):
+			TerrainPromotion.promote(w, cell).remote = true
+	for cell: Vector3i in w.promoted.keys():
+		if not wanted.has(cell):
+			TerrainPromotion.demote(w, cell)
 
 
 static func _apply_avatars(w: GameWorld, states: Dictionary) -> void:

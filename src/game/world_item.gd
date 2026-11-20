@@ -80,3 +80,15 @@ static func _place(
 		parent.add_child(node)
 		nodes[key] = node
 	nodes[key].position = v.world_position
+
+
+## 拾える距離にある、いちばん近い器（無ければ null）。
+static func nearest(ledger: RuleLedger, from: Vector3) -> RuleVessel:
+	var best: RuleVessel = null
+	var best_distance := Tuning.PICKUP_REACH
+	for v in ledger.world_vessels():
+		var d := from.distance_to(v.world_position)
+		if d <= best_distance:
+			best = v
+			best_distance = d
+	return best
