@@ -19,14 +19,17 @@ const GARDEN_ID := "ban_garden"
 const EXPEDITION_ID := "long_expedition"
 
 ## 導入: 岩棚（上面 y = 2）と、その手前の窪みに収まったブロック（上面が地面と同じ y = 0）。
-const INTRO_LEDGE_MIN := Vector3i(-5, 0, -9)
+const INTRO_LEDGE_MIN := Vector3i(-5, 0, -10)
 const INTRO_LEDGE_MAX := Vector3i(5, 1, -6)
 const INTRO_STEP_MIN := Vector3i(-2, 0, -1)
 const INTRO_STEP_MAX := Vector3i(2, 0, 0)
 const INTRO_LIFT_CELL := Vector3i(0, -1, -5)
-## 導入のゴール: 岩棚の真ん中の窪み（上面 y = 1。まわりの岩棚より 1 段低い）。
-const INTRO_GOAL_MIN := Vector3i(-2, 0, -8)
-const INTRO_GOAL_MAX := Vector3i(2, 0, -7)
+## 導入のゴール: 岩棚の奥の窪み（上面 y = 1。まわりの岩棚より 1 段低い）。
+## 南（登り口の側）の縁は 2 マス（z = -7〜-6）。縁が 1 マスだと、窪みの南の列に立つカメラの回転の中心
+## （足もと + 1.5）から、下の地面の仲間の頭へ照準が合った（docs/reports/2026-11-20-goal-probes.md G1）。
+## 2026-11-20 決定: ルールは足さず、岩棚を北へ 1 マス広げて窪みを奥へ寄せる（地形だけで直す）。
+const INTRO_GOAL_MIN := Vector3i(-2, 0, -9)
+const INTRO_GOAL_MAX := Vector3i(2, 0, -8)
 
 ## 鐘の谷: 発射台（東向き）と、谷の向こうの小島の鐘。
 const BELL_LAUNCHER_CELL := Vector3i(0, 0, 0)
@@ -87,18 +90,19 @@ static func intro_jump_lend() -> StageDef:
 	def.target_minutes = 3
 	def.terrain_boxes = [
 		# 地面（窪みの1マスだけ抜く）と窪みの底
-		[Vector3i(-5, -1, -9), Vector3i(5, -1, -6), "grass"],
+		[Vector3i(-5, -1, -10), Vector3i(5, -1, -6), "grass"],
 		[Vector3i(-5, -1, -4), Vector3i(5, -1, 6), "grass"],
 		[Vector3i(-5, -1, -5), Vector3i(-1, -1, -5), "grass"],
 		[Vector3i(1, -1, -5), Vector3i(5, -1, -5), "grass"],
 		[INTRO_LIFT_CELL + Vector3i(0, -1, 0), INTRO_LIFT_CELL + Vector3i(0, -1, 0), "rock"],
 		# 自分で跳べる小段差（道の真ん中。横を回っても進める）
 		[INTRO_STEP_MIN, INTRO_STEP_MAX, "sand"],
-		# 跳べない岩棚（INTRO_LEDGE_MIN〜MAX）。真ん中を 1 段下げて、ゴールの窪みにする（縁が 1 マス残る）
-		[Vector3i(-5, 0, -9), Vector3i(5, 1, -9), "rock"],
-		[Vector3i(-5, 0, -6), Vector3i(5, 1, -6), "rock"],
-		[Vector3i(-5, 0, -8), Vector3i(-3, 1, -7), "rock"],
-		[Vector3i(3, 0, -8), Vector3i(5, 1, -7), "rock"],
+		# 跳べない岩棚（INTRO_LEDGE_MIN〜MAX）。奥を 1 段下げて、ゴールの窪みにする
+		# （縁は南 2 マス・北 1 マス・東西 3 マス。北の下には誰も立てない）
+		[Vector3i(-5, 0, -10), Vector3i(5, 1, -10), "rock"],
+		[Vector3i(-5, 0, -7), Vector3i(5, 1, -6), "rock"],
+		[Vector3i(-5, 0, -9), Vector3i(-3, 1, -8), "rock"],
+		[Vector3i(3, 0, -9), Vector3i(5, 1, -8), "rock"],
 		[INTRO_GOAL_MIN, INTRO_GOAL_MAX, "rock"],
 	]
 	def.spawn_points = _spawn_row(Vector3(0.0, 0.0, 4.5))
