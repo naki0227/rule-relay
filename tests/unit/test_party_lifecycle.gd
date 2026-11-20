@@ -212,6 +212,41 @@ func test_withdraw_and_cancel_vote() -> void:
 	assert_false(party.has_pending_reset(), "cancelled vote is gone")
 
 
+## 投票の時間切れ（試遊 G4、2026-11-20 本人の判断。仮 30 秒）。開いた時点から数え、後の票では延びない。
+## 時間切れを閉じるのは呼び出し側（権威）。閉じた後の死亡では、古い票で全員リセットが決まらない。
+func test_vote_expires_after_the_time_limit() -> void:
+	_start(4)
+	assert_eq(party.vote_seconds_left(), 0.0, "no vote, no clock")
+	party.vote_reset(A)
+	assert_eq(party.vote_seconds_left(), PartyLifecycle.VOTE_TIME_LIMIT)
+	assert_false(party.tick_vote(10.0))
+	party.vote_reset(B)
+	assert_almost(
+		party.vote_seconds_left(),
+		PartyLifecycle.VOTE_TIME_LIMIT - 10.0,
+		0.001,
+		"a later vote does not extend it"
+	)
+	assert_false(party.tick_vote(PartyLifecycle.VOTE_TIME_LIMIT - 11.0))
+	assert_true(party.tick_vote(1.0), "expired")
+	party.cancel_vote()
+	party.die(C)
+	party.die(D)
+	assert_false(party.has_pending_reset(), "the expired votes do not fire on a death")
+
+
+func test_new_vote_after_expiry_gets_a_fresh_clock() -> void:
+	_start(3)
+	party.vote_reset(A)
+	party.tick_vote(PartyLifecycle.VOTE_TIME_LIMIT)
+	party.cancel_vote()
+	assert_false(party.is_vote_open())
+	party.vote_reset(B)
+	assert_true(party.is_vote_open())
+	assert_eq(party.yes_vote_count(), 1, "A's old vote is gone")
+	assert_eq(party.vote_seconds_left(), PartyLifecycle.VOTE_TIME_LIMIT)
+
+
 func test_leaving_voter_loses_vote_and_smaller_party_can_pass() -> void:
 	_start(4)
 	party.vote_reset(A)
@@ -448,3 +483,18 @@ func test_serialization_keeps_pending_reset() -> void:
 		assert_eq(d.generation, 1)
 		assert_eq(d.reason, NO_ONE_ALIVE)
 	assert_eq(copy.headcount(), 1)
+
+
+## ホスト移譲: 投票の残り秒数（時刻ではなく残り）を持ち越し、新しいホストでもそこから切れる。
+func test_serialization_keeps_the_vote_clock() -> void:
+	_start(3)
+	party.vote_reset(A)
+	party.tick_vote(24.0)
+	var copy := PartyLifecycle.from_dict(str_to_var(var_to_str(party.to_dict())) as Dictionary)
+	assert_true(copy.is_vote_open())
+	assert_almost(copy.vote_seconds_left(), PartyLifecycle.VOTE_TIME_LIMIT - 24.0, 0.001)
+	assert_false(copy.tick_vote(5.0))
+	assert_true(copy.tick_vote(1.0), "expires on the new host after the remaining time")
+	copy.cancel_vote()
+	copy.die(B)
+	assert_false(copy.has_pending_reset())

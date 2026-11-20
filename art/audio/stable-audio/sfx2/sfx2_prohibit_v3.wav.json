@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_prohibit",
+  "original_idea": "prohibit 作り直し: こもっている → アタックをはっきり（封をする「ドン」）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a heavy wooden seal stamp pressed down onto paper, crisp transient with a clear knock at the start, one firm thud, then a short low slightly detuned hum that settles, friendly not scary, dense hardwood and paper, warm low body, articulate attack, no hiss, close-miked, dry, small room.",
+  "sound_fields": {
+    "source": "a heavy wooden seal stamp pressed down onto paper",
+    "action": "crisp transient with a clear knock at the start, one firm thud, then a short low slightly detuned hum that settles, friendly not scary",
+    "material": "dense hardwood and paper, warm low body, articulate attack, no hiss",
+    "space": "close-miked, dry, small room"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": "muffled, dull, boomy, distant, reverb, harsh, shrill, hiss, high-pitched, metallic, scary",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4052,
+  "candidate": 3,
+  "file": "sfx2_prohibit_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:10:44",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 5.51,
+  "ceiling_gain_db": -6.51
+}

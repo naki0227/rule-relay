@@ -3,6 +3,7 @@ extends "res://tests/integration/island_playthrough.gd"
 ## 結果は docs/reports/2026-11-20-goal-probes.md。
 ## - test_gate_*: 意図した挙動が守られていることを確かめる
 ## - test_finding_*: 試遊した時点の、意外な挙動を記録する（直すかどうかは本人が決める）
+## - test_accepted_*: 本人が「このままでよい」と決めた挙動（決めた内容は報告の「決定」の節）
 ## 照準はゲームと同じく、カメラ（CameraRig）を回して GameWorld.aimed_block() の光線で決める。
 ## カメラは頭の上 1.5 を中心に回るので、光線はいつもその点を通る。狙う点（仲間の体の高さ）へ
 ## 向けた yaw・pitch を、CameraRig の範囲（-70°〜30°）に収めて与える（マウスで向けるのと同じ）。
@@ -340,12 +341,15 @@ func test_gate_trapped_player_needs_the_partner_vote() -> void:
 
 ## 三つの鐘: A が発射台に「投げる」を渡して東の鐘を鳴らしたあと、B が発射台を F で回収する。
 ## - 鳴らした鐘は数えられたまま（activated は消えない）。「投げる」は B の手元へ移り、A には戻らない
-## - B ひとりの投票では戻らない（2 票要る）
-## - ただし B の賛成票は取り消されずに残る。A が落ちて死亡観戦になった瞬間、「死亡観戦がいるとき
-##   生存者全員の賛成」が成り立ち、B がもう一度押さなくても全員リセットが決まって鐘も戻る
-func test_finding_bell_griefing_recall_vote_and_the_dead_partner() -> void:
+## - B ひとりの投票では戻らない（2 票要る）。札には残り秒数が出る
+## - 試遊 G4 の決定（2026-11-20 本人）: 投票は PartyLifecycle.VOTE_TIME_LIMIT（仮 30 秒）で時間切れになる。
+##   ホストが閉じて知らせ、参加者の札からも消える。そのあと A が落ちて死亡観戦になっても、
+##   古い票で全員リセットは決まらない。B がもう一度 V を押すと、新しい投票として数えられる
+func test_gate_lone_vote_expires_and_a_later_death_does_not_reset() -> void:
 	await _open_net()
 	await _go(StageCatalog.THREE_BELLS_ID)
+	var messages := PackedStringArray()
+	host.world.message_posted.connect(func(text: String) -> void: messages.append(text))
 	var launcher := host.world.blocks[int(host.world.entity_ids["launcher"])]
 	assert_true(await _drive(host.world, Vector3(9.5, 0.0, 1.5), 600), "A at the launcher")
 	host.world.select_slot(_slot_for(host.world, A, THROW))
@@ -363,29 +367,63 @@ func test_finding_bell_griefing_recall_vote_and_the_dead_partner() -> void:
 	await wait_physics_frames(120)
 	assert_true(host.world.activated.has("east_bell"), "the rung bell still counts")
 	client.request_vote()
-	await _until(func() -> bool: return host.lifecycle.yes_vote_count() == 1, "vote")
+	await _until(func() -> bool: return client.lifecycle.is_vote_open(), "vote on the client")
+	var key := InputMode.key(&"vote_reset")
+	var shown := "全員リセットの投票 1 / 2（%s 長押しで賛成・残り %d 秒）"
+	for d: PartyDirector in [host, client]:
+		var left := ceili(d.lifecycle.vote_seconds_left())
+		assert_gt(left, PartyLifecycle.VOTE_TIME_LIMIT - 2.0, "the clock just started")
+		var banner := PartyBanner.describe(d)
+		assert_true(
+			banner.contains(shown % [key, left]), "remaining seconds in the banner: " + banner
+		)
 	await wait_physics_frames(600)
 	assert_eq(host.lifecycle.reset_count(), 0, "10 s later a lone vote has not rolled it back")
-	assert_true(host.lifecycle.is_vote_open(), "the lone yes vote is still open")
-	assert_true(host.world.activated.has("east_bell"))
+	assert_lt(client.lifecycle.vote_seconds_left(), PartyLifecycle.VOTE_TIME_LIMIT - 9.0)
+	var limit := int(PartyLifecycle.VOTE_TIME_LIMIT * 60.0)
+	for i in limit:
+		if not client.lifecycle.is_vote_open():
+			break
+		await tree.physics_frame
+	assert_false(host.lifecycle.is_vote_open(), "the host closed the expired vote")
+	assert_false(client.lifecycle.is_vote_open(), "the client sees it closed")
+	assert_true(messages.has("全員リセットの投票は時間切れになりました"))
+	assert_false(PartyBanner.describe(client).contains("全員リセットの投票 1"))
 	# A が東の岸から谷へ歩いて落ちる。B は何もしない
 	await _drive(host.world, Vector3(16.0, 0.0, 1.5), 120)
-	await _until(func() -> bool: return host.lifecycle.reset_count() == 1, "auto reset")
-	assert_false(host.world.activated.has("east_bell"), "the stale vote rolled the bell back")
+	await _until(
+		func() -> bool: return host.lifecycle.state_of(A) == PartyLifecycle.State.DEAD_SPECTATING
+	)
+	await wait_physics_frames(60)
+	assert_eq(host.lifecycle.reset_count(), 0, "the expired vote does not fire on the death")
+	assert_true(host.world.activated.has("east_bell"), "the bell is still rung")
+	# B が新しく V を押す。死亡観戦の A がいるので、生存者全員（B）の賛成で決まる
+	client.request_vote()
+	await _until(func() -> bool: return host.lifecycle.reset_count() == 1, "fresh vote")
+	await _until(func() -> bool: return not host.lifecycle.has_pending_reset(), "applied")
+	assert_false(host.world.activated.has("east_bell"), "the fresh vote rolled the bell back")
 	assert_eq(host.world.ledger.ability_count(THROW, A), 1, "and A's throw is back")
 
 
 ## 生きている1人がゴールの外にいる限りクリアしない（妨害する人はゴールに入らないだけで止められる）。
+## 試遊 G5 の決定（2026-11-20 本人）: クリアの条件はこのまま（外す・止める仕組みは足さない）。
+## 代わりに、誰かがゴールに入ったら、まだ来ていない人の名前をホストと参加者の札に出す（情報だけ）。
 ## その人が落ちて死亡観戦になると、ゴールにいる人だけでクリアし、死亡観戦の人も報酬を受け取る。
-func test_finding_one_player_outside_blocks_the_clear_until_they_die() -> void:
+## クリアしたら一覧は消える。
+func test_accepted_one_player_outside_blocks_the_clear_but_is_named() -> void:
 	await _open_net()
 	await _go(StageCatalog.INTRO_ID)
 	host.world.player.global_position = Vector3(0.5, 2.1, -5.5)
 	client.world.player.global_position = Vector3(-0.5, 2.1, -5.5)
 	await wait_physics_frames(20)
+	assert_eq(host.goal_missing_text(), "", "nobody in the goal yet: no list")
 	var goal := _goal_of(host)
 	assert_true(await _drive(host.world, Vector3(0.5, 1.1, -7.0), 300), "A walked into the goal")
 	assert_true(goal.has_point(host.world.player.global_position))
+	await _until(func() -> bool: return client.goal_missing == PackedInt32Array([B]), "list")
+	assert_eq(host.goal_missing, PackedInt32Array([B]))
+	assert_true(PartyBanner.describe(host).ends_with("\nゴールにまだ来ていない: プレイヤー2"))
+	assert_true(PartyBanner.describe(client).ends_with("\nゴールにまだ来ていない: あなた"))
 	await wait_physics_frames(600)
 	assert_eq(host.last_clear_text, "", "10 s with B outside: no clear")
 	# B が岩棚から南へ歩き、島の端から落ちる
@@ -393,6 +431,25 @@ func test_finding_one_player_outside_blocks_the_clear_until_they_die() -> void:
 	await _until(func() -> bool: return client.is_spectating())
 	await _until(func() -> bool: return host.last_clear_text != "")
 	await _until(func() -> bool: return client.progress.has_cleared(StageCatalog.INTRO_ID))
+	for d: PartyDirector in [host, client]:
+		assert_false(PartyBanner.describe(d).contains("ゴールにまだ"), "cleared: no list")
+
+
+## 2人ともゴールに入れば、一覧は出ないままクリアする。
+func test_gate_both_in_the_goal_show_no_list_and_clear() -> void:
+	await _open_net()
+	await _go(StageCatalog.INTRO_ID)
+	host.world.player.global_position = Vector3(0.5, 2.1, -5.5)
+	client.world.player.global_position = Vector3(-0.5, 2.1, -5.5)
+	await wait_physics_frames(20)
+	assert_true(await _drive(client.world, Vector3(-0.5, 1.1, -7.0), 300), "B in the goal")
+	await _until(func() -> bool: return host.goal_missing == PackedInt32Array([A]), "A missing")
+	assert_true(await _drive(host.world, Vector3(0.5, 1.1, -7.0), 300), "A in the goal")
+	await _until(func() -> bool: return host.last_clear_text != "", "clear")
+	await _until(func() -> bool: return client.last_clear_text != "", "clear on the client")
+	for d: PartyDirector in [host, client]:
+		assert_eq(d.goal_missing_text(), "")
+		assert_false(PartyBanner.describe(d).contains("ゴールにまだ"))
 
 
 ## 途中で入って待機観戦している人は、クリアの邪魔をしない（正式参加者ではない）。

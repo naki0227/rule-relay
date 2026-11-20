@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_ui_drop",
+  "original_idea": "ui_drop 作り直し（2回目の試し）: こもっている → アタックをはっきり（札を置く「パサ」）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a stiff paper card dropped flat onto a hard wooden table, a crisp dry clack at the very start as the card hits, then a tiny papery settle, stiff cardstock on hard maple, articulate, present, woody, close-miked, dry, no reverb.",
+  "sound_fields": {
+    "source": "a stiff paper card dropped flat onto a hard wooden table",
+    "action": "a crisp dry clack at the very start as the card hits, then a tiny papery settle",
+    "material": "stiff cardstock on hard maple, articulate, present, woody",
+    "space": "close-miked, dry, no reverb"
+  },
+  "bpm": null,
+  "seconds": 1.0,
+  "negative_prompt": "muffled, dull, boomy, distant, reverb, soft thud, low-pass filtered",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4332,
+  "candidate": 3,
+  "file": "sfx2_ui_drop_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:23:10",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": 2.46,
+  "ceiling_gain_db": -3.46
+}

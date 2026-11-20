@@ -15,6 +15,8 @@ const SESSION_KEY_DIR := "user://session"
 var director: PartyDirector
 var net: NetWorld
 var sounds: SoundBank
+## BGM（場面ごとの曲。タイトル・ハブ・島で切り替える）。
+var music: MusicPlayer
 var migration: HostMigration
 ## 部屋のオプション（部屋を作るときに使う）: 禁止をプレイヤーへ直接渡せる。
 var room_allow_prohibition: bool = false
@@ -35,6 +37,9 @@ func _ready() -> void:
 	sounds = SoundBank.new()
 	sounds.name = "Sounds"
 	add_child(sounds)
+	music = MusicPlayer.new()
+	music.name = "Music"
+	add_child(music)
 	_open_steam()
 	var args := _arguments()
 	if args.has("solo") or args.has("host") or args.has("join"):
@@ -47,6 +52,7 @@ func _ready() -> void:
 	_title.host_chosen.connect(start_host)
 	_title.prohibition_option_toggled.connect(func(on: bool) -> void: room_allow_prohibition = on)
 	_title.join_chosen.connect(start_join)
+	music.play_scene(MusicPlayer.TITLE)
 	if steam != null:
 		steam.call(&"add_title_entries", _title)
 
@@ -188,6 +194,9 @@ func _on_world_changed(world: StageWorld) -> void:
 	if _banner.get_parent() != null:
 		_banner.get_parent().remove_child(_banner)
 	_hud.add_child(_banner)
+	# 参加者もホストから届いた島の作り直しでここを通るので、いまいる島の曲になる
+	music.play_scene(MusicPlayer.scene_for_stage(director.stage_id))
+	music.duck_source = _hud.is_menu_open
 	_input = PlayerInput.new()
 	_input.name = "PlayerInput"
 	_input.world = world

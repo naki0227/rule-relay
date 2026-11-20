@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_ui_cancel",
+  "original_idea": "ui_cancel 作り直し: シャーっと鳴る → 高域を抑える（札をすべらせて戻す）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a paper card slid back across a wooden desk under a fingertip, one short smooth slide that stops softly with a tiny woody tap, thick cardstock on varnished wood, warm, soft, rolled-off highs, no hiss, close-up, dry, small room.",
+  "sound_fields": {
+    "source": "a paper card slid back across a wooden desk under a fingertip",
+    "action": "one short smooth slide that stops softly with a tiny woody tap",
+    "material": "thick cardstock on varnished wood, warm, soft, rolled-off highs, no hiss",
+    "space": "close-up, dry, small room"
+  },
+  "bpm": null,
+  "seconds": 1.5,
+  "negative_prompt": "hiss, sizzle, crackle, harsh, bright, airy noise, shrill, white noise, swoosh",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4092,
+  "candidate": 3,
+  "file": "sfx2_ui_cancel_v3.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:16:05",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.38,
+  "raw_peak_dbfs": -1.38,
+  "ceiling_gain_db": 0.0
+}
