@@ -67,6 +67,7 @@ static func intro_jump_lend() -> StageDef:
 	def.blocks = [StageDef.BlockSpec.new("lift", INTRO_LIFT_CELL)]
 	def.blocks[0].color = Color(0.7, 0.58, 0.86)
 	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP]))
+	def.checkpoints = [Vector3(3.5, 0.0, -2.5)]
 	var top := float(INTRO_LEDGE_MAX.y + 1)
 	def.clear_condition = ClearCondition.reach_height(
 		_top_area(INTRO_LEDGE_MIN, INTRO_LEDGE_MAX), top
@@ -96,6 +97,7 @@ static func relay_carry() -> StageDef:
 	var two := one.duplicate()
 	two.append(StageDef.PlacementSpec.in_world(RuleAction.Kind.JUMP, Vector3(1.5, 0.0, 1.5)))
 	def.helpers = {1: one, 2: one.duplicate(), 3: one.duplicate(), 4: two}
+	def.checkpoints = [Vector3(-3.5, 0.0, 4.5)]
 	var goal := AABB(Vector3(goal_min) + Vector3(0.0, 0.9, 0.0), Vector3(11.0, 3.0, 3.0))
 	def.clear_condition = ClearCondition.all_at_goal(goal)
 	return def
@@ -119,6 +121,7 @@ static func bell_valley() -> StageDef:
 	def.bells = [StageDef.BellSpec.new("valley_bell", BELL_AT)]
 	def.set_loadout_for_all(_moves_and([RuleAction.Kind.THROW]))
 	def.prohibitions = [RuleAction.Kind.JUMP]
+	def.checkpoints = [Vector3(-4.0, 0.0, 0.5)]
 	def.clear_condition = ClearCondition.activate("valley_bell")
 	return def
 

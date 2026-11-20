@@ -56,10 +56,36 @@ static func provisional() -> RewardTable:
 						},
 					],
 					"collectibles": ["tmp_collectible_shell_1", "tmp_collectible_shell_2"],
-				}
+				},
+				"intro_jump_lend": _stage_rewards("intro", "tmp_hub_lantern_intro"),
+				"relay_carry": _stage_rewards("relay", "tmp_hub_bridge_relay"),
+				"bell_valley": _stage_rewards("bell", "tmp_hub_bell_tower"),
 			}
 		)
 	)
+
+
+## ステージごとの仮の報酬（初回: ハブの発展1つ・見た目1つ、周回: 少ない能力で解く・ひとりで解く）。
+static func _stage_rewards(short: String, hub_item: String) -> Dictionary:
+	return {
+		"first_clear": {"areas": [], "hub": [hub_item], "cosmetics": ["tmp_cosmetic_%s" % short]},
+		"conditions":
+		[
+			{
+				"id": "tmp_collectible_%s_light" % short,
+				"kind": "collectible",
+				"axis": "abilities_used",
+				"at_most": 2,
+			},
+			{
+				"id": "tmp_cosmetic_%s_solo" % short,
+				"kind": "cosmetic",
+				"axis": "party_size",
+				"at_most": 1,
+			},
+		],
+		"collectibles": [],
+	}
 
 
 ## 表の誤り（空なら正しい）。誤りのある表でも読み込みは止めず、誤った項目だけ渡さない。

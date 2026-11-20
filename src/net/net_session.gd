@@ -9,6 +9,8 @@ extends Node
 signal joined(player_id: int)
 ## ホスト: 参加者が入った（再接続も含む）。
 signal player_joined(player_id: int)
+## ホスト: 参加者の通信が切れた（明示的な退出とは別）。
+signal player_disconnected(player_id: int)
 signal join_refused
 signal state_changed(generation: int)
 signal result_received(seq: int, result: Dictionary)
@@ -32,11 +34,23 @@ func is_host() -> bool:
 
 
 ## 部屋を作る。台帳はホストが正本として持つ。
-func host(peer: MultiplayerPeer, host_ledger: RuleLedger, session_key: String) -> void:
+## ホスト移譲で引き継ぐときは、自分のプレイヤー ID・前のホストの対応表（鍵のハッシュ）・世代を渡す。
+func host(
+	peer: MultiplayerPeer,
+	host_ledger: RuleLedger,
+	session_key: String,
+	host_player_id: int = RuleLedger.PLAYER_ID,
+	hashes: Dictionary = {},
+	from_generation: int = 0
+) -> void:
 	ledger = host_ledger
 	_roster = PartyRoster.new()
-	_roster.add_host(session_key, 1)
-	player_id = RuleLedger.PLAYER_ID
+	_roster.add_host(session_key, 1, host_player_id)
+	_roster.seed(hashes)
+	player_id = host_player_id
+	generation = maxi(generation, from_generation)
+	_last_seq.clear()
+	_last_result.clear()
 	multiplayer.multiplayer_peer = peer
 	if not multiplayer.peer_disconnected.is_connected(_on_peer_disconnected):
 		multiplayer.peer_disconnected.connect(_on_peer_disconnected)
@@ -51,6 +65,7 @@ func join(peer: MultiplayerPeer, session_key: String, into_ledger: RuleLedger = 
 	multiplayer.multiplayer_peer = peer
 	if not multiplayer.connected_to_server.is_connected(_on_connected):
 		multiplayer.connected_to_server.connect(_on_connected)
+	_roster = null
 
 
 ## 依頼を出す。ホストならその場で適用する。seq を返す（結果は result_received で届く）。
@@ -77,6 +92,24 @@ func publish() -> void:
 	assert(is_host(), "only the host publishes")
 	generation += 1
 	_broadcast()
+
+
+## ホスト: 新しいホストへ渡す対応表（鍵のハッシュ → プレイヤー ID）。
+func public_roster() -> Dictionary:
+	return _roster.public_hashes() if is_host() else {}
+
+
+## ホスト: 参加者ごとの IP アドレス（ホスト移譲で新しいホストへつなぎ直すため）。ENet のときだけ分かる。
+func peer_addresses() -> Dictionary:
+	var result := {}
+	var enet := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if not is_host() or enet == null:
+		return result
+	for peer in multiplayer.get_peers():
+		var packet_peer := enet.get_peer(peer)
+		if packet_peer != null and _roster.player_of_peer(peer) != -1:
+			result[_roster.player_of_peer(peer)] = packet_peer.get_remote_address()
+	return result
 
 
 ## ホスト: peer に対応するプレイヤー ID（知らなければ -1）。
@@ -186,9 +219,14 @@ func _reply(sender: int, seq: int, result: Dictionary) -> void:
 
 func _broadcast() -> void:
 	state_changed.emit(generation)
-	_state.rpc(generation, ledger.snapshot())
+	var peer := multiplayer.multiplayer_peer
+	if peer != null and peer.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		_state.rpc(generation, ledger.snapshot())
 
 
 func _on_peer_disconnected(peer: int) -> void:
 	if is_host():
+		var gone := _roster.player_of_peer(peer)
 		_roster.disconnect_peer(peer)
+		if gone != -1:
+			player_disconnected.emit(gone)

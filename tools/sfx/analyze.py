@@ -36,10 +36,12 @@ def measure(path):
     # ノートPCの小さなスピーカーは 200Hz 付近より下をほとんど鳴らせないので、低い音でも半分以上はここに欲しい
     weighted = power * a_weight(freqs) ** 2
     audible = float(np.sum(weighted[freqs >= 250]) / (np.sum(weighted) + 1e-12))
-    # 叩いた瞬間（音の始まりから 40ms）の明るさ。人が「こもっている／はっきりしている」と感じるのは主にここ。
+    # 叩いた瞬間（音の始まりから 20ms）の明るさ。人が「こもっている／はっきりしている」と感じるのは主にここ。
     # 全体の重心は余韻の基音に引っぱられるので、明るさの判定はこちらで行う
     onset = int(np.argmax(np.abs(x) > 0.1 * np.max(np.abs(x))))
-    head = x[onset : onset + int(0.04 * sr)]
+    # 頭 20ms（2026-11-20 に 40ms から短くした。人が輪郭を感じるのは最初の 10〜20ms で、40ms だと
+    # 音程のある本体の音が大半を占め、カリンバなどの短いはじく音を測れなかった）
+    head = x[onset : onset + int(0.02 * sr)]
     head_power = np.abs(np.fft.rfft(head * signal.windows.tukey(len(head), 0.2), 4096)) ** 2
     head_freqs = np.fft.rfftfreq(4096, 1 / sr)
     attack_centroid = float(np.sum(head_freqs * head_power) / (np.sum(head_power) + 1e-12))

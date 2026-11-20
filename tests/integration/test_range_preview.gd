@@ -32,7 +32,10 @@ func test_preview_matches_the_actual_range_lend() -> void:
 	var result := island.commit_range_preview(island.row[0])
 	assert_eq(result, RuleLedger.LendResult.OK)
 	var t := island.ledger.token(island.selected_vessel().token_id)
-	assert_eq(t.holder_ids, ids, "lend targets exactly what the preview showed")
+	var expected := ids.duplicate()
+	for cell: Vector3i in preview["cells"] as Array:
+		expected.append(island.promoted[cell])  # 範囲内の地形のセルも、ブロックになって受け取る
+	assert_eq(t.holder_ids, expected, "lend targets exactly what the preview showed")
 	assert_false(island.is_range_preview_active())
 	for block: RuleBlock in island.blocks.values():
 		assert_false(block.is_previewed(), "preview marks are cleared after commit")

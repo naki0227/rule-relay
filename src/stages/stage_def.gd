@@ -35,6 +35,8 @@ var helpers: Dictionary[int, Array] = {}
 var clear_condition: ClearCondition = ClearCondition.none()
 ## ハブだけが使う: ステージの入口（探索して見つける。引き継ぎ仕様 2-2）。
 var entrances: Array[EntranceSpec] = []
+## チェックポイントの台座の位置（ID は "cp0"・"cp1"… の順）。1人が触れたらチーム共通になる。
+var checkpoints: Array[Vector3] = []
 ## 仮の配置か（プレイテスト前の置き場所）。説明・ADR 用の印。
 var provisional: bool = true
 
