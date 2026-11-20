@@ -1,0 +1,31 @@
+{
+  "kind": "generate",
+  "title": "sfx2_recall",
+  "original_idea": "recall 作り直し: シャーっと鳴る → 高域を抑える（法則の音を逆にふくらませ、札が手に戻る）",
+  "audio_type": "sfx",
+  "prompt": "",
+  "prompt_used": "TrackType: SFX, a low glass singing tone drawn back into a hand, ending with a thick paper card caught between fingers, the tone swells in like reversed audio, then a soft clear papery tap at the end, thick glass and cardstock, warm low round tone, rolled-off highs, no hiss, close-up, small wooden room, light short reverb.",
+  "sound_fields": {
+    "source": "a low glass singing tone drawn back into a hand, ending with a thick paper card caught between fingers",
+    "action": "the tone swells in like reversed audio, then a soft clear papery tap at the end",
+    "material": "thick glass and cardstock, warm low round tone, rolled-off highs, no hiss",
+    "space": "close-up, small wooden room, light short reverb"
+  },
+  "bpm": null,
+  "seconds": 2.0,
+  "negative_prompt": "hiss, sizzle, crackle, harsh, bright, airy noise, shrill, white noise, whoosh",
+  "cfg": 4.0,
+  "steps": 8,
+  "variations": 3,
+  "seed": 4151,
+  "candidate": 2,
+  "file": "sfx2_recall_v2.wav",
+  "sample_rate": 44100,
+  "bit_depth": 24,
+  "created": "2026-11-20T23:18:28",
+  "backend": "sa3-mlx",
+  "model": "medium + same-l",
+  "peak_dbfs": -1.0,
+  "raw_peak_dbfs": -0.67,
+  "ceiling_gain_db": -0.33
+}
