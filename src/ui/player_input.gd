@@ -4,7 +4,7 @@ extends Node
 ## キー割当は project.godot の Input Map（企画書 8 の操作表）。ゲームパッドは Xbox 風の並び
 ## （Steam Deck と同じ）: 左スティック 移動・右スティック カメラ・A ジャンプ・X F（回収など）・
 ## Y 触る／投げる・RT 渡す・LT まとめて渡す（押している間プレビュー）・LB/RB ホットバー・
-## 十字↑ 方式の切り替え・十字↓ 全員リセットの投票・View 持ち物・Start メニュー・右スティック押し込み 円形メニュー。
+## 十字↑ 方式の切り替え・十字↓ 長押し 全員リセットの投票・View 持ち物・Start メニュー・右スティック押し込み 円形メニュー。
 
 const ACTION_KEYS: Dictionary[StringName, RuleAction.Kind] = {
 	&"move_forward": RuleAction.Kind.FORWARD,
@@ -22,6 +22,8 @@ var world: GameWorld
 var hud: Hud
 ## 全員リセットの投票を受け取る（GameRoot）。無ければ無視する。
 var party: Node
+## V（十字↓）は長押しで投票する（誤操作を防ぐ）。
+var _vote_hold := HoldAction.new()
 
 
 func _ready() -> void:
@@ -39,6 +41,7 @@ func _process(delta: float) -> void:
 			Input.get_axis(&"move_back", &"move_forward")
 		)
 	world.player.move_intent = intent
+	_hold_vote(blocked, delta)
 	_look_with_stick(delta)
 	world.player.view_yaw = world.camera_rig.yaw
 	var aimed := world.aimed_block()
@@ -117,8 +120,6 @@ func _handle_gameplay(event: InputEvent) -> void:
 		if hud != null:
 			hud.hints.used("save" if world.is_on_checkpoint() else "recall")
 		world.interact(world.aimed_block())
-	elif _party_action(event):
-		pass
 	elif event.is_action_pressed(&"restore_checkpoint"):
 		# プレビュー中の Esc は取り消しだけにする。それ以外はメニューを開く（戻る操作はメニューから）
 		if world.is_range_preview_active():
@@ -213,9 +214,8 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## V（全員リセットの投票）。押されたら true。
-func _party_action(event: InputEvent) -> bool:
-	if party == null or not event.is_action_pressed(&"vote_reset"):
-		return false
-	party.call(&"handle_party_action", &"vote_reset")
-	return true
+## V 長押し（十字↓ 長押し）で全員リセットの投票。持ち物画面を開いている間は数えない。
+func _hold_vote(blocked: bool, delta: float) -> void:
+	var pressed := party != null and not blocked and Input.is_action_pressed(&"vote_reset")
+	if _vote_hold.update(pressed, delta):
+		party.call(&"handle_party_action", &"vote_reset")

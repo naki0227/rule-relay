@@ -110,7 +110,7 @@ func test_catalog_definitions_are_consistent() -> void:
 	for def in defs:
 		assert_true(def.problems().is_empty(), "%s: %s" % [def.stage_id, def.problems()])
 		assert_eq(StageCatalog.by_id(def.stage_id).stage_id, def.stage_id)
-	assert_eq(StageCatalog.all_stages().size(), 7)
+	assert_eq(StageCatalog.all_stages().size(), 9)
 	var minutes: Array[int] = []
 	for def in StageCatalog.all_stages():
 		minutes.append(def.target_minutes)
@@ -136,6 +136,12 @@ func test_hub_has_an_entrance_for_every_stage() -> void:
 	for e in hub.entrances:
 		ids.append(e.stage_id)
 		assert_true(e.area.has_point(e.position + Vector3(0, 0.5, 0)), "entrance inside its area")
+		var ground: Array = hub.terrain_boxes[0]
+		var on_ground := (
+			e.position.x >= float((ground[0] as Vector3i).x)
+			and e.position.x <= float((ground[1] as Vector3i).x + 1)
+		)
+		assert_true(on_ground, "entrance for %s stands on the hub ground" % e.stage_id)
 	for def in StageCatalog.all_stages():
 		assert_true(ids.has(def.stage_id), "entrance for %s" % def.stage_id)
 

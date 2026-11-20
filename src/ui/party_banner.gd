@@ -44,12 +44,12 @@ static func describe(d: PartyDirector) -> String:
 		if d.lifecycle.is_vote_open():
 			parts.append(
 				(
-					"全員リセットの投票 %d / %d（V で賛成）"
+					"全員リセットの投票 %d / %d（V 長押しで賛成）"
 					% [d.lifecycle.yes_vote_count(), d.lifecycle.required_votes()]
 				)
 			)
 		else:
-			parts.append("V: 全員リセットの投票")
+			parts.append("V 長押し: 全員リセットの投票")
 	if d.last_clear_text != "" and d.in_stage():
 		parts.append(d.last_clear_text)
 	return "　".join(parts)

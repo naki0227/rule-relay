@@ -12,6 +12,8 @@ const HILL_ID := "hill_top"
 const QUARRY_ID := "quarry"
 const THREE_BELLS_ID := "three_bells"
 const FLOATING_ID := "floating_isles"
+const WINDY_ID := "windy_ridge"
+const FORT_ID := "ruined_fort"
 
 ## 導入: 岩棚（上面 y = 2）と、その手前の窪みに収まったブロック（上面が地面と同じ y = 0）。
 const INTRO_LEDGE_MIN := Vector3i(-5, 0, -9)
@@ -40,6 +42,8 @@ static func all_stages() -> Array[StageDef]:
 		OpenIslands.quarry(),
 		OpenIslands.three_bells(),
 		OpenIslands.floating_isles(),
+		OpenIslandsMore.windy_ridge(),
+		OpenIslandsMore.ruined_fort(),
 	]
 	stages.sort_custom(
 		func(a: StageDef, b: StageDef) -> bool: return a.target_minutes < b.target_minutes
@@ -154,8 +158,10 @@ static func hub() -> StageDef:
 	def.spawn_points = _spawn_row(Vector3(0.0, 0.0, 3.5))
 	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP]))
 	# 入口は目安のクリア時間の短い順に、西から東へ一列（本人が順番に試して比べられるように）
+	# ステージが増えても入口が広場からはみ出さないよう、広場の東端を入口の数に合わせて伸ばす
 	var stages := all_stages()
-	def.terrain_boxes = [[Vector3i(-12, -1, -9), Vector3i(12, -1, 9), "grass"]]
+	var east := maxi(12, ceili(-10.5 + 3.5 * (stages.size() - 1)) + 2)
+	def.terrain_boxes = [[Vector3i(-12, -1, -9), Vector3i(east, -1, 9), "grass"]]
 	for i in stages.size():
 		var x := -10.5 + 3.5 * i
 		def.entrances.append(_entrance(stages[i].stage_id, Vector3(x, 0.0, -6.5)))
