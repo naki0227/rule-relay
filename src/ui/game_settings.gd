@@ -1,6 +1,7 @@
 class_name GameSettings
 extends RefCounted
-## 遊ぶ人ごと（PC ごと）の設定: 文字の大きさ、視点の速さ（マウス・パッド）、キー割り当て。
+## 遊ぶ人ごと（PC ごと）の設定: 文字の大きさ、視点の速さ（マウス・パッド）、音の大きさ（BGM・効果音）、
+## キー割り当て。
 ## `user://settings.cfg`（ConfigFile）に保存し、起動時に読んで反映する。秘密の情報は入れない。
 ## 記録の名前（プロファイル）には依存しない（同じ PC の同じ人の手に合わせる設定なので）。
 
@@ -17,6 +18,10 @@ const DEFAULT_SCALE_STEP: int = 1
 const SENSITIVITY_MIN: float = 0.3
 const SENSITIVITY_MAX: float = 3.0
 
+## 音の大きさ（0〜100%）。BGM は効果音より控えめに始める（Music・SFX のバスに掛ける。AudioBuses）。
+const DEFAULT_MUSIC_VOLUME: int = 70
+const DEFAULT_SFX_VOLUME: int = 100
+
 ## 起動時に読んだ設定（GameRoot が読み込む）。テストでは差し替えてよい。
 static var current: GameSettings
 
@@ -24,6 +29,8 @@ var path: String = DEFAULT_PATH
 var scale_step: int = DEFAULT_SCALE_STEP
 var mouse_sensitivity: float = 1.0
 var pad_sensitivity: float = 1.0
+var music_volume: int = DEFAULT_MUSIC_VOLUME
+var sfx_volume: int = DEFAULT_SFX_VOLUME
 var bindings: KeyBindings = KeyBindings.new()
 
 
@@ -62,17 +69,34 @@ func set_pad_sensitivity(value: float) -> void:
 	pad_sensitivity = clampf(value, SENSITIVITY_MIN, SENSITIVITY_MAX)
 
 
+func set_music_volume(percent: int) -> void:
+	music_volume = clampi(percent, 0, 100)
+
+
+func set_sfx_volume(percent: int) -> void:
+	sfx_volume = clampi(percent, 0, 100)
+
+
+## 音の大きさだけをバスへ反映する（つまみを動かしている間に呼ぶ）。
+func apply_volumes() -> void:
+	AudioBuses.set_volume_percent(AudioBuses.MUSIC, music_volume)
+	AudioBuses.set_volume_percent(AudioBuses.SFX, sfx_volume)
+
+
 func reset_to_defaults() -> void:
 	scale_step = DEFAULT_SCALE_STEP
 	mouse_sensitivity = 1.0
 	pad_sensitivity = 1.0
+	music_volume = DEFAULT_MUSIC_VOLUME
+	sfx_volume = DEFAULT_SFX_VOLUME
 	bindings.reset_to_defaults()
 
 
-## 画面の拡大率と Input Map を反映する。
+## 画面の拡大率・音の大きさ・Input Map を反映する。
 func apply(tree: SceneTree) -> void:
 	if tree != null and tree.root != null:
 		tree.root.content_scale_factor = ui_scale()
+	apply_volumes()
 	bindings.apply()
 
 
@@ -83,6 +107,8 @@ func save_file() -> Error:
 	config.set_value("display", "scale_step", scale_step)
 	config.set_value("look", "mouse", mouse_sensitivity)
 	config.set_value("look", "pad", pad_sensitivity)
+	config.set_value("audio", "music", music_volume)
+	config.set_value("audio", "sfx", sfx_volume)
 	bindings.save_to(config, "input")
 	var made := DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 	if made != OK:
@@ -115,8 +141,14 @@ func load_file() -> Error:
 	)
 	set_mouse_sensitivity(_number(config.get_value("look", "mouse", 1.0), 1.0))
 	set_pad_sensitivity(_number(config.get_value("look", "pad", 1.0), 1.0))
+	set_music_volume(_percent(config, "music", DEFAULT_MUSIC_VOLUME))
+	set_sfx_volume(_percent(config, "sfx", DEFAULT_SFX_VOLUME))
 	bindings.load_from(config, "input")
 	return OK
+
+
+static func _percent(config: ConfigFile, key: String, fallback: int) -> int:
+	return roundi(_number(config.get_value("audio", key, fallback), fallback))
 
 
 static func _number(value: Variant, fallback: float) -> float:

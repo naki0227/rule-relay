@@ -5,8 +5,8 @@ extends Node
 ## UI の音と世界の音は別のバスに分け、世界の音は位置から鳴らす（遠いと小さい）。
 
 const SFX_DIR := "res://assets/audio/sfx/%s.wav"
-const BUS_UI := &"UI"
-const BUS_WORLD := &"World"
+const BUS_UI := AudioBuses.UI
+const BUS_WORLD := AudioBuses.WORLD
 const UI_VOICES: int = 8
 const WORLD_VOICES: int = 12
 ## 同じ音をこの間隔（秒）より短く連打したら鳴らさない（ホバーの連続など）。
@@ -74,15 +74,9 @@ func _ready() -> void:
 
 
 ## UI・世界の2つのバスを用意する（無ければ作る）。世界の音を少し大きく、UI を控えめにする。
+## どちらも「効果音の音量」の SFX バスを通る（並びは AudioBuses）。
 static func ensure_buses() -> void:
-	for spec: Array in [[BUS_UI, -2.0], [BUS_WORLD, 0.0]]:
-		var bus_name := StringName(spec[0])
-		if AudioServer.get_bus_index(bus_name) == -1:
-			AudioServer.add_bus()
-			var index := AudioServer.bus_count - 1
-			AudioServer.set_bus_name(index, bus_name)
-			AudioServer.set_bus_volume_db(index, float(spec[1]))
-			AudioServer.set_bus_send(index, &"Master")
+	AudioBuses.ensure()
 
 
 ## UI の音（位置なし）。pitch_semitones で音程をずらす（ホットバーの番号など）。
