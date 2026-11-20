@@ -324,7 +324,7 @@ func _lend(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 	var mode := TriggerMode.Kind.NONE if t.is_prohibition else lend_mode
 	var result: RuleLedger.LendResult
 	if target is Bell:
-		_post("鐘には渡せません（F で鳴らす）")
+		_post("鐘には渡せません（%s で鳴らす）" % InputMode.key(&"interact"))
 		_ui_sound(&"ui_error")
 		return RuleLedger.LendResult.UNKNOWN_TARGET
 	if target is TerrainCell:
@@ -532,7 +532,7 @@ func _pick_up(v: RuleVessel) -> void:
 	ledger.pickup(v.id, acting_id())
 	var t := ledger.token(v.token_id)
 	var item_label := v.item_name if v.item_name != "" else t.describe()
-	_post("%s を拾いました（通常インベントリ。E で開いて使う）" % item_label)
+	_post("%s を拾いました（通常インベントリ。%s で開いて使う）" % [item_label, InputMode.key(&"inventory")])
 	_sound(&"ui_pick", at)
 
 
