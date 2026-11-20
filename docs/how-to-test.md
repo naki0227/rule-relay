@@ -13,7 +13,8 @@
 2. Windows: ZIP を展開して `rule-relay.exe` を起動する。
 3. Mac: 落とした ZIP の中の `rule-relay.zip` を展開して `.app` を起動する。
    - Intel と Apple シリコンの両方で動く。
-   - Apple の公証（notarization）をしていないので、最初は「開発元を確認できません」と出る。
+   - 署名と公証を済ませた版（`rule-relay-macos-signed`。`docs/macos-signing.md` の Secrets を登録すると CI が作る）なら、警告なしで開ける。
+   - 署名なしの `rule-relay-macos` では、最初は「開発元を確認できません」と出る。
    - その場合は、アプリを右クリック →「開く」。またはシステム設定 →「プライバシーとセキュリティ」→「このまま開く」。
    - それでも開けないときは、ターミナルで次を実行する。
 
