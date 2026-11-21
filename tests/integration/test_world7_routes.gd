@@ -39,7 +39,7 @@ func test_summit_1_float_on_the_tailwind_and_the_creature() -> void:
 		"glided over the sky gap on the tailwind"
 	)
 	await _walk_to(Vector3(-1.5, 0.0, -19.5))
-	_lend_by_throwing(_creature("foot_creature"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("foot_creature"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("foot_bell"), "the creature's nut rang the bell")
 	await _lift_up("foot_lift", Vector3(3.5, 0.0, -22.5), Vector3(2.5, 2.0, -26.5))
 	await _walk_into_goal()
@@ -144,7 +144,7 @@ func test_summit_3_crate_on_the_wind_heavy_ledge_and_the_creature() -> void:
 	assert_ne(_slot_of(HEAVY), -1, "carrying the heavy weight")
 	await _walk_route(SUMMIT_3_LEDGE)
 	await _walk_to(Vector3(-0.5, 4.0, -21.5))
-	_lend_by_throwing(_creature("chime_creature"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("chime_creature"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("summit_chime"), "the creature's nut rang the chime")
 	assert_true(await _wait_door_open("summit_gate"), "the chime opens the summit gate")
 	await _walk_route(SUMMIT_3_GATE)
@@ -189,7 +189,7 @@ func _summit_4_north_bank_to_goal(from: Vector3) -> void:
 func test_summit_4_creature_rings_and_the_float_drifts_to_the_landing() -> void:
 	await _enter(World7Finale.SUMMIT_4)
 	await _walk_to(Vector3(0.5, 1.0, 1.0))
-	_lend_by_throwing(_creature("river_creature"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("river_creature"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("river_bell"), "the creature's nut rang the river bell")
 	await _pick_to_hotbar(Vector3(-4.5, 1.0, 5.5), FLOAT)
 	await _walk_to(Vector3(6.5, 1.0, 0.5))
@@ -216,7 +216,7 @@ func test_summit_4_swim_to_the_islet_and_across() -> void:
 func test_summit_4_raft_ride_to_the_landing() -> void:
 	await _enter(World7Finale.SUMMIT_4)
 	await _walk_to(Vector3(0.5, 1.0, 1.0))
-	_lend_by_throwing(_creature("river_creature"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("river_creature"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("river_bell"), "the creature's nut rang the river bell")
 	var raft := _block("raft")
 	await _walk_to(Vector3(-7.5, 1.0, 2.5))

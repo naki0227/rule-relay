@@ -83,7 +83,7 @@ func test_misty_terraces_ring_and_warp() -> void:
 func test_misty_terraces_bunny_rings_the_shelf_bell() -> void:
 	await _enter(World6Stages.MIST_ID)
 	await _walk_to(Vector3(3.5, 0.0, 0.5), 0.3)
-	_lend_by_throwing(_creature("mist_bunny"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("mist_bunny"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("shelf_bell"), "the bunny's nut rang the shelf bell")
 	await _through_the_mist_gate()
 	assert_true(await _cleared(), "the bunny's wish opened the gate")
@@ -129,7 +129,7 @@ func test_peak_bells_echo_stone_and_the_balloon() -> void:
 	await _wait_block_at("echo_stone", Vector3i(22, 0, 0), 1500)
 	assert_true(await _step_on_warp(Vector3(9.5, 0.0, 8.5)), "warped to the east isle")
 	await _walk_to(Vector3(22.5, 1.0, 0.5))
-	_lend_by_throwing(_creature("echo_bunny"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("echo_bunny"), _slot_of(THROW))
 	for i in 400:
 		var high := _me().global_position.y > 2.2
 		_face(Vector3(25.0, 2.0, 0.5))
@@ -184,7 +184,7 @@ func test_peak_bells_coop_double_speed_leaps() -> void:
 ## 南の岸から、台地のうさぎへ「投げる」を投げて渡す（川越しに鐘を鳴らす）。
 func _bunny_rings_across_the_river() -> void:
 	await _walk_to(Vector3(-6.5, 0.0, 3.6), 0.3)
-	_lend_by_throwing(_creature("river_bunny"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("river_bunny"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("river_bell"), "the bunny rang the bell across the river")
 
 

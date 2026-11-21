@@ -62,7 +62,7 @@ func test_long_expedition_by_dash_boots_and_the_creature() -> void:
 	# 森の台地: 下の野原から生き物へ「投げる」を投げ渡す
 	await _walk_to(Vector3(-13.5, 1.0, -12.5))
 	await _walk_to(Vector3(0.5, 0.0, -18.5))
-	_lend_by_throwing(_creature("forest_creature"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("forest_creature"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("forest_bell"), "the creature's nut rang the forest bell")
 	assert_true(w.ledger.tokens_on(_block("launcher").entity_id).is_empty(), "launcher unused")
 	# 北の峰: ブーツで段差 2 を 1 つずつ跳ぶ

@@ -29,7 +29,7 @@ func test_summit_6_float_creature_crate_heavy_and_a_run() -> void:
 		"glided over the sky gap on the tailwind"
 	)
 	await _walk_to(Vector3(0.5, 0.0, -23.0))
-	_lend_by_throwing(_creature("river_creature"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("river_creature"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("river_bell"), "the creature's nut rang the river bell")
 	await _walk_to(Vector3(6.5, 0.0, -23.5))
 	assert_true(
@@ -90,7 +90,7 @@ func test_summit_6_heavy_ridge_swim_signed_lift_and_the_chime_creature() -> void
 	_bag_to_hotbar(HEAVY)
 	await _walk_route(LEDGE)
 	await _walk_to(Vector3(-0.5, 4.0, -66.5))
-	_lend_by_throwing(_creature("chime_creature"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("chime_creature"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("summit_chime"), "the creature's nut rang the chime")
 	assert_true(await _wait_door_open("summit_gate"), "the chime opens the summit gate")
 	await _walk_route(GATE)

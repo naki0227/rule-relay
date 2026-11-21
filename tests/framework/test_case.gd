@@ -70,6 +70,15 @@ func wait_physics_frames(count: int) -> void:
 		await tree.physics_frame
 
 
+## 投げたメダル（docs/adr/0017）が当たるか手元へ戻るまで待つ（結合テスト用）。待ち切ったら true。
+func wait_throws(world: GameWorld, frames: int = 300) -> bool:
+	for i in frames:
+		if MedalThrow.flying(world).is_empty():
+			return true
+		await tree.physics_frame
+	return MedalThrow.flying(world).is_empty()
+
+
 func _same(a: Variant, b: Variant) -> bool:
 	if typeof(a) != typeof(b):
 		# int と float の比較だけは値で比べる

@@ -32,6 +32,7 @@
 | 5.3 | 範囲単発は一斉に1回。禁止は個別判定。一部失敗の返還は未決 | 実装（2026-11-19 本人の判断: 起動したら成否によらず、発動したのと同じ扱いで戻る） | `rule_ledger.gd` `complete_single_shot` | `test_trigger_modes`、`test_acceptance` 4b |
 | 5.3 | 単体と範囲で強さを変えない。倍率は不採用 | 実装（倍率の UI・値なし） | — | — |
 | 5.4 | 音波そのものを信号に。音源ブロック、移動する音源 | 実装（2026-11-19 本人の判断: 音源は鐘で F で鳴らす。判定は距離だけ。遮る物体・音を識別するブロック・吹くアイテムは後で追加） | `bell.gd`、`game_world.gd` `add_bell` | `test_signal`、`test_throw_uses` |
+| 5.1 補足 | 投げるで渡すとメダルを本当に投げ、当たった物へ付与（2026-11-21 本人「実際に当たったところから付与」） | 実装＋テスト | `medal_throw.gd`・`thrown_medal.gd`・`world_lending.gd`、ADR 0017 | `test_throw_projectile`、`test_net_world` |
 | 5.1 補足 | 投げるの使い道（2026-11-19 本人の判断: 発射台は投げるが来ないと撃たない、物を持つ生き物は投げる） | 実装＋テスト | `game_world.gd` `add_launcher`／`throw_ball`、`creature.gd` `_maybe_throw` | `test_throw_uses` |
 
 ## 6. 生き物の自律行動【確定】

@@ -80,13 +80,21 @@ static func model_for(t: RuleToken) -> String:
 
 static func _make_model(t: RuleToken) -> Node3D:
 	var model_name := model_for(t)
+	if model_name.ends_with("_medal"):
+		return medal_model(t)
 	var model := ModelLibrary.instantiate(model_name)
 	model.name = "Model"
-	if not model_name.ends_with("_medal"):
-		# 道具は足もとが原点なので、メダルと同じ高さに中心をそろえ、遠くから形が分かるよう少し大きく
-		model.position.y = -0.3
-		model.scale = Vector3.ONE * TOOL_SCALE
-		return model
+	# 道具は足もとが原点なので、メダルと同じ高さに中心をそろえ、遠くから形が分かるよう少し大きく
+	model.position.y = -0.3
+	model.scale = Vector3.ONE * TOOL_SCALE
+	return model
+
+
+## 器のメダル（能力ははちみつ色、禁止は灰の地に赤い輪）に行動の記号を重ねたもの。道具の能力でもメダルにする
+## （投げたメダルの見た目 MedalVisual にも使う）。
+static func medal_model(t: RuleToken) -> Node3D:
+	var model := ModelLibrary.instantiate("ban_medal" if t.is_prohibition else "vessel_medal")
+	model.name = "Model"
 	# メダルの両面に、行動の記号を重ねる（矢印・山形など。禁止は赤い斜線の下に見える）
 	for side: float in [1.0, -1.0]:
 		var glyph := Sprite3D.new()

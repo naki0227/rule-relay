@@ -1,13 +1,15 @@
 class_name RigAnimator
 extends RefCounted
 ## 骨格付きのモデル（art/scripts/rig.py で作った glb）のアニメーションを、状態に合わせて切り替える係。
-## 手足をコードで振らず、Blender で作ったアニメーション（idle / walk / happy、プレイヤーは jump も）を
+## 手足をコードで振らず、Blender で作ったアニメーション（idle / walk / happy、プレイヤーは jump・throw も）を
 ## AnimationPlayer で再生する（2026-11-21 本人の指示）。切り替えは少し重ねてなめらかにする。
 
 const IDLE := &"idle"
 const WALK := &"walk"
 const JUMP := &"jump"
 const HAPPY := &"happy"
+## 1 回だけ再生する動き（プレイヤーの投げる。docs/adr/0017）。
+const THROW := &"throw"
 ## 繰り返す動き（Blender 側は 1 周ぶんだけ作るので、ここでループにする）。
 const LOOPED: Array[StringName] = [IDLE, WALK, HAPPY]
 const BLEND: float = 0.18
@@ -42,6 +44,16 @@ func play(clip: StringName, speed: float = 1.0) -> void:
 		current = clip
 		player.play(clip, BLEND)
 	player.speed_scale = speed
+
+
+## clip を最初から 1 回だけ再生する（同じ clip の途中でも頭から）。
+func play_once(clip: StringName) -> void:
+	if not has(clip):
+		return
+	current = clip
+	player.play(clip, 0.06)
+	player.seek(0.0, true)
+	player.speed_scale = 1.0
 
 
 ## 歩きの見た目: 空中なら jump、進んでいれば速さに合わせた walk、止まっていれば idle。

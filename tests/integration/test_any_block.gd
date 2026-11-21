@@ -55,6 +55,7 @@ func test_a_high_ground_cell_moves_out_with_repeat() -> void:
 	island.select_slot(2)  # S
 	island.set_lend_mode(TriggerMode.Kind.REPEAT)
 	assert_eq(island.lend_to(island.terrain_target(cell), false), RuleLedger.LendResult.OK)
+	assert_true(await wait_throws(island), "the thrown medal lands")
 	var block := island.blocks[island.promoted[cell]]
 	await wait_physics_frames(int(60 * Tuning.REPEAT_PERIOD * 1.5))
 	assert_ne(block.cell(), cell, "it moved south out of the high ground")

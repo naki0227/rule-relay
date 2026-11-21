@@ -287,7 +287,7 @@ func _throw_push(key: String, action: RuleAction.Kind) -> Vector3i:
 	var block := _block(key)
 	if not w.throw_mode:
 		w.toggle_reach()
-	_lend(block, _slot_of(action), TriggerMode.Kind.SINGLE_SHOT)
+	await _lend(block, _slot_of(action), TriggerMode.Kind.SINGLE_SHOT)
 	w.toggle_reach()
 	w.press_action(action)
 	var still := 0

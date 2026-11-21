@@ -43,7 +43,9 @@ func test_accepted_dash_beach_stacked_jump_crosses_without_a_dash() -> void:
 func test_gate_dash_beach_throwing_the_jump_away_recovers_by_falling() -> void:
 	await _enter(World3Stages.DASH_BEACH_ID)
 	await _walk_to(Vector3(2.5, 0.0, -0.5), 0.3)
-	_throw_lend(w.terrain_target(Vector3i(6, -1, -8)), _slot_of(JUMP), TriggerMode.Kind.REPEAT)
+	await _throw_lend(
+		w.terrain_target(Vector3i(6, -1, -8)), _slot_of(JUMP), TriggerMode.Kind.REPEAT
+	)
 	assert_false(w.ledger.player_can(JUMP, _me().player_id), "the jump is far away")
 	assert_false(await _try_walk_to(Vector3(2.5, 0.0, -3.0), 0.3, 120), "walked off the beach")
 	await _wait_respawn()
