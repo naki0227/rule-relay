@@ -81,7 +81,7 @@ func refresh() -> void:
 	for i in RuleLedger.HOTBAR_SIZE:
 		var v := world.ledger.hotbar_vessel(i, me)
 		var t: RuleToken = null if v == null else world.ledger.token(v.token_id)
-		_slots[i].show_token(t, i == world.selected_slot)
+		_slots[i].show_token(t, i == world.selected_slot, v)
 		# 仲間から集めた同じ能力の数（×n）。2個以上のときだけ出す
 		_slots[i].stack = 0 if t == null else world.ledger.ability_count(t.action, me)
 	_badge.show_state(world.lend_mode, world.throw_mode)
@@ -334,7 +334,7 @@ func _set_world_hud_visible(on: bool) -> void:
 
 func _flash_item_name() -> void:
 	var slot := _slots[world.selected_slot]
-	_item_name_label.text = slot.item_name() if slot.token != null else "からっぽ"
+	_item_name_label.text = slot.flash_text()
 	_item_name.modulate.a = 1.0
 	var tween := _item_name.create_tween()
 	tween.tween_interval(1.4)

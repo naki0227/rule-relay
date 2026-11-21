@@ -6,9 +6,11 @@ extends Control
 ## フォーカス中は矢印キーで選択を動かせる。
 
 signal item_selected(vessel_id: int)
+## マウスでクリックした（空いている枠なら -1）。持ち上げて置く操作に使う。
+signal item_clicked(vessel_id: int)
 signal item_hovered(vessel_id: int)
-## ホットバーなどからかばんへ落とされた。
-signal dropped_into_bag(vessel_id: int)
+## ホットバーなどからかばんへ落とされた。onto_id は落とした先の枠にあった器（空いていれば -1）。
+signal dropped_into_bag(vessel_id: int, onto_id: int)
 signal drag_started
 
 const CELL: float = 88.0
@@ -97,6 +99,7 @@ func _draw() -> void:
 			if index < entries.size():
 				var entry := entries[index]
 				style.selected = entry.vessel_id == selected_id
+				style.equipment = entry.is_equipment
 				ItemPainter.draw_slot(self, rect, entry.token, style)
 			else:
 				_draw_empty(rect)
@@ -133,10 +136,14 @@ func _gui_input(event: InputEvent) -> void:
 	var button := event as InputEventMouseButton
 	if button != null and button.pressed and button.button_index == MOUSE_BUTTON_LEFT:
 		var index := index_at(button.position)
+		var clicked := -1
 		if index >= 0 and index < entries.size():
-			grab_focus()
-			_choose(index)
-			accept_event()
+			clicked = entries[index].vessel_id
+			selected_id = clicked
+			_scroll_into_view(index)
+			queue_redraw()
+		item_clicked.emit(clicked)
+		accept_event()
 		return
 	if not has_focus() or entries.is_empty():
 		return
@@ -190,7 +197,7 @@ func _get_drag_data(at_position: Vector2) -> Variant:
 		return null
 	var entry := entries[index]
 	drag_started.emit()
-	set_drag_preview(drag_preview(entry.token))
+	set_drag_preview(drag_preview(entry.token, entry.is_equipment))
 	return {"vessel_id": entry.vessel_id, "from": "bag"}
 
 
@@ -203,10 +210,12 @@ func _can_drop_data(_at_position: Vector2, data: Variant) -> bool:
 	return ok
 
 
-func _drop_data(_at_position: Vector2, data: Variant) -> void:
+func _drop_data(at_position: Vector2, data: Variant) -> void:
 	_drop_hover = false
 	queue_redraw()
-	dropped_into_bag.emit(int((data as Dictionary)["vessel_id"]))
+	var index := index_at(at_position)
+	var onto := entries[index].vessel_id if index >= 0 and index < entries.size() else -1
+	dropped_into_bag.emit(int((data as Dictionary)["vessel_id"]), onto)
 
 
 func _notification(what: int) -> void:
@@ -216,9 +225,9 @@ func _notification(what: int) -> void:
 
 
 ## ドラッグ中にカーソルについてくるアイコン。
-static func drag_preview(token: RuleToken) -> Control:
+static func drag_preview(token: RuleToken, equipment: bool = false) -> Control:
 	var icon := TextureRect.new()
-	icon.texture = ItemIcons.for_token(token)
+	icon.texture = ItemIcons.for_item(token, equipment)
 	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon.size = Vector2(64, 64)
 	icon.position = Vector2(-32, -32)

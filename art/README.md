@@ -15,6 +15,7 @@
 | `scripts/build_nature.py` | 自然の仕掛けと新しい能力の拾える物: かざぐるま（`wind_fan`、骨格付き・羽根は `spin`）・風の木の葉・氷のセル・おもり（重い）・風船（浮く）・足ひれ（泳ぐ）（docs/adr/0015） |
 | `scripts/build_switches.py` | スイッチの仕掛け（重さの板・スイッチの扉・レバー・ワープの石・時の鐘の砂時計）。どれも部品ごとに作り、骨格とアニメーション付き（`docs/adr/0014`） |
 | `scripts/build_icons.py` | 能力・禁止の器のアイコンと、メダルの面に重ねる記号だけの白い絵（`glyph_*.png`）を `assets/icons/`（128px・透明背景）に書き出す |
+| `scripts/build_equipment_icons.py` | 装備（ジャンプブーツ・クライミンググローブ）のアイコン `assets/icons/equipment_*.png` を、ゲームの `.glb` モデルから描く（`build_markers.py` の後に。docs/adr/0018） |
 | `scripts/render_previews.py` | 原本を1枚ずつ描画して確認用の PNG を作る（Cycles・CPU）。名前を並べるとそれだけ描く |
 | `source/*.blend` | Blender の原本（スクリプトが書き出す。手で直したら、スクリプトにも反映する） |
 
@@ -30,6 +31,7 @@ blender -b --factory-startup --python art/scripts/build_overworld.py           #
 blender -b --factory-startup --python art/scripts/build_nature.py             # 風・氷・水と重い・浮く・泳ぐ
 blender -b --factory-startup --python art/scripts/build_switches.py            # スイッチの仕掛け
 blender -b --factory-startup --python art/scripts/build_icons.py               # アイコン
+blender -b --factory-startup --python art/scripts/build_equipment_icons.py     # 装備のアイコン（モデルから）
 blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/previews traveler goal_flag
 ```
 

@@ -18,6 +18,8 @@ var vessel_id: int = -1
 var token: RuleToken
 var selected: bool = false
 var dimmed: bool = false
+## 装備品か（装備の姿で描く）。
+var equipment: bool = false
 ## 装備の枠の名前（頭・体・手・足）。
 var equip_label: String = ""
 ## 装備の枠: 落とされた器を受け付けるか（vessel_id → bool）。持ち物の画面が台帳で判定する。
@@ -35,10 +37,15 @@ func _ready() -> void:
 
 
 func show_vessel(
-	new_vessel_id: int, new_token: RuleToken, is_selected: bool, is_dimmed: bool
+	new_vessel_id: int,
+	new_token: RuleToken,
+	is_selected: bool,
+	is_dimmed: bool,
+	item: RuleVessel = null
 ) -> void:
 	vessel_id = new_vessel_id
 	token = new_token
+	equipment = item != null and item.is_equipment()
 	selected = is_selected
 	dimmed = is_dimmed
 	queue_redraw()
@@ -52,7 +59,10 @@ func _draw() -> void:
 	style.dimmed = dimmed
 	style.drop_target = _drop_hover
 	style.number = slot_index + 1 if kind == Kind.HOTBAR else -1
-	style.show_active = kind == Kind.HOTBAR
+	# 装備の枠でも、中の能力が入っていれば効いている（若葉色の点）
+	style.show_active = true
+	style.equipment = equipment
+	style.worn = kind == Kind.EQUIP
 	ItemPainter.draw_slot(self, rect, token, style)
 	if kind == Kind.EQUIP and token == null:
 		draw_string(
@@ -77,7 +87,7 @@ func _get_drag_data(_at_position: Vector2) -> Variant:
 	if token == null:
 		return null
 	drag_started.emit()
-	set_drag_preview(ItemGrid.drag_preview(token))
+	set_drag_preview(ItemGrid.drag_preview(token, equipment))
 	var from := "hotbar" if kind == Kind.HOTBAR else "equip"
 	return {"vessel_id": vessel_id, "from": from, "slot": slot_index}
 
