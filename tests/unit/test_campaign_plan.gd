@@ -56,13 +56,14 @@ func test_ability_schedule_unlocks_the_existing_abilities_in_order() -> void:
 		granted.append(String(entry[1]))
 	for name: String in ["HIGH_JUMP", "CLIMB", "THROW", "DASH"]:
 		assert_true(granted.has(name), "%s is unlocked by a stage" % name)
-	# 新しい能力は計画にあるが、まだ台帳に無いので広場には出さない（要実装の印付き）
+	# 新しい能力（重い・浮く・泳ぐ）も台帳に入ったので、広場で開く（docs/adr/0015）
 	for name: String in ["FLOAT", "HEAVY", "SWIM"]:
 		assert_true(granted.has(name), "%s is planned" % name)
-		assert_true(CampaignPlan.NEEDS_CODE.has(name), "%s is marked as needing code" % name)
+		assert_false(CampaignPlan.NEEDS_CODE.has(name), "%s is implemented" % name)
+		assert_true(CampaignPlan.GRANT_ACTIONS.has(name), "%s can be granted" % name)
 	var after := CampaignPlan.unlocked_actions(_cleared([StageCatalog.BELL_ID, "w6_warp_stones"]))
-	var only_throw: Array[RuleAction.Kind] = [RuleAction.Kind.THROW]
-	assert_eq(after, only_throw)
+	var throw_and_float: Array[RuleAction.Kind] = [RuleAction.Kind.THROW, RuleAction.Kind.FLOAT]
+	assert_eq(after, throw_and_float)
 
 
 func test_regions_open_after_the_previous_worlds_last_stage() -> void:

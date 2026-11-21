@@ -17,6 +17,10 @@ var entity_id: int = -1
 var velocity_y: float = 0.0
 ## 参加者の画面では、ブロックはホストから受け取った位置へ動くだけ（自分では物理を計算しない）。
 var remote: bool = false
+## 外の力（風・氷・水。NatureTicks が毎フレーム決める）。禁止はこれを妨げない（receive_lift と同じ）。
+## 落ちる速さの上限（浮く・水の中）と、水に浮いて止まっているか（浮いていれば床に立つのと同じ扱い）。
+var max_fall_speed: float = INF
+var afloat: bool = false
 
 var _step_from: Vector3 = Vector3.ZERO
 var _step_to: Vector3 = Vector3.ZERO
@@ -37,6 +41,8 @@ var _signal_label: Label3D
 ## 登る（クライミンググローブの能力）を持っているとき、底面をこの高さまで上げてつかまる。NAN なら登らない。
 var _climb_bottom: float = NAN
 var _remote_target: Vector3 = Vector3.ZERO
+## 最後まで進み切った横の移動の向き（氷の上で同じ向きにすべり続けるため。読んだら消える）。
+var _finished_step: Vector3i = Vector3i.ZERO
 
 
 func _ready() -> void:
@@ -69,7 +75,7 @@ func is_moving_horizontally() -> bool:
 
 
 func is_grounded() -> bool:
-	return velocity_y <= 0.0 and test_move(global_transform, Vector3.DOWN * 0.05)
+	return velocity_y <= 0.0 and (afloat or test_move(global_transform, Vector3.DOWN * 0.05))
 
 
 ## 物理的にその行動を始められるか（能力・禁止の判定は BlockRules が先に行う）。
@@ -105,6 +111,32 @@ func perform(action: RuleAction.Kind, high_jump: bool = false, stack: int = 1) -
 	_step_duration = Tuning.BLOCK_STEP_DURATION
 
 
+## 風・氷・流れに 1 マス押される（外力。禁止はこれを妨げない）。動いている途中・塞がれていれば false。
+func push(direction: Vector3i, duration: float = Tuning.BLOCK_STEP_DURATION) -> bool:
+	if is_moving_horizontally() or _dashing:
+		return false
+	var dir := Vector3(direction) * SIZE
+	if test_move(global_transform, dir * 0.98):
+		return false
+	_step_from = global_position
+	_step_to = global_position + dir
+	_step_time = 0.0
+	_step_duration = duration
+	return true
+
+
+## 最後まで進み切った横の移動の向き（無ければ ZERO）。一度読むと消える。
+func consume_finished_step() -> Vector3i:
+	var dir := _finished_step
+	_finished_step = Vector3i.ZERO
+	return dir
+
+
+## 氷のセルから動くブロックにしたものか（上に乗るとすべる。NatureField.is_ice）。
+func is_ice() -> bool:
+	return String(get_meta("model", "")) == "ice_cell"
+
+
 ## 下から押し上げられたとき（外力）。禁止はこれを妨げない。
 func receive_lift(upward_velocity: float) -> void:
 	velocity_y = maxf(velocity_y, upward_velocity)
@@ -118,6 +150,7 @@ func teleport(target: Vector3, new_velocity_y: float) -> void:
 	velocity_y = new_velocity_y
 	_step_time = -1.0
 	_dashing = false
+	_finished_step = Vector3i.ZERO
 
 
 ## チェックポイント用。1ブロック移動の途中で保存しても、復元後に同じ動きの続きをして
@@ -217,7 +250,7 @@ func is_climbing() -> bool:
 func _integrate_vertical(delta: float) -> void:
 	if _dashing or _integrate_climb(delta):
 		return
-	velocity_y -= Tuning.GRAVITY * delta
+	velocity_y = maxf(velocity_y - Tuning.GRAVITY * delta, -max_fall_speed)
 	var motion := Vector3(0.0, velocity_y * delta, 0.0)
 	var hit := KinematicCollision3D.new()
 	if not test_move(global_transform, motion, hit):
@@ -273,6 +306,8 @@ func _integrate_horizontal(delta: float) -> void:
 	if _step_time >= _step_duration:
 		_step_time = -1.0
 		_dashing = false
+		var moved := _step_to - _step_from
+		_finished_step = Vector3i(signi(roundi(moved.x)), 0, signi(roundi(moved.z)))
 
 
 ## 範囲プレビューの対象になっているか（右クリックを押している間）。

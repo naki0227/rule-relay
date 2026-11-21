@@ -5,7 +5,8 @@ extends RefCounted
 ##
 ## 座標は PrototypeIsland と同じ: 1ブロック = 1m、北 = -Z、地面の上面が y = 0。
 ## 地形は PrototypeIsland.terrain_boxes() と同じ形式: [最小のセル, 最大のセル（両端を含む）, 種類]。
-## 種類は grass / rock / sand。新しい地形の仕組みは作らない（TerrainBuilder.add_box でそのまま作れる）。
+## 種類は grass / rock / sand / ice（氷はすべる床。docs/adr/0015）。新しい地形の仕組みは作らない
+## （TerrainBuilder.add_box でそのまま作れる）。
 ##
 ## 能力・禁止の置き方は3種類ある:
 ## - 固定: blocks / creatures の tokens と world_items。人数によらず毎回同じ
@@ -44,6 +45,8 @@ var checkpoints: Array[Vector3] = []
 var return_pads: Array[Vector3] = []
 ## 広場（オーバーワールド）の見た目と小さな発見（広場だけ。Overworld が作る）。
 var overworld: OverworldLayout = null
+## 風・水と流れ（NatureLayout。氷は terrain_boxes の種類 "ice"）。
+var nature: NatureLayout = NatureLayout.new()
 ## 目安のクリア時間（分。ひとりで初めて遊ぶ想定。仮の値で、本人の試遊で調整する）。
 ## ハブの入口はこの短い順に並ぶ（2026-11-20 本人の「短い方から順番に試せるように」）。
 var target_minutes: int = 0
@@ -203,6 +206,7 @@ func problems() -> PackedStringArray:
 	for spec in placements:
 		if spec.block_key != "" and block(spec.block_key) == null:
 			errors.append("placement refers to unknown block %s" % spec.block_key)
+	errors.append_array(nature.problems(terrain_boxes))
 	if clear_condition.kind == ClearCondition.Kind.NONE and not is_hub():
 		errors.append("a stage needs a clear condition")
 	# どのステージも「島の条件＋生きている全員がゴールに集まる」（docs/adr/0011 決定 9）

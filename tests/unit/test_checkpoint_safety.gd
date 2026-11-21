@@ -49,8 +49,10 @@ func test_reset_to_initial() -> void:
 
 func make_ledger() -> RuleLedger:
 	var ledger := RuleLedger.new()
+	# ホットバーは 9 枠。入りきらない能力（重い・浮く・泳ぐ）は通常インベントリへ
 	for action: RuleAction.Kind in RuleAction.ALL:
-		ledger.give_player_item(action, false, int(action))
+		var slot := int(action) if int(action) < RuleLedger.HOTBAR_SIZE else -1
+		ledger.give_player_item(action, false, slot)
 	return ledger
 
 

@@ -3,7 +3,8 @@
     blender -b --factory-startup --python art/scripts/build_icons.py
 
 器は丸いメダル型。中央の記号で行動を示す（W/A/S/D は矢印、ジャンプは二重の山形、投げるは玉と斜めの矢印、
-高跳び（ジャンプブーツ）は三重の山形、登る（クライミンググローブ）ははしご、ダッシュは矢印と流れる線）。
+高跳び（ジャンプブーツ）は三重の山形、登る（クライミンググローブ）ははしご、ダッシュは矢印と流れる線、
+重いは取っ手の付いたおもり、浮くは風船、泳ぐは二本の波）。
 禁止は同じ記号を灰色にし、赤い輪と斜線を重ねる（色だけに頼らない）。
 矢印の向きはアイコン上の向きで、ゲーム内ではプレイヤーはカメラ相対、ブロックは世界の方角になる。
 原本は art/source/item_icons.blend（全アイコンを並べたシーン）。
@@ -34,6 +35,9 @@ ACTIONS = {
     "high_jump": "high_jump",
     "climb": "climb",
     "dash": "dash",
+    "heavy": "heavy",
+    "float": "float",
+    "swim": "swim",
 }
 
 
@@ -153,7 +157,30 @@ def symbol(name, action, mat):
             v.co.x += 0.08
         lines = [rect(-0.3, y - 0.025, -0.3 + w, y + 0.025) for y, w in ((-0.1, 0.14), (0.0, 0.2), (0.1, 0.14))]
         return [arrow] + [extruded_polygon(f"{name}Line{i}", pts, 0.05, mat) for i, pts in enumerate(lines)]
+    if kind in ("heavy", "float", "swim"):
+        return [extruded_polygon(f"{name}{i}", pts, 0.05, mat) for i, pts in enumerate(nature_parts(kind))]
     return [extruded_polygon(name, ARROW, 0.05, mat, kind)]
+
+
+def wave(y, amplitude=0.04, thickness=0.06, half=0.25, steps=12):
+    """横に伸びる波の帯（上の縁と下の縁を同じ波で結ぶ）。"""
+    top = []
+    for i in range(steps + 1):
+        x = -half + 2 * half * i / steps
+        top.append((x, y + thickness / 2 + amplitude * math.sin(x * math.tau / 0.25)))
+    bottom = [(x, yy - thickness) for x, yy in reversed(top)]
+    return top + bottom
+
+
+def nature_parts(kind):
+    """重い・浮く・泳ぐの記号の部品（どれも単純な多角形）。"""
+    if kind == "heavy":
+        body = [(-0.2, -0.24), (0.2, -0.24), (0.23, -0.16), (0.16, 0.08), (-0.16, 0.08), (-0.23, -0.16)]
+        return [body, rect(-0.12, 0.06, -0.06, 0.24), rect(0.06, 0.06, 0.12, 0.24), rect(-0.12, 0.19, 0.12, 0.25)]
+    if kind == "float":
+        knot = [(-0.045, -0.13), (0.045, -0.13), (0.0, -0.08)]
+        return [ngon(0.0, 0.08, 0.17, 24), knot, rect(-0.012, -0.28, 0.012, -0.12)]
+    return [wave(0.1), wave(-0.1)]
 
 
 def prohibition_mark(name):

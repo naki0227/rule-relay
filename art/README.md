@@ -12,6 +12,7 @@
 | `scripts/build_markers.py` | ゴールの旗と四隅の灯り・チェックポイントの台・入口の門・器のメダル（能力／禁止）・装備（ジャンプブーツ・クライミンググローブ）・ダッシュの羽根 |
 | `scripts/build_hub_props.py` | 広場の置物（街灯・柵・鉢植え・ベンチ） |
 | `scripts/build_contraptions.py` | 発射台と鐘（テクスチャを焼き込む） |
+| `scripts/build_nature.py` | 自然の仕掛けと新しい能力の拾える物: かざぐるま（`wind_fan`、骨格付き・羽根は `spin`）・風の木の葉・氷のセル・おもり（重い）・風船（浮く）・足ひれ（泳ぐ）（docs/adr/0015） |
 | `scripts/build_icons.py` | 能力・禁止の器のアイコンと、メダルの面に重ねる記号だけの白い絵（`glyph_*.png`）を `assets/icons/`（128px・透明背景）に書き出す |
 | `scripts/render_previews.py` | 原本を1枚ずつ描画して確認用の PNG を作る（Cycles・CPU）。名前を並べるとそれだけ描く |
 | `source/*.blend` | Blender の原本（スクリプトが書き出す。手で直したら、スクリプトにも反映する） |
@@ -25,6 +26,7 @@ blender -b --factory-startup --python art/scripts/build_cast.py                #
 blender -b --factory-startup --python art/scripts/build_markers.py             # 目印・器・装備
 blender -b --factory-startup --python art/scripts/build_hub_props.py           # 広場の置物
 blender -b --factory-startup --python art/scripts/build_overworld.py           # ポータル・建物
+blender -b --factory-startup --python art/scripts/build_nature.py             # 風・氷・水と重い・浮く・泳ぐ
 blender -b --factory-startup --python art/scripts/build_icons.py               # アイコン
 blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/previews traveler goal_flag
 ```
@@ -75,6 +77,10 @@ blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/pre
 | `island_base` | build_assets | 浮かぶ島の底（ゲーム側で島の大きさに拡大） |
 | `tree_round` / `tree_tall` / `grass_tuft` / `flower` / `pebbles` | build_assets | 置物 |
 | `launcher` / `bell` | build_contraptions | 発射台と鐘（テクスチャを焼き込む） |
+| `wind_fan` | build_nature | 風上に立つかざぐるま（石の台・木の柱・風見の尾・4 色の花びら）。骨 `b_root`・`b_rotor`、羽根は `spin`（`WindVisual`） |
+| `wind_leaf` | build_nature | 風に流れる木の葉（`CPUParticles3D` の形） |
+| `ice_cell` | build_nature | 氷の地形のセルを動くブロックにしたときの形（霜の板と光る筋） |
+| `heavy_weight` / `float_balloon` / `swim_fins` | build_nature | 拾える「重い」（取っ手の付いた石のおもり）・「浮く」（空色の風船）・「泳ぐ」（足ひれ）（`WorldItem`） |
 | `item_icons.blend` → `assets/icons/` | build_icons | 器のアイコン。金のメダル＝能力、灰色＋赤い輪と斜線＝禁止。記号は矢印（W/A/S/D）・二重の山形（ジャンプ）・矢印と流れる線（ダッシュ）など |
 
 2026-11-20 に `goal_beacon`（石の柱と回る結晶）をやめ、`goal_flag` に置き換えた。

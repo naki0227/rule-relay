@@ -126,6 +126,12 @@ static func action_words(action: RuleAction.Kind) -> PackedStringArray:
 			return PackedStringArray(["たかとび", "高跳", "ぶーつ", "靴", "じゃんぷ", "boots"])
 		RuleAction.Kind.CLIMB:
 			return PackedStringArray(["のぼる", "登", "壁", "ぐろーぶ", "手袋", "climb"])
+		RuleAction.Kind.HEAVY:
+			return PackedStringArray(["おもい", "重", "おもり", "風", "沈む", "heavy"])
+		RuleAction.Kind.FLOAT:
+			return PackedStringArray(["うく", "浮", "ふうせん", "ゆっくり", "float"])
+		RuleAction.Kind.SWIM:
+			return PackedStringArray(["およぐ", "泳", "水", "あしひれ", "swim"])
 	return PackedStringArray()
 
 

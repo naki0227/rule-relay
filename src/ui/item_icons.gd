@@ -38,4 +38,10 @@ static func _action_key(action: RuleAction.Kind) -> String:
 			return "climb"
 		RuleAction.Kind.DASH:
 			return "dash"
+		RuleAction.Kind.HEAVY:
+			return "heavy"
+		RuleAction.Kind.FLOAT:
+			return "float"
+		RuleAction.Kind.SWIM:
+			return "swim"
 	return "jump"

@@ -56,7 +56,8 @@ func _process(delta: float) -> void:
 		_visual.rotation.y = _time * 1.4
 
 
-## 見た目のモデルの名前（art/scripts/build_markers.py）。装備とダッシュは道具の形、
+## 見た目のモデルの名前（art/scripts/build_markers.py・build_nature.py）。装備・ダッシュ・重い（おもり）・
+## 浮く（風船）・泳ぐ（足ひれ）は道具の形、
 ## ほかの能力ははちみつ色のメダル、禁止は灰の地に赤い輪と斜線のメダル。
 static func model_for(t: RuleToken) -> String:
 	if t.is_prohibition:
@@ -68,6 +69,12 @@ static func model_for(t: RuleToken) -> String:
 			return "climbing_gloves"
 		RuleAction.Kind.DASH:
 			return "dash_feather"
+		RuleAction.Kind.HEAVY:
+			return "heavy_weight"
+		RuleAction.Kind.FLOAT:
+			return "float_balloon"
+		RuleAction.Kind.SWIM:
+			return "swim_fins"
 	return "vessel_medal"
 
 

@@ -372,6 +372,12 @@ static func _explain(entry: InventoryQuery.Entry) -> String:
 			)
 		RuleAction.Kind.CLIMB:
 			action = "壁を登る力。装備しているときだけ自分に効く。ブロックに渡すと、隣でいちばん高い所の高さまで登ってつかまる。"
+		RuleAction.Kind.HEAVY:
+			action = "重くなる力。ホットバーにある間、風に流されず、水には沈み、重さの板を1人で押し下げる。ブロックや生き物に渡しても同じ。"
+		RuleAction.Kind.FLOAT:
+			action = "浮く力。ホットバーにある間、ゆっくり落ち（2個で2倍ゆっくり）、水に浮かぶ。ブロックに渡すと水に浮いて筏になる。重いと打ち消し合う。"
+		RuleAction.Kind.SWIM:
+			action = "泳ぐ力。ホットバーにある間、水に浮かんで進める（2個で2倍速く、流れに逆らえる）。持っていないと水に沈む。"
 	if t.is_prohibition:
 		var lent_note := "\n\nいまは貸し出し中なので、自分には効いていない。" if not t.is_in_vessel() else ""
 		return (

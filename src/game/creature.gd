@@ -39,6 +39,11 @@ var facing: Vector2i = Vector2i(0, -1)
 var held_item: String = ""
 ## 参加者の画面では、ホストから受け取った位置へ動くだけ（考えない・物理を計算しない）。
 var remote: bool = false
+## 外の力（風・流れ）の速さ、落ちる速さの上限（浮く）、水に浮かぶ足の高さ（NAN なら浮かない）。
+## ホストの NatureTicks が毎フレーム決める（docs/adr/0015）。
+var external_velocity: Vector3 = Vector3.ZERO
+var max_fall_speed: float = INF
+var surface_hold: float = NAN
 var _remote_target: Vector3 = Vector3.ZERO
 
 var _blocked: Dictionary = {}
@@ -122,7 +127,10 @@ func _physics_process(delta: float) -> void:
 		return
 	_since_plan += delta
 	if not is_on_floor():
-		velocity.y -= Tuning.GRAVITY * delta
+		velocity.y = maxf(velocity.y - Tuning.GRAVITY * delta, -max_fall_speed)
+	if not is_nan(surface_hold) and global_position.y < surface_hold:
+		var rise := minf((surface_hold - global_position.y) * 8.0, NatureTuning.SURFACE_PUSH)
+		velocity.y = maxf(velocity.y, rise)
 	if _needs_plan or (stage == CreatureMind.Stage.WAIT and _since_plan > LOOK_AROUND_PERIOD):
 		replan()
 	var direction := Vector3.ZERO
@@ -130,8 +138,8 @@ func _physics_process(delta: float) -> void:
 		direction = _follow(delta)
 	elif stage == CreatureMind.Stage.WAIT:
 		_maybe_throw()
-	velocity.x = direction.x * SPEED
-	velocity.z = direction.z * SPEED
+	velocity.x = direction.x * SPEED + external_velocity.x
+	velocity.z = direction.z * SPEED + external_velocity.z
 	move_and_slide()
 	_animate(direction)
 
