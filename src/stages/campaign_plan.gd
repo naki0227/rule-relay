@@ -455,7 +455,7 @@ static func _forest() -> World:
 		w,
 		"w4_weight_plates",
 		"重さの板",
-		"乗ると沈む板と「重い」（要実装: 重い）",
+		"乗ると沈む板と「重い」（重い ×1 で 4 人分）",
 		Vector2(-52.5, -5.5),
 		{"grants": "HEAVY", "species": "lamb", "building": "ow_stall"}
 	)
