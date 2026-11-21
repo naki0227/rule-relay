@@ -14,6 +14,8 @@ var entity_id: int = -1
 ## 鳴り終わるまでの残り秒数。0 なら鳴っていない。
 var remaining: float = 0.0
 var radius: float = Tuning.SIGNAL_RADIUS
+## 1 回鳴らしたときに鳴る秒数（時の鐘 TimedBell が変える。docs/adr/0014）。
+var ring_time: float = Tuning.BELL_RING_TIME
 
 var _pulse_timer: float = 0.0
 var _swing: float = 0.0
@@ -34,7 +36,7 @@ func is_ringing() -> bool:
 ## 鳴らす（鳴っている途中なら、鳴る時間を最初から数え直す）。
 func ring() -> void:
 	var was_ringing := is_ringing()
-	remaining = Tuning.BELL_RING_TIME
+	remaining = ring_time
 	_swing = 1.0
 	if not was_ringing:
 		_pulse_timer = Tuning.SIGNAL_PULSE_PERIOD
