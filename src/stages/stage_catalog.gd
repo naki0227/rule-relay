@@ -66,6 +66,11 @@ static func all_stages() -> Array[StageDef]:
 		OptionalWorldsO1.weighing_scale(),
 		OptionalWorldsO1.sign_gears(),
 		OptionalWorldsO1.grand_contraption(),
+		OptionalWorldsO2.vane_steps(),
+		OptionalWorldsO2.cloud_raft(),
+		OptionalWorldsO2.falling_isles(),
+		OptionalWorldsO2.upside_tower(),
+		OptionalWorldsO2.sky_maelstrom(),
 	]
 	stages.sort_custom(
 		func(a: StageDef, b: StageDef) -> bool: return a.target_minutes < b.target_minutes

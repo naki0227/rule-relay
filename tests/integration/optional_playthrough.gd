@@ -158,3 +158,115 @@ func _ride_warp(stone: Vector3, frames: int = 900) -> bool:
 	_me().move_intent = Vector2.ZERO
 	_was_near = false
 	return false
+
+
+## 足もとの地面のセル（cell）にジャンプを単発で渡して乗り、上がる途中で戻ったジャンプで自分も跳び、
+## toward へ進む（受け入れた技「ブロックの上昇＋自分のジャンプ」）。床に着くまで進み続け、着いた所を返す。
+func _lift_jump_toward(
+	cell: Vector3i, toward: Vector3, frames: int = 900, stop_over: bool = false
+) -> Vector3:
+	var me := _me().player_id
+	_lend(w.terrain_target(cell), _slot_of(JUMP), TriggerMode.Kind.SINGLE_SHOT)
+	w.press_action(JUMP)
+	var pressed := false
+	var left_floor := false
+	for i in frames:
+		var flat := Vector3(toward.x - _me().global_position.x, 0.0, toward.z - _me().global_position.z)
+		var over := stop_over and flat.length() < 0.3
+		_me().move_intent = _steer(toward) if pressed and not over else Vector2.ZERO
+		if not pressed and w.ledger.player_can(JUMP, me) and _me().is_on_floor():
+			if _me().global_position.y > float(cell.y) + 1.3:
+				w.press_action(JUMP)
+				pressed = true
+		left_floor = left_floor or (pressed and not _me().is_on_floor())
+		if left_floor and _me().is_on_floor():
+			break
+		if _me().global_position.y < -8.0:
+			break
+		await tree.physics_frame
+	_me().move_intent = Vector2.ZERO
+	return _me().global_position
+
+
+## 縁の手前 start から toward へ走り、edge を過ぎたら跳ぶ（浮くがあれば滑空）。床に着いた所を返す。
+func _run_jump_glide(start: Vector3, edge: Vector3, toward: Vector3, frames: int = 900) -> Vector3:
+	await _walk_to(start, 0.25)
+	var dir := (toward - start)
+	dir.y = 0.0
+	dir = dir.normalized()
+	var jumped := false
+	for i in frames:
+		_me().move_intent = _steer(toward)
+		if not jumped and (edge - _me().global_position).dot(dir) <= 0.0 and _me().is_on_floor():
+			w.press_action(JUMP)
+			jumped = true
+		elif jumped and i > 5 and _me().is_on_floor():
+			break
+		if _me().global_position.y < -8.0:
+			break
+		await tree.physics_frame
+	_me().move_intent = Vector2.ZERO
+	return _me().global_position
+
+
+## 落ちている器を拾って、かばん（通常インベントリ）に入れたままにする（ホットバーにある能力だけが効く）。
+func _pick_to_bag(at: Vector3) -> void:
+	await _walk_to(at, 0.6)
+	w.interact(null)
+	await wait_physics_frames(2)
+
+
+## かばんの中の能力 action をホットバーの空きへ移す。
+func _bag_to_hotbar(action: RuleAction.Kind) -> void:
+	var slot := _free_slot()
+	for v in w.ledger.inventory_vessels(_me().player_id):
+		var t := w.ledger.token(v.token_id)
+		if t.action == action and not t.is_prohibition and v.part == RuleVessel.Part.NONE:
+			assert_true(w.ledger_actions.move_to_hotbar(v.id, slot), "%s to the hotbar" % action)
+			return
+	fail("no %s in the bag" % action)
+
+
+## 回収してかばんに入った能力を、ホットバーに置く（すでにホットバーにあれば何もしない）。
+func _ensure_on_hotbar(action: RuleAction.Kind) -> void:
+	if _slot_of(action) == -1:
+		_bag_to_hotbar(action)
+
+
+## edge から跳んで target へ滑空し、dash_at（進む向きの座標がそこを過ぎたら）でダッシュする。
+## stop_over なら target の真上で止まって降りる。床に着いた所を返す。
+func _glide_dash(
+	edge: Vector3, target: Vector3, dash_at: Vector3, stop_over: bool = true, lift: bool = false
+) -> Vector3:
+	await _walk_to(edge, 0.2)
+	var dir := Vector3(target.x - edge.x, 0.0, target.z - edge.z).normalized()
+	var me := _me().player_id
+	var jumped := false
+	var dashed := false
+	var lifted := not lift
+	if lift:
+		var cell := Vector3i(floori(edge.x), roundi(edge.y) - 1, floori(edge.z))
+		_lend(w.terrain_target(cell), _slot_of(JUMP), TriggerMode.Kind.SINGLE_SHOT)
+		w.press_action(JUMP)
+	for i in 1200:
+		var flat := Vector3(target.x - _me().global_position.x, 0.0, target.z - _me().global_position.z)
+		var over := stop_over and flat.length() < 0.3
+		var moving := jumped and lifted
+		_me().move_intent = _steer(target) if (moving or not lift) and not over else Vector2.ZERO
+		if not lifted:
+			if w.ledger.player_can(JUMP, me) and _me().is_on_floor() and _me().global_position.y > edge.y + 0.3:
+				lifted = true
+		if lifted and not jumped and _me().is_on_floor():
+			w.press_action(JUMP)
+			jumped = true
+		elif jumped and not dashed and (dash_at - _me().global_position).dot(dir) <= 0.0:
+			_me().move_intent = _steer(target)
+			w.press_action(RuleAction.Kind.DASH)
+			dashed = true
+		elif jumped and i > 5 and _me().is_on_floor() and not _me().is_dashing():
+			break
+		if _me().global_position.y < -8.0:
+			break
+		await tree.physics_frame
+	_me().move_intent = Vector2.ZERO
+	return _me().global_position
