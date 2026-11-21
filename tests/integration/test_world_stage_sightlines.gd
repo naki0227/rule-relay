@@ -2,6 +2,7 @@ extends "res://tests/integration/island_playthrough.gd"
 ## W1・W2 の新しいステージのゴールの窪みの中から、下の段の仲間は見えない（狙えない）ことを、物理の光線で
 ## 確かめる（書き方は test_goal_sightlines.gd と同じ。docs/adr/0011 決定 9・10）。
 ## ゴールを出て縁まで歩けば見える（縁から渡すことはできる）ことも確かめる。ルールで禁止はしない。
+## 2-5（鳴りつづける鐘）は test_world2_timed_bells.gd で確かめる。
 
 ## [ステージ, 登り口の下に立つ人の足もと（いくつか）, ゴールの外の縁に立つ人の足もと（最初の人が見える）]
 const CASES: Array = [
@@ -24,11 +25,6 @@ const CASES: Array = [
 		"w2_rolling_shots",
 		[Vector3(-0.5, 0.0, -7.5), Vector3(-3.5, 0.0, -4.5), Vector3(0.5, 0.0, 2.5)],
 		Vector3(-1.3, 2.0, -7.5),
-	],
-	[
-		"w2_timed_bells",
-		[Vector3(0.5, 0.0, -2.5), Vector3(6.5, 0.0, -2.5), Vector3(-3.5, 0.0, -2.5)],
-		Vector3(0.5, 2.0, -3.3),
 	],
 ]
 const CHEST := Vector3(0.0, 1.0, 0.0)

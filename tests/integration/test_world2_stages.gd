@@ -1,6 +1,7 @@
 extends "res://tests/integration/island_playthrough.gd"
 ## 鐘の谷（W2）の新しいステージを、ひとりで最初から最後まで自動で遊ぶ（通しプレイ）。
-## 「こだまの鐘」（2-2）・「転がる玉」（2-4）・「鳴りつづける鐘」（2-5）。どれも、ひとりの道 2 通りを通す。
+## 「こだまの鐘」（2-2）・「転がる玉」（2-4）。どれも、ひとりの道 2 通りを通す。
+## 「鳴りつづける鐘」（2-5。時の鐘）は test_world2_timed_bells.gd。
 ## 操作はプレイヤーと同じ（歩く・段差で跳ぶ・渡す・押す・乗る・拾う・回収する・鐘を鳴らす）で、瞬間移動はしない。
 ## 協力の道は test_world2_coop.gd、関所と詰みの試遊は test_world2_probes.gd。
 
@@ -8,7 +9,6 @@ const BACK := RuleAction.Kind.BACK
 const RIGHT := RuleAction.Kind.RIGHT
 const ECHO_ID := "w2_echo_bells"
 const ROLLING_ID := "w2_rolling_shots"
-const RINGING_ID := "w2_timed_bells"
 
 # --- 共通の部品 -----------------------------------------------------------------
 
@@ -213,50 +213,3 @@ func test_rolling_shots_carve_stairs_for_the_kit() -> void:
 	await _walk_to(Vector3(-3.5, 2.0, -6.5))
 	await _walk_into_goal()
 	assert_true(await _cleared(), "carved stairs instead of moving the launcher back")
-
-
-# --- 鳴りつづける鐘 ---------------------------------------------------------------
-
-
-## ひとりの道 1: 発射台を北へ 5 マス押して鐘の列に合わせ、「投げる」を渡して鳴らしつづける。
-func test_ringing_bell_launcher_keeps_the_bell_ringing() -> void:
-	await _enter(RINGING_ID)
-	await _give_kit_a_move()
-	await _push_block("launcher", FORWARD, 5, Vector3(-1.5, -0.5, 0.0))
-	assert_eq(_block("launcher").cell(), Vector3i(4, 0, 2), "lined up with the rock bell")
-	_lend(_block("launcher"), _ready_slot(THROW), TriggerMode.Kind.NONE)
-	assert_true(await _wait_until_rung("rock_bell", 400), "the launcher hit the bell")
-	await _wait_block_at("walking_stone", Vector3i(6, 0, -3), 1500)
-	assert_true(
-		await _wait_creature_in("kit", OpenIslandsW2.RINGING_NEST, 2400), "the kit reached its nest"
-	)
-	await _lift_up("plateau_lift", Vector3(1.5, 0.0, -2.5), Vector3(0.5, 2.0, -5.5))
-	await _walk_into_goal()
-	assert_true(await _cleared(), "kept the bell ringing with the launcher")
-
-
-## ひとりの道 2: 谷（幅 3）を跳んで岩へ渡り、鳴りやむたびに鐘を鳴らし直す。戻って石の段を跳んで上がる。
-func test_ringing_bell_ring_it_again_and_again_on_the_rock() -> void:
-	await _enter(RINGING_ID)
-	await _give_kit_a_move()
-	await _jump_across(Vector3(6.6, 0.0, 1.5), Vector3(10.5, 0.0, 1.5))
-	var stone := _block("walking_stone")
-	var rings := 0
-	for i in 2400:
-		if stone.cell() == Vector3i(6, 0, -3) and not stone.is_moving_horizontally():
-			break
-		if not w.bells_by_key["rock_bell"].is_ringing():
-			await _ring_here("rock_bell")
-			rings += 1
-		await tree.physics_frame
-	assert_eq(stone.cell(), Vector3i(6, 0, -3), "the stone walked to the wall")
-	assert_true(rings >= 3, "rang it %d times (one ring is 3 steps)" % rings)
-	await _jump_across(Vector3(10.9, 0.0, 1.5), Vector3(5.5, 0.0, 1.5))
-	assert_true(
-		await _wait_creature_in("kit", OpenIslandsW2.RINGING_NEST, 2400), "the kit reached its nest"
-	)
-	await _walk_to(Vector3(5.5, 0.0, -2.5))
-	await _walk_to(Vector3(6.5, 1.0, -2.5))
-	await _walk_to(Vector3(6.5, 2.0, -4.5))
-	await _walk_into_goal([Vector3(5.5, 2.0, -7.5)])
-	assert_true(await _cleared(), "rang the bell by hand")
