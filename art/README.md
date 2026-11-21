@@ -9,7 +9,7 @@
 | `scripts/rig.py` | 動くものの骨格（Armature）とアニメーション（Action）を作って書き出す部品（`armature` / `bind` / `action` / `save_and_export_rigged`） |
 | `scripts/build_cast.py` | プレイヤー（4色）・願いを持つ生き物・その子ども（kit）・広場の生き物 2 種（`critter_bunny`・`critter_lamb`）。どれも部品ごとに作り、骨格とアニメーション付き |
 | `scripts/build_overworld.py` | 広場のワープの門（`portal_arch`、渦が回る）と、クリアで建つ建物 6 種（家・風車・噴水・畑・見晴らし台・屋台） |
-| `scripts/build_markers.py` | ゴールの旗と四隅の灯り・チェックポイントの台・入口の門・器のメダル（能力／禁止）・装備（ジャンプブーツ・クライミンググローブ）・ダッシュの羽根 |
+| `scripts/build_markers.py` | ゴールの旗と四隅の灯り・チェックポイントの台・入口の門・器のメダル（能力／禁止）・装備（ジャンプブーツ・クライミンググローブ）・ダッシュの羽根・生き物の巣（`creature_nest`。小枝を編んだ巣） |
 | `scripts/build_hub_props.py` | 広場の置物（街灯・柵・鉢植え・ベンチ） |
 | `scripts/build_contraptions.py` | 発射台と鐘（テクスチャを焼き込む） |
 | `scripts/build_nature.py` | 自然の仕掛けと新しい能力の拾える物: かざぐるま（`wind_fan`、骨格付き・羽根は `spin`）・風の木の葉・氷のセル・おもり（重い）・風船（浮く）・足ひれ（泳ぐ）（docs/adr/0015） |

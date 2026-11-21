@@ -15,6 +15,7 @@ const MODELS: Array[String] = [
 	"jump_boots",
 	"climbing_gloves",
 	"dash_feather",
+	"creature_nest",
 	"hub_lamp",
 	"hub_fence",
 	"hub_planter",

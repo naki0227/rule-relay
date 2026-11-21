@@ -23,6 +23,79 @@ func test_kit_has_its_nest_and_a_default_wish() -> void:
 	await wait_physics_frames(2)
 	assert_true(marker.visible)
 	assert_almost(marker.global_position.y, 4.0, 0.05, "on the nest floor (height 4)")
+	assert_true(marker.is_beam_shown(), "the beam is up")
+	assert_ne(marker.nest_model(), null, "a nest model on the floor")
+	assert_eq(kit.nest_tint, WishMarker.TINTS[0], "the kit's colour")
+
+
+## 巣へ運ぶ生き物がいるステージはどれも、巣ごとに巣のモデルと光の柱を 1 つずつ建てる（2026-11-21 本人
+## 「巣がどこかもわかりにくい」）。同じ箱を行き先にする生き物（4-4 の群れ）は 1 つの巣を分け合い、
+## 違う巣は違う色になる。生き物の巣の色は、その巣の柱の色。
+func test_every_nest_stage_builds_a_nest_model_and_a_beam() -> void:
+	var checked := 0
+	for def in StageCatalog.all_stages():
+		var boxes: Array[AABB] = []
+		var nest_keys: Array[String] = []
+		for c in def.creatures:
+			var box := def.clear_condition.carry_area(c.key)
+			if not box.has_volume():
+				continue
+			nest_keys.append(c.key)
+			if not boxes.any(func(b: AABB) -> bool: return b.is_equal_approx(box)):
+				boxes.append(box)
+		if boxes.is_empty():
+			continue
+		checked += 1
+		var world := StageWorld.new()
+		world.setup(def)
+		tree.root.add_child(world)
+		await wait_physics_frames(2)
+		var markers := world.find_children("WishMarker*", "WishMarker", false, false)
+		assert_eq(markers.size(), boxes.size(), "%s: one nest per box" % def.stage_id)
+		var tints := {}
+		for node in markers:
+			var marker := node as WishMarker
+			var model := marker.nest_model()
+			assert_ne(model, null, "%s: a nest model" % def.stage_id)
+			if model != null:
+				assert_false(
+					model.find_children("*", "MeshInstance3D", true, false).is_empty(),
+					"%s: the nest model has a mesh" % def.stage_id
+				)
+				assert_almost(
+					model.global_position.y,
+					marker.floor_center().y,
+					0.01,
+					"%s: on the nest floor" % def.stage_id
+				)
+				assert_true(
+					marker.box.grow(0.01).has_point(model.global_position + Vector3.UP * 0.05),
+					"%s: inside the nest box" % def.stage_id
+				)
+			assert_true(marker.is_beam_shown(), "%s: a beam over the nest" % def.stage_id)
+			tints[marker.tint.to_html()] = true
+		assert_eq(tints.size(), markers.size(), "%s: each nest has its own colour" % def.stage_id)
+		for key in nest_keys:
+			var c := world.creatures[int(world.entity_ids[key])]
+			var mine := markers.filter(
+				func(m: Node) -> bool: return (m as WishMarker).creatures.has(c)
+			)
+			assert_eq(mine.size(), 1, "%s: %s belongs to one nest" % [def.stage_id, key])
+			if mine.size() == 1:
+				assert_eq(c.nest_tint, (mine[0] as WishMarker).tint, "the creature's nest colour")
+		world.queue_free()
+		await tree.process_frame
+	assert_gt(checked, 10, "many stages have nests")
+
+
+## 光の柱は遠くからははっきり、巣に近づくと薄くなり、間近では消える（謎を隠さない）。
+func test_nest_beam_fades_up_close() -> void:
+	assert_eq(WishMarker.beam_fade(1.0), 0.0, "gone right at the nest")
+	assert_eq(WishMarker.beam_fade(WishMarker.FADE_NEAR), 0.0)
+	assert_lt(WishMarker.beam_fade(8.0), 1.0, "fading on the way")
+	assert_gt(WishMarker.beam_fade(8.0), 0.0)
+	assert_eq(WishMarker.beam_fade(20.0), 1.0, "clear from across the island")
+	assert_gt(WishMarker.BEAM_HEIGHT, 15.0, "tall enough to see over the ledges")
 
 
 ## ステージの定義の wish_text があれば、それを出す。
@@ -79,6 +152,7 @@ func test_pointer_shows_the_nest_only_when_it_is_off_screen() -> void:
 	cam.look_at(Vector3(0.0, 8.0, 20.0))  # 巣に背を向ける
 	hud.update_wish_pointer(kit)
 	assert_true(hud.wish_pointer.visible, "the nest is behind: an arrow on the edge")
+	assert_eq(hud.wish_pointer.tint, kit.nest_tint, "in the colour of the kit's nest")
 	hud.update_wish_pointer(null)
 	assert_false(hud.wish_pointer.visible, "no focused animal: no arrow")
 	hud.queue_free()

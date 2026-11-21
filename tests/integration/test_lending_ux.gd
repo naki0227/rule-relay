@@ -118,6 +118,7 @@ func test_kit_without_a_move_asks_for_one() -> void:
 	await wait_physics_frames(100)
 	assert_eq(kit.bubble_key(), CreatureWishView.KEY_NEED_MOVE, "asks for a move")
 	assert_eq(kit.shown_needs(), [FORWARD] as Array[RuleAction.Kind], "the move medal")
+	assert_true(kit.shows_nest_in_bubble(), "and a tiny nest next to it")
 	var hud := Hud.new()
 	hud.world = w
 	tree.root.add_child(hud)
@@ -173,4 +174,7 @@ func test_kit_walks_to_the_step_then_continues_once_the_path_is_built() -> void:
 	await wait_physics_frames(30)
 	assert_eq(kit.bubble_key(), CreatureWishView.KEY_HAPPY, "happy at the nest")
 	var markers := w.find_children("WishMarker*", "WishMarker", false, false)
-	assert_false((markers[0] as WishMarker).visible, "the nest beam goes away once the wish is met")
+	var marker := markers[0] as WishMarker
+	assert_false(marker.is_beam_shown(), "the nest beam goes away once the wish is met")
+	assert_true(marker.nest_model().visible, "the nest itself stays: it is the kit's home")
+	assert_false(kit.shows_nest_in_bubble(), "no nest in the bubble any more")

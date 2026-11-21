@@ -6,7 +6,8 @@ extends SceneTree
 ##     --script res://tools/capture_range_ux.gd -- <state> out.png
 ## state: preview（右クリックを押している間のプレビュー）/ lent（繰り返しで地面へ範囲付与した後）/
 ##        wish（子どもの生き物のそば: 巣の光の柱・頭の上の印・願いの一文）/
-##        wall（移動だけをもらった生き物が、巣に近い段のふもとまで歩き、吹き出しにジャンプのメダルを出す。ADR 0019）
+##        wall（移動だけをもらった生き物が、巣に近い段のふもとまで歩き、吹き出しにジャンプのメダルを出す。ADR 0019）/
+##        nest（始まりの場所から、遠くの巣のモデルと光の柱を見る。ADR 0019 の 10）
 ## 場所は「押し石の小道」（1-4）の原っぱ。
 
 
@@ -32,6 +33,9 @@ func _capture() -> void:
 		return
 	if state == "wall":
 		await _capture_wall(w, out)
+		return
+	if state == "nest":
+		await _capture_nest(w, out)
 		return
 	w.player.global_position = Vector3(2.5, 0.0, 4.5)
 	w.camera_rig.yaw = deg_to_rad(20.0)
@@ -92,6 +96,19 @@ func _capture_wall(w: StageWorld, out: String) -> void:
 	w.player.global_position = kit.global_position + Vector3(-1.1, 0.0, 1.6)
 	w.camera_rig.yaw = deg_to_rad(-14.0)
 	w.camera_rig.pitch = deg_to_rad(-4.0)
+	for i in 40:
+		await physics_frame
+	for i in 10:
+		await process_frame
+	root.get_viewport().get_texture().get_image().save_png(out)
+	ProgressStore.new().delete("zz_capture")
+	quit()
+
+
+## 始まりの場所から巣のほうを見る（巣のモデル・光の柱が島の向こうから見える）。
+func _capture_nest(w: StageWorld, out: String) -> void:
+	w.camera_rig.yaw = deg_to_rad(0.0)
+	w.camera_rig.pitch = deg_to_rad(-12.0)
 	for i in 40:
 		await physics_frame
 	for i in 10:

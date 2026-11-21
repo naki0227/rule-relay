@@ -4,6 +4,8 @@ extends Node3D
 ## 欲しいこういうメダルのやつ、アイコンみたいな」。ADR 0019）。足りないものは文字や知らせで言わず、ここだけで見せる:
 ## - 足りない能力: ホットバー・器と同じメダルの絵を吹き出しの中に並べる（多くて 3 つ）
 ## - どの能力でも進めない（道が要る）: 吹き出しの中に小さな階段の絵
+## - 巣がある生き物は、メダル・階段の右に小さな巣の絵（巣の光の柱と同じ色。「あそこへ行きたい」と柱を結ぶ。
+##   2026-11-21 本人「巣がどこかもわかりにくい」）
 ## - 願いがかなった: 緑の ♪ を出して、しばらくすると消える
 ## - 何も足りない物が無い（歩いている・待つだけ）: 吹き出しを出さない
 ## 吹き出しはカメラのほうを向き、ゆっくり上下する（Creature が高さを揺らす）。遠いと薄くなり、もっと遠いと消える。
@@ -31,12 +33,15 @@ const FAR: float = 18.0
 
 static var _backs: Dictionary[int, ImageTexture] = {}
 static var _stairs_texture: ImageTexture
+static var _nest_textures: Dictionary[String, ImageTexture] = {}
 
 var _key: String = KEY_NONE
 var _bubble: Node3D
 var _back: Sprite3D
 var _medals: Array[Sprite3D] = []
 var _stairs: Sprite3D
+var _nest: Sprite3D
+var _nest_tint: Color = Color(0, 0, 0, 0)
 var _note: Label3D
 var _wish: Label3D
 var _happy_time: float = 0.0
@@ -53,6 +58,8 @@ func _ready() -> void:
 	for i in MAX_MEDALS:
 		_medals.append(_sprite(null))
 	_stairs = _sprite(stairs_texture())
+	_nest = _sprite(null)
+	_nest.scale = Vector3.ONE * 0.8
 	_note = Label3D.new()
 	_note.text = "♪"
 	_note.pixel_size = 0.005
@@ -101,13 +108,22 @@ func show_key(key: String) -> void:
 	_happy_time = 0.0
 	if _bubble == null:
 		return
+	_layout()
+	_apply_alpha()
+
+
+## 吹き出しの中身を並べる: 足りない能力のメダル（または階段）、その右に巣の絵。
+func _layout() -> void:
 	var kinds := needs()
-	var path := key == KEY_PATH
-	var happy := key == KEY_HAPPY
-	var count := maxi(kinds.size(), 1)
+	var path := _key == KEY_PATH
+	var happy := _key == KEY_HAPPY
+	var nest := shows_nest()
+	var count := maxi(kinds.size(), 1) + (1 if nest else 0)
 	_back.visible = not kinds.is_empty() or path
 	if _back.visible:
 		_back.texture = bubble_texture(count)
+	var slot := func(i: int) -> Vector3:
+		return Vector3((float(i) - float(count - 1) * 0.5) * MEDAL_STEP, 0.02, 0.0)
 	for i in MAX_MEDALS:
 		var medal := _medals[i]
 		medal.visible = i < kinds.size()
@@ -115,13 +131,14 @@ func show_key(key: String) -> void:
 			var token := RuleToken.new()
 			token.action = kinds[i]
 			medal.texture = ItemIcons.for_token(token)
-			medal.position = Vector3(
-				(float(i) - float(kinds.size() - 1) * 0.5) * MEDAL_STEP, 0.02, 0.0
-			)
+			medal.position = slot.call(i)
 	_stairs.visible = path
-	_stairs.position = Vector3(0.0, 0.02, 0.0)
+	_stairs.position = slot.call(0)
+	_nest.visible = nest
+	if nest:
+		_nest.texture = nest_texture(_nest_tint)
+		_nest.position = slot.call(count - 1)
 	_note.visible = happy
-	_apply_alpha()
 
 
 func key() -> String:
@@ -131,6 +148,19 @@ func key() -> String:
 ## 吹き出しに出している、足りない能力。
 func needs() -> Array[RuleAction.Kind]:
 	return parse_needs(_key)
+
+
+## 巣の色を決める（Creature.set_nest_tint）。透明なら巣の絵は出さない。
+func set_nest_tint(color: Color) -> void:
+	_nest_tint = color
+	if _bubble != null:
+		_layout()
+		_apply_alpha()
+
+
+## 吹き出しに巣の絵を出しているか（足りないものを出していて、巣がある生き物のとき）。
+func shows_nest() -> bool:
+	return _nest_tint.a > 0.0 and (not needs().is_empty() or _key == KEY_PATH)
 
 
 ## 吹き出しに階段（道が要る）を出しているか。
@@ -201,7 +231,7 @@ func _apply_alpha() -> void:
 	if _key == KEY_HAPPY:
 		alpha *= clampf(1.0 - (_happy_time - HAPPY_HOLD) / HAPPY_FADE, 0.0, 1.0)
 	_bubble.visible = alpha > 0.01 and _key != KEY_NONE
-	for sprite: Sprite3D in [_back, _stairs] + _medals:
+	for sprite: Sprite3D in [_back, _stairs, _nest] + _medals:
 		sprite.modulate.a = alpha
 	_note.modulate.a = alpha
 	_note.outline_modulate.a = 0.95 * alpha
@@ -220,7 +250,7 @@ func _sprite(texture: Texture2D) -> Sprite3D:
 
 ## 吹き出しの絵（メダル count 個ぶんの幅。下の真ん中にしっぽ）。クリーム色の地にこげ茶のふち。
 static func bubble_texture(count: int) -> ImageTexture:
-	count = clampi(count, 1, MAX_MEDALS)
+	count = clampi(count, 1, MAX_MEDALS + 1)
 	if _backs.has(count):
 		return _backs[count]
 	var step := int(MEDAL_STEP / ICON_PIXEL)
@@ -271,3 +301,42 @@ static func stairs_texture() -> ImageTexture:
 		image.fill_rect(rect.grow(-5), stone)
 	_stairs_texture = ImageTexture.create_from_image(image)
 	return _stairs_texture
+
+
+## 吹き出しの巣の絵: 小枝の巣（茶色の椀に干し草）と、そこから上へ伸びる光の柱（巣の柱と同じ色 tint）。
+static func nest_texture(tint: Color) -> ImageTexture:
+	var key := tint.to_html()
+	if _nest_textures.has(key):
+		return _nest_textures[key]
+	var size := 128
+	var image := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0, 0, 0, 0))
+	var ink := UiTheme.INK
+	var twig := Color("#c8935e")
+	var straw := Color("#ffc98a")
+	var bowl_center := Vector2(64.0, 84.0)
+	for y in size:
+		for x in size:
+			var p := Vector2(x + 0.5, y + 0.5)
+			var color := Color(0, 0, 0, 0)
+			# 光の柱（上ほど薄い、角の丸い帯）
+			var beam := absf(p.x - 64.0) <= 15.0 and p.y >= 8.0 and p.y <= 84.0
+			if beam:
+				color = Color(tint, 0.55 + 0.45 * (p.y - 8.0) / 76.0)
+			# 椀: 下半分の楕円（ふちは太い輪）
+			var q := (p - bowl_center) / Vector2(52.0, 30.0)
+			var r := q.length()
+			if p.y >= bowl_center.y - 10.0 and r <= 1.0:
+				color = twig
+				if r > 0.86:
+					color = ink
+				elif int(p.x + p.y * 0.6) % 14 < 3:
+					color = Color("#93653f")  # 編んだ小枝の筋
+			# 干し草（椀の口）
+			var top := (p - Vector2(64.0, bowl_center.y - 8.0)) / Vector2(44.0, 9.0)
+			if top.length() <= 1.0:
+				color = straw if top.length() < 0.8 else ink
+			image.set_pixel(x, y, color)
+	var texture := ImageTexture.create_from_image(image)
+	_nest_textures[key] = texture
+	return texture

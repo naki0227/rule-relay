@@ -61,6 +61,8 @@ var max_fall_speed: float = INF
 var surface_hold: float = NAN
 ## 願いの行き先（クリア条件「巣へ運ぶ」の箱。無ければ大きさ 0）。中に入ったら願いがかなった印を出す。
 var wish_box: AABB = AABB()
+## 巣の色（WishMarker が決める。光の柱・吹き出しの巣の絵・画面の縁の案内を同じ色にする）。巣が無ければ透明。
+var nest_tint: Color = Color(0, 0, 0, 0)
 ## 次にすることを決めるビヘイビアツリー（CreatureBrain。乱数の種は entity_id）。
 var brain: CreatureBrain
 ## 散歩の中心（最後に自分で止まった所）。
@@ -149,6 +151,11 @@ func display_name() -> String:
 ## 移動はできるのに、どの能力でもここからは進めない（道が要る）所で止まっているか。
 func is_stuck() -> bool:
 	return stage == CreatureMind.Stage.WAIT and path.is_empty() and _needs_path and can_walk()
+
+
+## 吹き出しに巣の絵を出しているか。
+func shows_nest_in_bubble() -> bool:
+	return _view != null and _view.shows_nest()
 
 
 ## 吹き出しに出している、足りない能力。
@@ -431,6 +438,13 @@ func set_wish_text(text: String) -> void:
 
 func wish_text() -> String:
 	return _view.wish_text() if _view != null else ""
+
+
+## 巣の色を決める（WishMarker.attach）。吹き出しに、足りないものと並べて小さな巣の絵をこの色で出す。
+func set_nest_tint(color: Color) -> void:
+	nest_tint = color
+	if _view != null:
+		_view.set_nest_tint(color)
 
 
 ## 願いの一文を出す・隠す（プレイヤーが近くに来た・狙ったとき。PlayerInput が決める）。
