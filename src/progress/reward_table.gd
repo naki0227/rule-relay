@@ -69,6 +69,15 @@ static func provisional() -> RewardTable:
 				"creature_nest": _stage_rewards("nest", "tmp_hub_nest_box"),
 				"ban_garden": _stage_rewards("garden", "tmp_hub_sign_post"),
 				"long_expedition": _stage_rewards("expedition", "tmp_hub_camp"),
+				"w5_first_signs": _stage_rewards("w5_1", "tmp_hub_w5_1"),
+				"w5_range_signs": _stage_rewards("w5_2", "tmp_hub_w5_2"),
+				"w5_ice_garden": _stage_rewards("w5_4", "tmp_hub_w5_4"),
+				"w5_sign_relay": _stage_rewards("w5_5", "tmp_hub_w5_5"),
+				"w6_warp_stones": _stage_rewards("w6_1", "tmp_hub_w6_1"),
+				"w6_misty_terraces": _stage_rewards("w6_2", "tmp_hub_w6_2"),
+				"w6_peak_bells": _stage_rewards("w6_3", "tmp_hub_w6_3"),
+				"w6_river_run": _stage_rewards("w6_4", "tmp_hub_w6_4"),
+				"w6_long_ridge": _stage_rewards("w6_5", "tmp_hub_w6_5"),
 			}
 		)
 	)

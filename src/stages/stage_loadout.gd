@@ -61,7 +61,7 @@ func apply(ledger: RuleLedger, player_ids: PackedInt32Array) -> void:
 	_place_helpers(ledger, player_ids.size())
 
 
-## 参加順 index のプレイヤーに、開始ホットバーとステージの禁止を渡す。
+## 参加順 index のプレイヤーに、開始ホットバー・通常インベントリの能力・ステージの禁止・装備を渡す。
 ## 全員リセットで正式に合流した人にも使う（呼ぶのは実行時の層）。
 func give_start(ledger: RuleLedger, player_id: int, index: int) -> void:
 	var actions := stage.loadout_for(index)
@@ -69,6 +69,8 @@ func give_start(ledger: RuleLedger, player_id: int, index: int) -> void:
 		ledger.give_player_item(actions[slot], false, slot, player_id)
 	for action in stage.prohibitions:
 		ledger.give_player_item(action, true, -1, player_id)
+	for action in stage.start_inventory:
+		ledger.give_player_item(action, false, -1, player_id)
 	for action in stage.start_equipment:
 		var gear := ledger.give_player_item(action, false, -1, player_id)
 		gear.part = equipment_part(action)

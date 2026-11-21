@@ -78,6 +78,9 @@ static func windy_ridge() -> StageDef:
 ##       櫓の縁のセルを押し出す
 ## 要石を窪みへ: (1) 東へ押して柱で止め、壁の切れ目から南へ押す (2) 西へ押して櫓の壁で止め、櫓の脇から
 ##   南へ落とし、下の郭で東へ押す (3) 要石の正面の崩れた壁を地形ごと南へ押し出してから、まっすぐ南へ押す
+## 願いを持つ動物（2026-11-21 追加）: 櫓の南の縁で、木の実を持った生き物が櫓の鐘を向いている。願いは
+##   「木の実で鐘を鳴らしたい」。下の郭から「投げる」を投げて渡すと、櫓へ上がらずに鐘が鳴る
+##   （櫓の発射台と「投げる」の取り合いになる）。
 ## 協力: 櫓の正面（下の郭）の窪みのブロックにジャンプ×2 を単発で渡す（5.0）と、上の郭を飛ばして櫓へ直接。
 ## ゴール: 櫓の上の奥（北）の窪み（高さ 3、5×2）。鐘と要石に加えて、全員がここに集まればクリア。
 static func ruined_fort() -> StageDef:
@@ -113,6 +116,10 @@ static func ruined_fort() -> StageDef:
 	_stone(def, "keystone", Vector3i(8, 2, -16))
 	_stone(def, "stair_stone", Vector3i(-17, 0, -12))
 	def.bells = [StageDef.BellSpec.new("keep_bell", Vector3(0.5, 4.0, -11.5))]
+	# 願いを持つ動物（2026-11-21 追加）: 櫓の南の縁で木の実を持ち、櫓の鐘（北）を向いている
+	var keep_animal := StageDef.CreatureSpec.new("keep_animal", Vector3(0.5, 4.0, -8.5))
+	keep_animal.held_item = "木の実"
+	def.creatures.append(keep_animal)
 	_item(def, RuleAction.Kind.HIGH_JUMP, Vector3(-17.5, 3.0, 1.5), RuleVessel.Part.FEET, "ジャンプブーツ")
 	_item(def, RuleAction.Kind.CLIMB, Vector3(0.5, 0.0, -20.5), RuleVessel.Part.HANDS, "クライミンググローブ")
 	def.spawn_points = _spawns(Vector3(0.0, 0.0, 9.5))

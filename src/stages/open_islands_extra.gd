@@ -86,6 +86,9 @@ static func creature_nest() -> StageDef:
 ##   F で取ると札がまた自分に来るので、もう一度どこかへ渡してから乗る
 ## 協力の近道: 禁止を手放したあと、ジャンプ×2 で段差 2 を直接跳ぶ（窪みのブロックも札付きの台も要らない）。
 ## 社の鐘は台の真ん中（上の庭の縁から 5.8 m）で、下からは触れない。
+## 願いを持つ動物（2026-11-21 追加）: 社の南の縁で、木の実を持った生き物が社の鐘を向いている。願いは
+##   「木の実で鐘を鳴らしたい」。上の庭から「投げる」を投げて渡すと、社へ上がる前に社の鐘が鳴る
+##   （発射台に「投げる」を使うと取り合いになる。投げるは 1 つ）。
 ## ゴール: 社の奥（北）の窪み（高さ 3、5×2）。禁止を持ったまま降りても、禁止を足もとへ渡せば跳んで出られる。
 static func ban_garden() -> StageDef:
 	var def := _base("ban_garden", "札の庭", 18)
@@ -110,6 +113,10 @@ static func ban_garden() -> StageDef:
 		StageDef.BellSpec.new("east_bell", Vector3(20.5, 0.0, 0.5)),
 		StageDef.BellSpec.new("shrine_bell", Vector3(0.5, 4.0, -20.5)),
 	]
+	# 願いを持つ動物（2026-11-21 追加）: 社の南の縁で木の実を持ち、社の鐘（北）を向いている
+	var shrine_animal := StageDef.CreatureSpec.new("shrine_animal", Vector3(0.5, 4.0, -17.5))
+	shrine_animal.held_item = "木の実"
+	def.creatures.append(shrine_animal)
 	_item(def, RuleAction.Kind.CLIMB, Vector3(-11.5, 0.0, 5.5), RuleVessel.Part.HANDS, "クライミンググローブ")
 	_item(def, RuleAction.Kind.DASH, Vector3(10.5, 0.0, 6.5))
 	_item(def, RuleAction.Kind.HIGH_JUMP, Vector3(21.5, 0.0, 2.5), RuleVessel.Part.FEET, "ジャンプブーツ")
