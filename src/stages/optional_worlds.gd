@@ -126,6 +126,22 @@ static func nest_and_goal(
 	def.clear_condition = ClearCondition.all_of(parts)
 
 
+## 地形の箱のうち、rect（x・z、両端を含む）の中で上面が top の箱を氷（"ice"）にする（IslandMap は高さで
+## 種類を決めるので、氷は作った後で塗り替える）。
+static func freeze(boxes: Array, rect: Rect2i, top: int) -> void:
+	for box: Array in boxes:
+		var lo := box[0] as Vector3i
+		var hi := box[1] as Vector3i
+		var inside := (
+			lo.x >= rect.position.x
+			and hi.x < rect.end.x
+			and lo.z >= rect.position.y
+			and hi.z < rect.end.y
+		)
+		if inside and hi.y == top - 1:
+			box[2] = "ice"
+
+
 static func spawns(center: Vector3) -> Array[Vector3]:
 	var result: Array[Vector3] = []
 	for dx: float in [-1.5, -0.5, 0.5, 1.5]:

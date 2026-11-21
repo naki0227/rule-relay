@@ -270,3 +270,21 @@ func _glide_dash(
 		await tree.physics_frame
 	_me().move_intent = Vector2.ZERO
 	return _me().global_position
+
+
+## 「投げる」の届き方で、ブロックに単発の移動を渡して押す。止まるまで待って、止まったセルを返す。
+func _throw_push(key: String, action: RuleAction.Kind) -> Vector3i:
+	var block := _block(key)
+	if not w.throw_mode:
+		w.toggle_reach()
+	_lend(block, _slot_of(action), TriggerMode.Kind.SINGLE_SHOT)
+	w.toggle_reach()
+	w.press_action(action)
+	var still := 0
+	for i in 600:
+		var moving := block.is_moving_horizontally() or not block.is_grounded()
+		still = 0 if moving else still + 1
+		if still > 20:
+			break
+		await tree.physics_frame
+	return block.cell()
