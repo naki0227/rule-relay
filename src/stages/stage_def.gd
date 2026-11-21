@@ -32,6 +32,10 @@ var loadouts: Array = []
 ## 開始時に装備した状態で渡す装備（HIGH_JUMP = ジャンプブーツ・CLIMB = クライミンググローブ）。
 ## 広場で、クリアで開いた装備を持たせるのに使う（docs/adr/0013）。
 var start_equipment: Array[RuleAction.Kind] = []
+## 開始時に通常インベントリへ置く能力（ホットバーに無いので効かない。自分でホットバーへ移すと効く）。
+## 広場で、持っているだけで効く性質（重い・浮く・泳ぐ）を渡すのに使う（ホットバー 9 枠に収まらず、
+## 置くと勝手に効いてしまうため。docs/adr/0015 の追記）。
+var start_inventory: Array[RuleAction.Kind] = []
 ## このステージで全員の手元に置く禁止（通常インベントリ。手元のどこにあっても効く）。
 var prohibitions: Array[RuleAction.Kind] = []
 ## 参加人数 → その人数のときに置く補助（PlacementSpec の配列）。無い人数は補助なし。

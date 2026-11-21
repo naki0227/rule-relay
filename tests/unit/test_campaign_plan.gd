@@ -95,9 +95,10 @@ func test_regions_open_after_the_previous_worlds_last_stage() -> void:
 	var bell_vale := CampaignPlan.world("w2")
 	assert_false(CampaignPlan.is_region_open(bell_vale, _cleared([StageCatalog.INTRO_ID])))
 	assert_true(CampaignPlan.is_region_open(bell_vale, _cleared([StageCatalog.QUARRY_ID])))
-	# まだ作っていないステージで開く地方は、前のワールドで最後に作ってあるステージで代わりに開く
+	# 開く条件のステージ（3-6 雲の回廊）が作ってあれば、そのステージで開く（まだ無ければ、前のワールドで
+	# 最後に作ってあるステージで代わりに開く）
 	var forest := CampaignPlan.world("w4")
-	assert_eq(CampaignPlan.required_stage(forest), StageCatalog.FLOATING_ID)
+	assert_eq(CampaignPlan.required_stage(forest), World3Stages.CLOUD_CORRIDOR_ID)
 
 
 func test_stages_open_in_campaign_order_inside_a_world() -> void:
