@@ -4,8 +4,10 @@
 #   tools/check.sh --build    上記に加えて Windows・macOS・Linux（Steam Deck）向けにエクスポート
 #                             （提出版の書き出しに Steam が入っていないことも確かめる。docs/adr/0012）
 #                             （提出用の ZIP を build/submission/ に作り、tools/check_submission.py で確かめる）
+#                             （書き出した exe と Mac の .app の版が export_presets.cfg と同じかも確かめる）
 #   tools/check.sh --fix      gdformat で整形してから検査
 # 環境変数 GODOT で Godot 実行ファイルを指定できる（既定: godot）。
+# 環境変数 RELEASE_TAG（例 v0.2.1）があれば、export_presets.cfg と書き出しの版がそのタグと同じかも確かめる。
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -60,6 +62,11 @@ python3 tools/check_no_steam.py --source
 step "sound budget (tools/sfx)"
 python3 -m unittest discover -s tools/sfx -p 'test_*.py'
 
+step "app version (export_presets.cfg)"
+# Mac と Windows の版がそろっているか（タグの書き出しでは CI がタグと同じかも確かめる。tools/release_version.py）
+python3 -m unittest discover -s tools -p 'test_release_*.py'
+python3 tools/release_version.py check ${RELEASE_TAG:+--tag "$RELEASE_TAG"}
+
 step "import"
 run_godot import --headless --import
 
@@ -95,8 +102,11 @@ if [ "$BUILD" -eq 1 ]; then
   step "no steam in the contest build (exported files)"
   python3 tools/check_no_steam.py build/windows/rule-relay.exe build/macos/rule-relay.zip \
     build/linux/rule-relay.x86_64
+  step "app version (exported exe / Mac Info.plist)"
+  python3 tools/release_version.py check --exported ${RELEASE_TAG:+--tag "$RELEASE_TAG"}
   step "submission ZIP (LICENSES / secrets / sources / no steam)"
-  # 提出用の ZIP（Windows・Mac）を build/submission/ に作って中身を確かめる（docs/submission/checklist.md）
+  # 提出用の ZIP（Windows・Mac・Linux）を build/submission/ に作って中身を確かめる（docs/submission/checklist.md）。
+  # GitHub Release の ZIP も同じ作り方と検査で作る（.github/workflows/ci.yml の release ジョブ）
   python3 tools/check_submission.py --godot "$GODOT"
   step "smoke (exported Linux build, solo, 300 frames)"
   GODOT="build/linux/rule-relay.x86_64" run_godot smoke_linux_build --headless --quit-after 300 \

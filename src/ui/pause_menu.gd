@@ -13,7 +13,11 @@ const ITEMS: Array[Array] = [
 	["previous", "ひとつ前の保存へもどる", "最後の保存を取り消します。詰んだまま保存してしまったときに。"],
 	["restart", "島のはじめから", "保存をすべて消して、島に来たときにもどります。"],
 	["settings", "せってい", "キー割り当て・文字の大きさ・視点の速さ・音の大きさを変えます。"],
-	["quit", "ゲームをやめる", "ゲームを終了します。"],
+	[
+		"quit",
+		"ゲームをやめる",
+		"ゲームを終了します。協力中は部屋を出たことになり、まだクリアしていない回の報酬は受け取れません。",
+	],
 ]
 
 var world: GameWorld
@@ -21,12 +25,16 @@ var world: GameWorld
 var settings_menu: SettingsMenu
 ## 効果音を鳴らす関数（Hud.play_ui）。無ければ鳴らさない。
 var play_sound: Callable
+## 「ゲームをやめる」で呼ぶ関数（GameRoot.quit_game: 協力中の参加者は退出を伝えてから終わる。PartyExit）。
+## 無ければその場で終わる。
+var quit_request: Callable
 
 var _card: PanelContainer
 var _buttons: Dictionary[String, Button] = {}
 var _description: Label
 var _saves: Label
 var _restart_armed: bool = false
+var _quitting: bool = false
 
 
 func _ready() -> void:
@@ -78,6 +86,8 @@ func refresh() -> void:
 
 ## 項目を選んだときの処理。テストからも呼ぶ。
 func choose(item: String) -> void:
+	if _quitting:
+		return  # 部屋を出ている途中（ホストの受け付けを待っている）
 	if item != "restart":
 		_restart_armed = false
 	if item == "previous" and not world.can_restore_previous_checkpoint():
@@ -106,7 +116,12 @@ func choose(item: String) -> void:
 			settings_menu.open()
 		"quit":
 			get_tree().paused = false
-			get_tree().quit()
+			if quit_request.is_valid():
+				_quitting = true
+				_describe("部屋を出ています…")
+				quit_request.call()
+			else:
+				get_tree().quit()
 
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -24,6 +24,29 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
+      # タグ（v*）のときは、30 分の書き出しと公証を待たずに、Mac の署名に要る Secrets がそろっているかを最初に見る。
+      # 値は表示しない（名前だけ）。タグ以外（main・PR・手動）は、これまでどおり署名と公証を飛ばす。
+      - name: Check macOS signing secrets (tag only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+          MACOS_DEVELOPER_ID_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_PASSWORD }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_P8: ${{ secrets.ASC_P8 }}
+        run: |
+          missing=()
+          for name in MACOS_DEVELOPER_ID_P12_BASE64 MACOS_DEVELOPER_ID_PASSWORD ASC_KEY_ID ASC_ISSUER_ID ASC_P8; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error title=Mac の署名の Secrets が足りません::タグ ${GITHUB_REF_NAME} の Release には署名と公証を済ませた Mac 版が要ります。未登録: ${missing[*]}（登録の仕方は docs/macos-signing.md）"
+            exit 1
+          fi
+          echo "Mac の署名と公証に要る Secrets は 5 つともあります"
+
       - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v6
@@ -46,7 +69,15 @@ jobs:
       - name: Install Godot (checksum verified)
         run: tools/install_godot.sh "$HOME/godot"
 
+      # タグのときは、書き出しの前にアプリの版をタグから入れる（v0.2.1 → Mac 0.2.1・Windows 0.2.1.0）。
+      # check.sh は RELEASE_TAG があると、プリセットと書き出した exe・.app の版がタグと同じかも確かめる。
+      - name: Set app version from the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: python3 tools/release_version.py set "$GITHUB_REF_NAME"
+
       - name: Run quality gate and Windows / macOS / Linux export
+        env:
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || '' }}
         run: GODOT="$HOME/godot/godot" tools/check.sh --build
 
       - name: Upload logs
@@ -71,7 +102,7 @@ jobs:
           path: build/macos
           retention-days: 14
 
-      - name: Upload submission ZIPs (Windows / macOS, with LICENSES.txt)
+      - name: Upload submission ZIPs (Windows / macOS / Linux, with LICENSES.txt)
         uses: actions/upload-artifact@v5
         with:
           name: rule-relay-submission
@@ -136,7 +167,8 @@ jobs:
 
 
   # Mac 版を Developer ID で署名し、Apple の公証に通す（初回起動の「開発元を確認できません」をなくす）。
-  # Secrets が登録されるまでは何もせずに通る。PR では動かさない（main と手動実行だけ）。
+  # main と手動実行では、Secrets が登録されるまでは何もせずに通る。PR では動かさない。
+  # タグ（v*）では Secrets が無いと通さない（checks ジョブの最初の段で、足りない名前を出して止める）。
   # 必要な Secrets（docs/macos-signing.md）:
   #   MACOS_DEVELOPER_ID_P12_BASE64 / MACOS_DEVELOPER_ID_PASSWORD: Developer ID Application 証明書（秘密鍵つき .p12）
   #   ASC_KEY_ID / ASC_ISSUER_ID / ASC_P8: App Store Connect の API キー（公証に使う）
@@ -147,11 +179,19 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 40
     env:
-      HAS_SIGNING: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 != '' && secrets.ASC_P8 != '' }}
+      HAS_SIGNING: >-
+        ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 != '' && secrets.MACOS_DEVELOPER_ID_PASSWORD != ''
+        && secrets.ASC_KEY_ID != '' && secrets.ASC_ISSUER_ID != '' && secrets.ASC_P8 != '' }}
+      IS_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
       - name: Signing secrets are not set yet
         if: env.HAS_SIGNING != 'true'
-        run: echo "::notice::署名用の Secrets が未登録なので、署名と公証を飛ばしました（docs/macos-signing.md）"
+        run: |
+          if [ "$IS_TAG" = "true" ]; then
+            echo "::error::タグの Release には署名と公証が要りますが、Secrets が足りません（docs/macos-signing.md）"
+            exit 1
+          fi
+          echo "::notice::署名用の Secrets が未登録なので、署名と公証を飛ばしました（docs/macos-signing.md）"
 
       - uses: actions/download-artifact@v5
         if: env.HAS_SIGNING == 'true'
@@ -224,6 +264,8 @@ jobs:
         run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
 
   # タグ（v*）を push したときだけ: Windows 版・署名と公証済みの Mac 版・Linux 版（Steam Deck）を Release に並べる。
+  # ZIP は提出用と同じ tools/check_submission.py で作って確かめる（LICENSES.txt の同梱・秘密や原本が無い・Steam が無い・
+  # Mac の .app に署名と公証の票がある・exe と .app の版がタグと同じ）。Mac 版は macos-notarize ジョブの ZIP を使う。
   release:
     name: GitHub Release (tag)
     needs: [checks, windows-smoke, macos-smoke, macos-notarize]
@@ -233,37 +275,49 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v5
+
       - uses: actions/download-artifact@v5
         with:
           name: rule-relay-windows
-          path: windows
+          path: dist/windows
 
       - uses: actions/download-artifact@v5
         with:
           name: rule-relay-macos-signed
-          path: macos
+          path: dist/macos
 
       - uses: actions/download-artifact@v5
         with:
           name: rule-relay-linux
-          path: linux
+          path: dist/linux
+
+      - name: Package and check the release ZIPs (with LICENSES.txt)
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          python3 tools/check_submission.py --release-tag "$TAG" \
+            --windows-exe dist/windows/rule-relay.exe \
+            --macos-zip dist/macos/rule-relay-macos.zip \
+            --linux-bin dist/linux/rule-relay.x86_64 \
+            --out-dir release --require-notarized
+          ls -la release
 
       - name: Create the release
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          (cd windows && zip -q -r "../rule-relay-${TAG}-windows.zip" .)
-          cp macos/rule-relay-macos.zip "rule-relay-${TAG}-macos.zip"
-          chmod +x linux/rule-relay.x86_64
-          (cd linux && zip -q -r "../rule-relay-${TAG}-linux.zip" .)
-          ls -la *.zip
-          files=("rule-relay-${TAG}-windows.zip" "rule-relay-${TAG}-macos.zip" "rule-relay-${TAG}-linux.zip")
+          files=("release/rule-relay-${TAG}-windows.zip" "release/rule-relay-${TAG}-macos.zip" "release/rule-relay-${TAG}-linux.zip")
+          # 版ごとのリリースノート（docs/release-notes/<タグ>.md）があれば、自動の変更一覧の前に置く
+          notes=()
+          if [ -f "docs/release-notes/${TAG}.md" ]; then
+            notes=(--notes-file "docs/release-notes/${TAG}.md")
+          fi
           # GitHub の画面で Release を先に作った場合は、そこへ ZIP を足す
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"
           else
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "rule-relay $TAG" \
-              --generate-notes "${files[@]}"
+              --generate-notes "${notes[@]}" "${files[@]}"
           fi
-
