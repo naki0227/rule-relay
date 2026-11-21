@@ -247,3 +247,87 @@ func _touch_push(key: String, action: RuleAction.Kind) -> Vector3i:
 			break
 		await tree.physics_frame
 	return block.cell()
+
+
+# --- O3-5 大温室 --------------------------------------------------------------
+
+
+## 川を泳いで渡り、鉄の箱とおもりで扉を開け、灯りの箱を氷の池から水路へすべり落として筏の橋にする。
+func test_o3_5_grand_greenhouse() -> void:
+	await _enter("o3_5")
+	await _pick(Vector3(-5.5, 1.0, 6.5), SWIM)
+	await _pick_to_bag(Vector3(5.5, 1.0, 6.5))
+	await _walk_to(Vector3(-6.5, 1.0, 4.5), 0.3)
+	assert_true(await _swim_north(-6.9), "swam across the river")
+	# 鉄の箱を板へ送り、重いを渡す
+	var anvil := _block("anvil")
+	await _walk_to(Vector3(-3.5, 1.0, -7.4), 0.3)
+	_give(anvil, FORWARD, REPEAT)
+	assert_true(await _wait_block_at("anvil", Vector3i(-4, 1, -12)), "the anvil is on the plate")
+	await _walk_to(Vector3(-2.5, 1.0, -11.5), 0.3)
+	await _recall_all_from("anvil")
+	_bag_to_hotbar(HEAVY)
+	_give(anvil, HEAVY, TriggerMode.Kind.NONE)
+	assert_true(await _wait_open("garden_gate"), "the heavy anvil opened the gate")
+	# 灯りの箱: 札を生き物に預け、浮くを渡して 6 回押す
+	await _pick(Vector3(-5.5, 1.0, -20.5), FLOAT)
+	var lantern := _block("lantern")
+	await _walk_route([Vector3(-1.6, 1.0, -14.6), Vector3(5.6, 1.0, -14.6), Vector3(5.6, 1.0, -16.5)])
+	await _recall_all_from("lantern")
+	await _walk_route([Vector3(5.6, 1.0, -14.6), Vector3(4.5, 1.0, -11.0)])
+	_hand_off_ban(LEFT, _creature("elder"))
+	await _walk_route([Vector3(5.6, 1.0, -14.6), Vector3(5.6, 1.0, -16.5)])
+	_give(lantern, FLOAT, TriggerMode.Kind.NONE)
+	var pushes: Array = [
+		[BACK, [Vector3(5.6, 1.0, -16.5)], Vector3i(4, 0, -16)],
+		[LEFT, [Vector3(5.6, 1.0, -15.5)], Vector3i(3, 0, -16)],
+		[FORWARD, [Vector3(5.6, 1.0, -14.6), Vector3(3.5, 1.0, -14.6)], Vector3i(3, 0, -20)],
+		[
+			RIGHT,
+			[Vector3(-1.6, 1.0, -14.6), Vector3(-1.6, 1.0, -21.6), Vector3(3.5, 1.0, -21.6)],
+			Vector3i(4, 0, -20)
+		],
+		[BACK, [Vector3(4.5, 1.0, -21.6)], Vector3i(4, 0, -19)],
+		[RIGHT, [Vector3(5.6, 1.0, -21.6), Vector3(5.6, 1.0, -20.4)], Vector3i(6, 0, -19)],
+	]
+	for push: Array in pushes:
+		var route: Array[Vector3] = []
+		route.assign(push[1] as Array)
+		await _walk_route(route)
+		var cell := await _touch_push("lantern", push[0] as RuleAction.Kind)
+		assert_eq(cell, push[2] as Vector3i, "slid to %s" % push[2])
+	assert_true(await _wait_block_at("lantern", Vector3i(6, 0, -9), 1800), "the raft docked")
+	await _walk_route([Vector3(5.6, 1.0, -21.6), Vector3(-1.6, 1.0, -21.6), Vector3(-1.6, 1.0, -14.6)])
+	await _walk_to(Vector3(4.5, 1.0, -11.0), 0.3)
+	_give_creature("elder", [RIGHT, JUMP])
+	assert_true(
+		await _creature_home("elder", OptionalWorldsO3.GREENHOUSE_NEST), "the elder went home"
+	)
+	await _walk_route(
+		[
+			Vector3(5.6, 1.0, -14.6),
+			Vector3(-1.6, 1.0, -14.6),
+			Vector3(-1.6, 1.0, -22.5),
+			Vector3(-0.5, 1.0, -23.5),
+			Vector3(-0.5, 1.0, -30.5),
+		]
+	)
+	await _walk_into_goal()
+	assert_true(await _cleared(), "cleared the grand greenhouse")
+
+
+## 川を北へ泳ぐ（流されながら）。北の岸（z が bank より北）に上がれたら true。
+func _swim_north(bank: float) -> bool:
+	for i in 1200:
+		var at := _me().global_position
+		_me().move_intent = _steer(Vector3(at.x, at.y, bank - 6.0))
+		if at.z < bank + 1.3 and not _me().is_on_floor():
+			w.press_action(JUMP)
+		if at.z < bank and _me().is_on_floor() and at.y > 0.9:
+			_me().move_intent = Vector2.ZERO
+			return true
+		if at.y < -5.0:
+			break
+		await tree.physics_frame
+	_me().move_intent = Vector2.ZERO
+	return false

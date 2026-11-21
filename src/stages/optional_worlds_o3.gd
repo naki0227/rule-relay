@@ -34,6 +34,12 @@ const FROST_ROCKS: Array[Vector2i] = [
 	Vector2i(-1, -12), Vector2i(-1, -10), Vector2i(-1, -9), Vector2i(0, -13), Vector2i(1, -9), Vector2i(2, -10)
 ]
 const FROST_NEST := AABB(Vector3(4.0, 3.5, -25.0), Vector3(2.0, 2.0, 2.0))
+## O3-5 の氷の池（x 0〜4、z -20〜-16）と柱
+const LANTERN_POND := Rect2i(0, -20, 5, 5)
+const LANTERN_ROCKS: Array[Vector2i] = [
+	Vector2i(1, -20), Vector2i(2, -19), Vector2i(2, -16), Vector2i(4, -18)
+]
+const GREENHOUSE_NEST := AABB(Vector3(10.0, 3.5, -11.0), Vector3(2.0, 2.0, 2.0))
 
 
 ## O3-1 氷の温室（目安 25 分・仮）。
@@ -248,4 +254,67 @@ static func frozen_pond() -> StageDef:
 	def.spawn_points = OptionalWorlds.spawns(Vector3(0.0, 1.0, 9.5))
 	def.checkpoints = [Vector3(-5.5, 1.0, -9.5)]
 	OptionalWorlds.nest_and_goal(def, "bunny", FROST_NEST, goal)
+	return def
+
+
+## O3-5 大温室（目安 45 分・仮）。ひみつの温室の最後。
+## 南の岸（出現）→ 東へ流れる幅 10 の川 → 大温室の床（高さ 1）→ 土手（扉、高さ 9）→ 北の庭（ゴール）。
+## 大温室の床の東には、南へ流れる幅 1 の水路（両端は高さ 2 の石垣）があり、その東が巣の島（生き物は渡れない）。
+## - 南の岸に「泳ぐ」と「重い」。泳いでいても、重いと沈む（ホットバーにある能力だけが効く）。
+## - 床の西に重さの板（重さ 4）と鉄の箱（anvil）。板が押されている間、北の扉が開く。
+## - 床の真ん中の 1 段低い 5×5 の氷の池に、灯りの箱（lantern。「A 禁止」の札）。池の東の縁に 1 マスの切れ目があり、
+##   そこから箱をすべらせると、水路に落ちる。
+## - 床の北西に「浮く」。
+## 手持ちは W・A・S・D・ジャンプ。生き物（巣へ帰りたい）は床の南東にいる。
+## 想定の解き方:
+## 1. 泳ぐをホットバー、重いをかばんにして川を渡る（流されながら。対岸で水面から跳び上がる）。
+## 2. 鉄の箱に W を繰り返しで渡して北の段まで送り（板の上）、W を回収してから重いを渡す（重さ 4）→ 扉が開く。
+## 3. 灯りの箱の札を回収して生き物に預け、浮くを渡す（筏にするため）。
+## 4. 池で S・A・W・D・S・D の 6 回押す（柱の並びが許す最短）。最後の D で切れ目から水路へすべり落ちて筏になり、
+##    南へ流れて水路の南の端で止まる → 生き物の橋。
+## 5. 生き物に D とジャンプを渡す。生き物は筏を渡って巣の段々へ。土手の扉を通って北の庭の窪みへ。
+## 協力: 1 人が板に乗っても重さは 1。重いを持った仲間が板に乗れば箱は要らないが、その人は扉を通れない。
+static func grand_greenhouse() -> StageDef:
+	var def := OptionalWorlds.base("o3_5", "大温室", 45)
+	OptionalWorlds.loadout(def, ALL_MOVES)
+	var m := IslandMap.blank(Vector2i(-16, -44), 32, 57)
+	m.fill(-8, 4, 8, 12, 1)  # 南の岸
+	m.fill(-8, -24, 5, -7, 1)  # 大温室の床
+	m.fill(LANTERN_POND.position.x, LANTERN_POND.position.y, LANTERN_POND.end.x - 1, LANTERN_POND.end.y - 1, 0)
+	for rock in LANTERN_ROCKS:
+		m.fill(rock.x, rock.y, rock.x, rock.y, 1)
+	m.fill(5, -19, 5, -19, 0)  # 池の東の縁の切れ目
+	m.fill(-4, -13, -4, -13, 2)  # 板の北の段
+	m.fill(6, -23, 6, -23, 2)  # 水路の北の石垣
+	m.fill(6, -8, 6, -8, 2)  # 水路の南の石垣（筏が止まる）
+	m.fill(7, -23, 12, -8, 1)  # 巣の島
+	m.fill(8, -10, 8, -10, 2)  # 巣の段々（2・3・巣 4）
+	m.fill(9, -10, 9, -10, 3)
+	m.fill(10, -11, 11, -10, 4)
+	m.fill(-1, -29, 0, -25, 1)  # 北の土手
+	m.fill(-8, -42, 8, -30, 1)  # 北の庭
+	var goal := OpenIslands.goal_hollow(m, -2, -40, 2, -38)
+	def.terrain_boxes = m.boxes()
+	OptionalWorlds.freeze(def.terrain_boxes, LANTERN_POND, 0)
+	OptionalWorlds.freeze(def.terrain_boxes, Rect2i(5, -19, 1, 1), 0)
+	def.nature.add_current(Vector3i(-16, -3, -6), Vector3i(15, 0, 3), Vector3i(1, 0, 0))
+	def.nature.add_current(Vector3i(6, -3, -22), Vector3i(6, 0, -9), Vector3i(0, 0, 1))
+	var lantern := OptionalWorlds.crate(def, "lantern", Vector3i(4, 0, -17), OptionalWorlds.SIGN_COLOR)
+	lantern.tokens.append(StageDef.TokenSpec.new(A, true))
+	OptionalWorlds.crate(def, "anvil", Vector3i(-4, 1, -9), OptionalWorlds.STONE_COLOR)
+	OptionalWorlds.plate(def, "anvil_plate", Vector3i(-4, 1, -12), 4)
+	OptionalWorlds.door(
+		def,
+		"garden_gate",
+		Vector3i(-1, 1, -27),
+		Vector3i(2, OptionalWorlds.GATE_HEIGHT, 1),
+		PackedStringArray(["anvil_plate"])
+	)
+	OptionalWorlds.item(def, SWIM, Vector3(-5.5, 1.0, 6.5))
+	OptionalWorlds.item(def, HEAVY, Vector3(5.5, 1.0, 6.5))
+	OptionalWorlds.item(def, FLOAT, Vector3(-5.5, 1.0, -20.5))
+	OptionalWorlds.creature(def, "elder", Vector3(3.5, 1.0, -10.5), Creature.MODEL_WISH)
+	def.spawn_points = OptionalWorlds.spawns(Vector3(0.0, 1.0, 9.5))
+	def.checkpoints = [Vector3(-6.5, 1.0, -9.5)]
+	OptionalWorlds.nest_and_goal(def, "elder", GREENHOUSE_NEST, goal)
 	return def

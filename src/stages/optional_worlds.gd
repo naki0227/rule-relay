@@ -126,20 +126,25 @@ static func nest_and_goal(
 	def.clear_condition = ClearCondition.all_of(parts)
 
 
-## 地形の箱のうち、rect（x・z、両端を含む）の中で上面が top の箱を氷（"ice"）にする（IslandMap は高さで
-## 種類を決めるので、氷は作った後で塗り替える）。
+## 地形の箱のうち、rect（x・z、両端を含む）の中で上面が top の部分を氷（"ice"）にする（IslandMap は高さで
+## 種類を決めるので、氷は作った後で塗り替える）。箱が rect からはみ出していれば、x で切り分ける。
 static func freeze(boxes: Array, rect: Rect2i, top: int) -> void:
+	var result: Array = []
 	for box: Array in boxes:
 		var lo := box[0] as Vector3i
 		var hi := box[1] as Vector3i
-		var inside := (
-			lo.x >= rect.position.x
-			and hi.x < rect.end.x
-			and lo.z >= rect.position.y
-			and hi.z < rect.end.y
-		)
-		if inside and hi.y == top - 1:
-			box[2] = "ice"
+		var rows_inside := lo.z >= rect.position.y and hi.z < rect.end.y
+		var x0 := maxi(lo.x, rect.position.x)
+		var x1 := mini(hi.x, rect.end.x - 1)
+		if not rows_inside or hi.y != top - 1 or x0 > x1:
+			result.append(box)
+			continue
+		if lo.x < x0:
+			result.append([lo, Vector3i(x0 - 1, hi.y, hi.z), box[2]])
+		result.append([Vector3i(x0, lo.y, lo.z), Vector3i(x1, hi.y, hi.z), "ice"])
+		if hi.x > x1:
+			result.append([Vector3i(x1 + 1, lo.y, lo.z), hi, box[2]])
+	boxes.assign(result)
 
 
 static func spawns(center: Vector3) -> Array[Vector3]:
