@@ -103,3 +103,147 @@ func test_o3_2_canal_garden_by_raft() -> void:
 		[Vector3(5.5, 0.0, -20.5), Vector3(5.5, 1.0, -21.5), Vector3(5.5, 2.0, -23.5)]
 	)
 	assert_true(await _cleared(), "cleared the canal garden")
+
+
+# --- O3-3 札の苗床 ------------------------------------------------------------
+
+
+## もぐらを小山の板へ上げてから能力を回収し（板の上にとどまる）、子どもの札をもぐらに預けて、子どもを巣へ。
+func test_o3_3_sign_nursery_mole_holds_the_plate() -> void:
+	await _enter("o3_3")
+	await _walk_to(Vector3(2.5, 0.0, 5.5), 0.3)
+	_give_creature("mole", [LEFT, JUMP])
+	assert_true(await _wait_open("gate_1", 900), "the mole climbed onto the knoll plate")
+	await _walk_to(Vector3(4.5, 0.0, 4.6), 0.3)
+	await _recall_creature("mole")
+	await wait_physics_frames(120)
+	assert_true(_door("gate_1").is_open(), "the mole stays on the plate without abilities")
+	await _walk_route([Vector3(-0.5, 0.0, 0.5), Vector3(-0.5, 0.0, -8.5)])
+	await _walk_to(Vector3(0.5, 0.0, -16.5), 0.3)
+	_recall_creature_bans("kit")
+	assert_true(w.ledger.player_prohibited(JUMP, _me().player_id), "the kit's sign came to me")
+	await _walk_route([Vector3(-0.5, 0.0, -6.5), Vector3(-0.5, 0.0, 0.5), Vector3(4.5, 0.0, 4.6)])
+	_hand_off_ban(JUMP, _creature("mole"))
+	await _walk_route([Vector3(-0.5, 0.0, 0.5), Vector3(-0.5, 0.0, -8.5), Vector3(0.5, 0.0, -16.5)])
+	_give_creature("kit", [RIGHT, JUMP])
+	assert_true(await _creature_home("kit", OptionalWorldsO3.NURSERY_NEST), "the kit went home")
+	# 子どもが踏んで開けた扉 2 は、自分が板を踏むと閉じる。踏み直して開ける
+	await _walk_to(Vector3(-0.5, 0.0, -20.8), 0.2)
+	assert_true(_door("gate_2").is_open(), "the kit opened gate 2 on its way")
+	await _walk_to(Vector3(-0.5, 0.0, -21.6), 0.2)
+	assert_true(
+		await _wait(func() -> bool: return not _door("gate_2").heading_open, 60),
+		"my step on the plate flips gate 2 shut"
+	)
+	await _walk_to(Vector3(-0.5, 0.0, -20.6), 0.2)
+	await _walk_to(Vector3(-0.5, 0.0, -21.6), 0.2)
+	assert_true(await _wait_open("gate_2"), "stepping on it again opens gate 2")
+	await _walk_route([Vector3(-0.5, 0.0, -26.5), Vector3(2.5, 0.0, -28.6)])
+	await _recall_creature("kit")
+	await _walk_into_goal(
+		[Vector3(-5.5, 0.0, -33.0), Vector3(-5.5, 1.0, -33.5), Vector3(-5.5, 2.0, -35.5)]
+	)
+	assert_true(await _cleared(), "cleared the sign nursery")
+
+
+## 生き物に付いている札（禁止）を F で回収する（届く所に立っている前提）。
+func _recall_creature_bans(key: String) -> void:
+	var critter := _creature(key)
+	w.interact(critter)
+	assert_true(w.ledger.tokens_on(critter.entity_id).is_empty(), "took the sign off %s" % key)
+
+
+# --- O3-4 凍った池 ------------------------------------------------------------
+
+
+## おもりをかばんに入れて川を泳いで渡り、霜の箱の札を外しておもりを渡し、6 回押して板に止める。
+func test_o3_4_frozen_pond_swim_then_slide() -> void:
+	await _enter("o3_4")
+	await _pick(Vector3(-5.5, 1.0, 6.5), SWIM)
+	await _pick_to_bag(Vector3(5.5, 1.0, 6.5))
+	assert_eq(_slot_of(HEAVY), -1, "the weight stays in the bag while swimming")
+	await _walk_to(Vector3(-6.5, 1.0, 4.5), 0.3)
+	var landed := false
+	for i in 1200:
+		var at := _me().global_position
+		_me().move_intent = _steer(Vector3(at.x, at.y, -12.0))
+		if at.z < -5.6 and not _me().is_on_floor():
+			w.press_action(JUMP)
+		if at.z < -6.9 and _me().is_on_floor() and at.y > 0.9:
+			landed = true
+			break
+		if at.y < -5.0:
+			break
+		await tree.physics_frame
+	_me().move_intent = Vector2.ZERO
+	assert_true(landed, "swam across the river (%s)" % _me().global_position)
+	await _walk_to(Vector3(5.5, 1.0, -7.4), 0.3)
+	await _rim_walk(Vector3(0.5, 1.0, -7.6))
+	await _recall_all_from("frost_box")
+	await _rim_walk(Vector3(3.6, 1.0, -13.6))
+	await _walk_to(Vector3(4.5, 1.0, -14.0), 0.3)
+	_hand_off_ban(BACK, _creature("bunny"))
+	_bag_to_hotbar(HEAVY)
+	await _rim_walk(Vector3(0.5, 1.0, -7.6))
+	var crate := _block("frost_box")
+	_give(crate, HEAVY, TriggerMode.Kind.NONE)
+	var pushes: Array = [
+		[FORWARD, Vector3(0.5, 1.0, -7.6), Vector3i(0, 0, -12)],
+		[RIGHT, Vector3(-2.6, 1.0, -11.5), Vector3i(2, 0, -12)],
+		[FORWARD, Vector3(3.6, 1.0, -11.5), Vector3i(2, 0, -13)],
+		[LEFT, Vector3(3.6, 1.0, -12.5), Vector3i(1, 0, -13)],
+		[BACK, Vector3(1.5, 1.0, -13.6), Vector3i(1, 0, -10)],
+		[LEFT, Vector3(1.5, 1.0, -7.6), Vector3i(0, 0, -10)],
+	]
+	for push: Array in pushes:
+		await _rim_walk(push[1] as Vector3)
+		var cell := await _touch_push("frost_box", push[0] as RuleAction.Kind)
+		assert_eq(cell, push[2] as Vector3i, "slid to %s" % push[2])
+	assert_true(await _wait_open("garden_gate"), "the heavy box on the plate opened the gate")
+	await _rim_walk(Vector3(3.6, 1.0, -15.0))
+	_give_creature("bunny", [RIGHT, JUMP])
+	assert_true(await _creature_home("bunny", OptionalWorldsO3.FROST_NEST), "the bunny went home")
+	await _walk_route([Vector3(-0.5, 1.0, -17.5), Vector3(-0.5, 1.0, -23.5)])
+	await _walk_to(Vector3(3.5, 1.0, -25.6), 0.3)
+	await _recall_creature("bunny")
+	await _walk_into_goal(
+		[Vector3(5.5, 1.0, -27.0), Vector3(5.5, 2.0, -27.5), Vector3(5.5, 3.0, -29.5)]
+	)
+	assert_true(await _cleared(), "cleared the frozen pond")
+
+
+## 氷の池のまわりの縁（高さ 1）だけを歩いて target へ（池へ落ちない）。縁の角を順に通る。
+func _rim_walk(target: Vector3) -> void:
+	var corners: Array[Vector3] = [
+		Vector3(-2.6, 1.0, -7.6), Vector3(3.6, 1.0, -7.6), Vector3(3.6, 1.0, -13.6), Vector3(-2.6, 1.0, -13.6)
+	]
+	var here := _me().global_position
+	var near := 0
+	for i in corners.size():
+		if corners[i].distance_to(here) < corners[near].distance_to(here):
+			near = i
+	var far := 0
+	for i in corners.size():
+		if corners[i].distance_to(target) < corners[far].distance_to(target):
+			far = i
+	var i := near
+	await _walk_to(corners[i], 0.3)
+	while i != far:
+		i = (i + 1) % corners.size()
+		await _walk_to(corners[i], 0.3)
+	await _walk_to(target, 0.3)
+
+
+## 触って単発の移動を渡して押し、止まったセルを返す。
+func _touch_push(key: String, action: RuleAction.Kind) -> Vector3i:
+	var block := _block(key)
+	_give(block, action, TriggerMode.Kind.SINGLE_SHOT)
+	w.press_action(action)
+	var still := 0
+	for i in 600:
+		var moving := block.is_moving_horizontally() or not block.is_grounded()
+		still = 0 if moving else still + 1
+		if still > 20:
+			break
+		await tree.physics_frame
+	return block.cell()
