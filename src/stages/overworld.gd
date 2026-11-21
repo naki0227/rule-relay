@@ -43,6 +43,11 @@ const _MOVES: Array[RuleAction.Kind] = [
 	RuleAction.Kind.FORWARD, RuleAction.Kind.LEFT, RuleAction.Kind.BACK, RuleAction.Kind.RIGHT
 ]
 const _EQUIPMENT: Array[RuleAction.Kind] = [RuleAction.Kind.HIGH_JUMP, RuleAction.Kind.CLIMB]
+## 持っているだけで効く性質（キーが無い）。ホットバーに置くと勝手に効く（重いと浮くは打ち消し合い、
+## 重いと水に沈む）ので、広場では通常インベントリに渡し、使うときに自分でホットバーへ移す。
+const _PASSIVES: Array[RuleAction.Kind] = [
+	RuleAction.Kind.HEAVY, RuleAction.Kind.FLOAT, RuleAction.Kind.SWIM
+]
 
 
 static func build(state: OverworldState) -> StageDef:
@@ -262,13 +267,17 @@ static func _path(m: IslandMap, a: Vector2, b: Vector2, h: int) -> void:
 # --- 能力とポータル ----------------------------------------------------------------
 
 
-## 広場の能力: W/A/S/D・ジャンプと、クリアで開いた能力。装備（ブーツ・グローブ）は装備した状態で渡す。
+## 広場の能力: W/A/S/D・ジャンプと、クリアで開いた能力。装備（ブーツ・グローブ）は装備した状態で、
+## 持っているだけで効く性質（重い・浮く・泳ぐ）は通常インベントリに渡す（docs/adr/0015 の追記）。
+## 全部開いてもホットバーは 7 枠（W/A/S/D・ジャンプ・投げる・ダッシュ）で、2 枠は性質を移す空き。
 static func _loadout(def: StageDef, state: OverworldState) -> void:
 	var hotbar: Array[RuleAction.Kind] = _MOVES.duplicate()
 	hotbar.append(RuleAction.Kind.JUMP)
 	for action in state.unlocked_actions():
 		if _EQUIPMENT.has(action):
 			def.start_equipment.append(action)
+		elif _PASSIVES.has(action):
+			def.start_inventory.append(action)
 		elif hotbar.size() < RuleLedger.HOTBAR_SIZE:
 			hotbar.append(action)
 	def.set_loadout_for_all(hotbar)

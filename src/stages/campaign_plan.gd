@@ -455,7 +455,7 @@ static func _forest() -> World:
 		w,
 		"w4_weight_plates",
 		"重さの板",
-		"乗ると沈む板と「重い」（要実装: 重い）",
+		"乗ると沈む板と「重い」（重い ×1 で 4 人分）",
 		Vector2(-52.5, -5.5),
 		{"grants": "HEAVY", "species": "lamb", "building": "ow_stall"}
 	)
@@ -492,7 +492,7 @@ static func _garden() -> World:
 		w,
 		"w5_range_signs",
 		"まとめて渡す札",
-		"範囲で能力・禁止をまとめて渡す",
+		"範囲で渡す×重さの板 3 枚の扉（動物の願いで小山の板）",
 		Vector2(-40.5, -36.5),
 		{"species": "lamb", "building": "ow_house"}
 	)
@@ -508,7 +508,7 @@ static func _garden() -> World:
 		w,
 		"w5_ice_garden",
 		"氷の庭",
-		"止まれない氷の床（氷は実装済み）",
+		"氷の床×札: すべる石を杭で止めて棚の下の足場に",
 		Vector2(-52.5, -52.5),
 		{"species": "bunny", "tint": Color("#dbeef7"), "building": "ow_stall"}
 	)
@@ -516,7 +516,7 @@ static func _garden() -> World:
 		w,
 		"w5_sign_relay",
 		"札の受け渡し",
-		"禁止を仲間・生き物へ渡して道を開ける",
+		"札を遠くの石・生き物へ渡す×重い×重さの板",
 		Vector2(-42.5, -58.5),
 		{"species": "lamb", "building": "ow_garden"}
 	)
@@ -537,7 +537,7 @@ static func _peaks() -> World:
 		w,
 		"w6_warp_stones",
 		"ワープの石",
-		"ステージの中の対になった石で移る（ワープの石）",
+		"ワープの石（ブロックも移る）と、浮くの初出（風船）",
 		Vector2(-12.5, -27.5),
 		{"y": 4, "grants": "FLOAT", "species": "bunny", "building": "ow_house"}
 	)
@@ -545,7 +545,7 @@ static func _peaks() -> World:
 		w,
 		"w6_misty_terraces",
 		"霧の段丘",
-		"見えない段を鐘の音波で探す",
+		"時の鐘×ワープの石: 鳴っている間に石で門の前へ",
 		Vector2(-3.5, -31.5),
 		{"y": 4, "species": "lamb", "building": "ow_garden"}
 	)
@@ -553,7 +553,7 @@ static func _peaks() -> World:
 		w,
 		"w6_peak_bells",
 		"峰の鐘",
-		"ワープの石×信号×浮くの組み合わせ",
+		"ワープの石×信号（こだま石）×浮くの組み合わせ",
 		Vector2(8.5, -28.5),
 		{"y": 4, "hard": true, "species": "wish", "building": "ow_windmill"}
 	)
@@ -561,7 +561,7 @@ static func _peaks() -> World:
 		w,
 		"w6_river_run",
 		"流れる川",
-		"流れに乗る・逆らう（水の流れ・泳ぐは実装済み）",
+		"流れの川を泳いで渡る・筏を押して流れに乗る",
 		Vector2(14.5, -40.5),
 		{"y": 4, "grants": "SWIM", "species": "kit", "building": "ow_fountain"}
 	)
@@ -569,7 +569,7 @@ static func _peaks() -> World:
 		w,
 		"w6_long_ridge",
 		"長い尾根",
-		"長い道のりでの装備の持ち回り",
+		"重い×風×水×浮くの持ち回り（長い道のり）",
 		Vector2(5.5, -49.5),
 		{"y": 4, "species": "lamb", "building": "ow_stall"}
 	)
