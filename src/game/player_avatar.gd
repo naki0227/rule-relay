@@ -34,6 +34,13 @@ var remote_on_floor: bool = true
 
 ## 壁を登っている最中（クライミンググローブを装備して壁へ向かって進んでいる）。
 var climbing: bool = false
+## 自然の仕掛け（風・氷・水。GameWorld.nature）。null なら何も受けない。自分のアバターだけが受ける
+## （操り人形は通信で受け取った位置へ動くだけ）。動かし方は NatureMotion（docs/adr/0015）。
+var nature: NatureField
+## 氷の上ですべっている勢い（m/秒、x = 東、y = 南）。氷を離れて床に着くと 0 に戻る。
+var slide: Vector2 = Vector2.ZERO
+## 水に浮いている・泳いでいる（水面から跳べる）。
+var afloat: bool = false
 
 var _jump_requested: bool = false
 ## ダッシュの残りの距離（m）と向き。ダッシュ中は重力を受けない（穴の上も抜けられる）。
@@ -144,9 +151,12 @@ func _physics_process(delta: float) -> void:
 	velocity.z = direction.z * Tuning.PLAYER_SPEED
 	if not is_on_floor():
 		velocity.y -= Tuning.GRAVITY * delta
+	if nature != null:
+		NatureMotion.apply(self, delta)
 	if _jump_requested:
 		_jump_requested = false
-		if is_on_floor() and ledger != null and ledger.player_can(RuleAction.Kind.JUMP, player_id):
+		var footing := is_on_floor() or afloat
+		if footing and ledger != null and ledger.player_can(RuleAction.Kind.JUMP, player_id):
 			velocity.y = Tuning.jump_velocity(jump_height())
 			jumped.emit()
 	climbing = _should_climb(direction)

@@ -171,16 +171,22 @@ func _bodies() -> Array[Dictionary]:
 	for avatar in avatars:
 		if avatar.visible:
 			var at := avatar.global_position
-			out.append(_body("p%d" % avatar.player_id, "player", avatar, at, PLAYER_MIDDLE))
+			var body := _body("p%d" % avatar.player_id, "player", avatar, at, PLAYER_MIDDLE)
+			body["weight"] = BodyTraits.weight_units(world.ledger, avatar.player_id)
+			out.append(body)
 	for id in world.blocks:
 		var block := world.blocks[id]
 		var feet := block.global_position - Vector3(0.0, RuleBlock.SIZE * 0.5, 0.0)
-		out.append(_body("b%d" % id, "block", block, feet, RuleBlock.SIZE * 0.5))
+		var body := _body("b%d" % id, "block", block, feet, RuleBlock.SIZE * 0.5)
+		body["weight"] = BodyTraits.weight_units(world.ledger, id)
+		out.append(body)
 	for id in world.creatures:
 		var creature := world.creatures[id]
-		out.append(
-			_body("c%d" % id, "creature", creature, creature.global_position, CREATURE_MIDDLE)
+		var body := _body(
+			"c%d" % id, "creature", creature, creature.global_position, CREATURE_MIDDLE
 		)
+		body["weight"] = BodyTraits.weight_units(world.ledger, id)
+		out.append(body)
 	return out
 
 
@@ -198,10 +204,12 @@ func _body(key: String, kind: String, node: Node3D, feet: Vector3, middle: float
 
 func _tick_plates(bodies: Array[Dictionary]) -> void:
 	var feet: Array[Vector3] = []
+	var weights: Array[float] = []
 	for b in bodies:
 		feet.append(b["feet"] as Vector3)
+		weights.append(float(b.get("weight", 1.0)))
 	for plate in plates:
-		if plate.evaluate(feet):
+		if plate.evaluate(feet, weights):
 			var sound := &"block_step@2" if plate.pressed else &"block_step@-3"
 			world._sound(sound, plate.global_position)
 

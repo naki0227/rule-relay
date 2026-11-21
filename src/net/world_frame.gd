@@ -3,7 +3,7 @@ extends RefCounted
 ## ホストが 1 秒に 20 回配る「世界のいまの様子」（位置と見た目だけ。ルールの状態は台帳で別に配る）。
 ## {"blocks": {id: [位置, 光っているか(信号)]}, "creatures": {id: [位置, 向き, 持ち物]},
 ##  "avatars": {player_id: [位置, 向き, 歩いているか, 床にいるか]}, "bells": [残り時間...],
-##  "balls": [位置...]}
+##  "balls": [位置...], "nature": 自然の仕掛けの時計（脈打つ風の拍子をそろえる）}
 
 
 static func capture(w: GameWorld) -> Dictionary:
@@ -33,6 +33,7 @@ static func capture(w: GameWorld) -> Dictionary:
 		"avatars": avatar_states,
 		"bells": bell_states,
 		"balls": balls,
+		"nature": w.nature.clock,
 		"mechanisms": MechanismSet.capture_frame(w),
 	}
 
@@ -54,6 +55,8 @@ static func apply(w: GameWorld, data: Dictionary, ghosts: Array[MeshInstance3D])
 	for i in mini(bell_states.size(), w.bells.size()):
 		w.bells[i].remaining = float(bell_states[i])
 	_apply_balls(w, data.get("balls", []) as Array, ghosts)
+	if typeof(data.get("nature")) == TYPE_FLOAT:
+		w.nature.clock = float(data["nature"])
 	MechanismSet.apply_frame(w, data.get("mechanisms", {}) as Dictionary)
 
 

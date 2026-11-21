@@ -46,6 +46,7 @@ func _ready() -> void:
 	PrototypeIsland.build_environment(self)
 	# 地形のどのセルにも能力を渡せる（渡したセルは動くブロックになる）
 	build_terrain(def.terrain_boxes)
+	NatureBuilder.build(self, def.nature)
 	for b in def.blocks:
 		var block := (
 			add_launcher(b.cell, b.launcher_direction)

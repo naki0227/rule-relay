@@ -93,6 +93,26 @@ func test_a_plate_counts_what_stands_on_it() -> void:
 	plate.free()
 
 
+## 「重い」を持つもの1つで、2人分の板も沈む（BodyTraits.weight_units。2026-11-21 ギミック2本をつないだ）。
+func test_one_heavy_body_presses_a_two_person_plate() -> void:
+	var spec := MechanismSpecs.PlateSpec.new("p", Vector3i(0, 0, 0))
+	spec.required_weight = 2
+	var plate := PressurePlate.new()
+	plate.setup(spec)
+	var one: Array[Vector3] = [Vector3(0.5, 0.0, 0.5)]
+	var light: Array[float] = [1.0]
+	assert_false(plate.evaluate(one, light), "one light body is not enough")
+	var heavy: Array[float] = [BodyTraits.weight_units(_heavy_ledger(), RuleLedger.PLAYER_ID)]
+	assert_true(plate.evaluate(one, heavy), "one heavy body presses it")
+	plate.free()
+
+
+func _heavy_ledger() -> RuleLedger:
+	var ledger := RuleLedger.new()
+	ledger.give_player_item(RuleAction.Kind.HEAVY, false, 0)
+	return ledger
+
+
 # --- 扉 -----------------------------------------------------------------------
 
 

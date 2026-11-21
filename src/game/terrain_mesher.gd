@@ -19,6 +19,7 @@ const COLORS := {
 	"dirt": [Color("#b88a5c"), Color("#c0936a")],
 	"rock": [Color("#b3a48e"), Color("#c1b39c")],
 	"sand": [Color("#e6c995"), Color("#eed4a6")],
+	"ice": [Color("#cfe9f5"), Color("#dcf0f8")],
 }
 
 const NORMALS: Array[Vector3i] = [
@@ -130,8 +131,8 @@ static func _color(
 	if kind == "grass":
 		var grassy := n.y > 0 or out.y > 0.45 or y > top - GRASS_LIP
 		return (COLORS["grass"] if grassy else COLORS["dirt"])[index]
-	if kind == "sand":
-		return COLORS["sand"][index]
+	if kind == "sand" or kind == "ice":
+		return COLORS[kind][index]
 	return COLORS["rock"][index]
 
 

@@ -3,6 +3,7 @@ extends RefCounted
 ## チェックポイント用に、世界をまるごと記録・復元する（企画書 9）。GameWorld から切り出した。
 ## 記録するもの: 能力と器の所有（台帳）、プレイヤーの位置、ブロックの位置・速度・移動と周期の途中、
 ## 生き物、鐘の鳴っている残り時間、発射台の周期、選んでいる枠と付与方式、到達済みか。
+## 自然の仕掛けの時計と、ブロック・器を運ぶ途中の経過時間（NatureField.to_dict）も残す。
 ## 飛んでいる途中の玉は記録しない（復元したら消える）。
 
 
@@ -32,6 +33,7 @@ static func capture(w: GameWorld) -> Dictionary:
 		"selected_slot": w.selected_slot,
 		"lend_mode": w.lend_mode,
 		"goal_cleared": w.goal_cleared,
+		"nature": w.nature.to_dict(),
 		"mechanisms": MechanismSet.capture(w),
 	}
 
@@ -48,6 +50,8 @@ static func apply(w: GameWorld, snapshot: Dictionary) -> void:
 	w.ledger.restore(snapshot["ledger"] as Dictionary)
 	w.player.global_position = snapshot["player_position"] as Vector3
 	w.player.velocity = Vector3.ZERO
+	w.player.slide = Vector2.ZERO
+	w.nature.restore(snapshot.get("nature", {}) as Dictionary)
 	var block_states := snapshot["blocks"] as Dictionary
 	for id: int in block_states:
 		var state := block_states[id] as Dictionary

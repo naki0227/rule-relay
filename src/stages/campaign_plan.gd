@@ -12,16 +12,20 @@ extends RefCounted
 ## - 目安時間はどれも仮。真ん中と最後のステージ（hard）は難しくする。寄り道のワールド（optional）は
 ##   進行に要らず、複雑な組み合わせで難しい。
 
-## 広場で使える能力の名前 → 台帳の行動。まだ台帳に無い新しい能力（"FLOAT" など）は載せない。
+## 広場で使える能力の名前 → 台帳の行動。まだ台帳に無い新しい能力は載せない
+## （重い・浮く・泳ぐは 2026-11-21 に台帳へ入った。docs/adr/0015）。
 const GRANT_ACTIONS: Dictionary[String, RuleAction.Kind] = {
 	"THROW": RuleAction.Kind.THROW,
 	"HIGH_JUMP": RuleAction.Kind.HIGH_JUMP,
 	"CLIMB": RuleAction.Kind.CLIMB,
 	"DASH": RuleAction.Kind.DASH,
+	"HEAVY": RuleAction.Kind.HEAVY,
+	"FLOAT": RuleAction.Kind.FLOAT,
+	"SWIM": RuleAction.Kind.SWIM,
 }
 ## 新しいコードが要る能力・仕掛け（docs/campaign-plan.md の「要実装」）。
-## 時の鐘・重さの板・ワープの石・スイッチの扉は実装済み（MechanismSpecs。docs/adr/0014）。
-const NEEDS_CODE: PackedStringArray = ["FLOAT", "HEAVY", "SWIM", "wind", "ice", "current"]
+## 時の鐘・重さの板・ワープの石・スイッチの扉（docs/adr/0014）と、風・氷・水と流れ・重い・浮く・泳ぐ（docs/adr/0015）は実装済み。
+const NEEDS_CODE: PackedStringArray = []
 
 static var _worlds: Array[World] = []
 ## 作ってあるステージの id → [表示名, 目安の分]（StageCatalog.all_stages() は毎回すべての定義を作るので、
@@ -397,7 +401,7 @@ static func _floating() -> World:
 		w,
 		"w3_wind_path",
 		"風の通り道",
-		"風で押し流される床（要実装: 風）",
+		"風で押し流される床（風は実装済み）",
 		Vector2(49.5, -48.5),
 		{"species": "bunny", "tint": Color("#d8ecf6"), "building": "ow_windmill"}
 	)
@@ -503,7 +507,7 @@ static func _garden() -> World:
 		w,
 		"w5_ice_garden",
 		"氷の庭",
-		"止まれない氷の床（要実装: 氷）",
+		"止まれない氷の床（氷は実装済み）",
 		Vector2(-52.5, -52.5),
 		{"species": "bunny", "tint": Color("#dbeef7"), "building": "ow_stall"}
 	)
@@ -556,7 +560,7 @@ static func _peaks() -> World:
 		w,
 		"w6_river_run",
 		"流れる川",
-		"流れに乗る・逆らう（要実装: 水の流れ・泳ぐ）",
+		"流れに乗る・逆らう（水の流れ・泳ぐは実装済み）",
 		Vector2(14.5, -40.5),
 		{"y": 4, "grants": "SWIM", "species": "kit", "building": "ow_fountain"}
 	)

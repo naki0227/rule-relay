@@ -7,7 +7,11 @@ extends RefCounted
 ## HIGH_JUMP / CLIMB: 装備（ジャンプブーツ / クライミンググローブ）に宿る強化（企画書 7）。
 ## DASH: 方向キー（W/A/D。無ければ体の向き）へ、マス単位でまっすぐ水平に突進する。途中に穴があっても落ちずに抜けられる
 ## （2026-11-20 本人確定の方向。基礎 3 マス、n 個で 3n マス。数値・キーは仮）。
-enum Kind { FORWARD, LEFT, BACK, RIGHT, JUMP, THROW, HIGH_JUMP, CLIMB, DASH }
+## HEAVY / FLOAT / SWIM: 持っているだけで効く性質（キーは無い。docs/adr/0015）。
+## - HEAVY（重い）: 風に流されない・水に沈む・重さの板に 4n 人分の重さ（BodyTraits.weight_units）
+## - FLOAT（浮く）: 落ちる速さの上限が 1.6/n m/秒（n 倍ゆっくり）・水に浮く。重いと浮くは数で打ち消し合う
+## - SWIM（泳ぐ）: 水の中を 2.5n m/秒で泳げる（流れに逆らうには数が要る）
+enum Kind { FORWARD, LEFT, BACK, RIGHT, JUMP, THROW, HIGH_JUMP, CLIMB, DASH, HEAVY, FLOAT, SWIM }
 
 ## 開始時からの基本の行動（W/A/S/D・ジャンプ）。
 const BASIC: Array[Kind] = [Kind.FORWARD, Kind.LEFT, Kind.BACK, Kind.RIGHT, Kind.JUMP]
@@ -21,6 +25,9 @@ const ALL: Array[Kind] = [
 	Kind.HIGH_JUMP,
 	Kind.CLIMB,
 	Kind.DASH,
+	Kind.HEAVY,
+	Kind.FLOAT,
+	Kind.SWIM,
 ]
 
 
@@ -44,6 +51,12 @@ static func label(kind: Kind) -> String:
 			return "登る"
 		Kind.DASH:
 			return "ダッシュ"
+		Kind.HEAVY:
+			return "重い"
+		Kind.FLOAT:
+			return "浮く"
+		Kind.SWIM:
+			return "泳ぐ"
 	return "?"
 
 
@@ -68,10 +81,10 @@ static func is_horizontal(kind: Kind) -> bool:
 ## 法則の音の音程（半音）。能力ごとに決まっていて、渡す・回収するときに鳴らす（ハ長調の五音で上がる）。
 ## どの能力が動いたかを、耳でも分かるようにする（docs/sound-design.md）。
 static func motif_semitone(kind: Kind) -> int:
-	return [0, 2, 4, 7, 9, 12, 14, 16, 19][int(kind)]
+	return [0, 2, 4, 7, 9, 12, 14, 16, 19, 21, 24, 26][int(kind)]
 
 
 ## ブロックが自分から「1回の行動」として起こす行動（発動方式が要る）。
-## それ以外（投げる・高跳び・登る）は持っているだけで効く／効果のない性質で、方式を持たない。
+## それ以外（投げる・高跳び・登る・重い・浮く・泳ぐ）は持っているだけで効く／効果のない性質で、方式を持たない。
 static func is_triggered(kind: Kind) -> bool:
 	return kind in [Kind.FORWARD, Kind.LEFT, Kind.BACK, Kind.RIGHT, Kind.JUMP, Kind.DASH]

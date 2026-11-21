@@ -49,6 +49,8 @@ var avatars: Dictionary[int, PlayerAvatar] = {}
 var post_sink: Callable = Callable()
 ## 持ち物の画面からの操作の窓口（参加者ならホストへの依頼になる）。
 var ledger_actions: LedgerActions = LedgerActions.new()
+## 自然の仕掛け（風・氷・水。docs/adr/0015）。置き方は NatureBuilder が StageDef.nature から入れる。
+var nature: NatureField = NatureField.new()
 
 var _next_block_id: int = FIRST_BLOCK_ID
 var _repeat_cursors: Dictionary[int, RepeatCursor] = {}
@@ -78,6 +80,7 @@ var _terrain_target: TerrainCell
 func _ready() -> void:
 	ledger_actions.ledger = ledger
 	ledger.changed.connect(_on_ledger_changed)
+	nature.blocks = blocks
 
 
 # --- 構築 -------------------------------------------------------------------
@@ -87,6 +90,7 @@ func spawn_player(at: Vector3) -> PlayerAvatar:
 	player = PlayerAvatar.new()
 	player.name = "Player"
 	player.ledger = ledger
+	player.nature = nature
 	player.position = at
 	_spawn_point = at
 	add_child(player)
@@ -148,10 +152,11 @@ func terrain_target(cell: Vector3i) -> TerrainCell:
 	return _terrain_target
 
 
-## 動かない地形を作る。boxes: [[最小のセル, 最大のセル, 種類], ...]（種類は grass / rock / sand）。
+## 動かない地形を作る。boxes: [[最小のセル, 最大のセル, 種類], ...]（種類は grass / rock / sand / ice）。
 ## どのセルも、能力を渡すと動くブロックになる（TerrainPromotion）。
 func build_terrain(boxes: Array) -> void:
 	TerrainPromotion.build(self, boxes)
+	nature.terrain = terrain
 
 
 ## 鐘を置く（企画書 5.4 の音源。2026-11-19 本人の判断: 音源は基本、鐘で、F で鳴らす）。
@@ -670,12 +675,14 @@ func _falling_blocks() -> Array[RuleBlock]:
 
 
 func _physics_process(delta: float) -> void:
+	nature.advance(delta)  # 参加者もプレイヤーの風のために進める（ホストの時計に WorldFrame で合わせる）
 	if replica:
 		return  # ルールと物理はホストが決める
 	WorldTicks.climbers(self)
 	WorldTicks.repeats(self, delta)
 	WorldTicks.signals(self, delta)
 	WorldTicks.launchers(self, delta)
+	NatureTicks.run(self, delta)
 	if player == null:
 		return
 	WorldTicks.rescue_lost(self)

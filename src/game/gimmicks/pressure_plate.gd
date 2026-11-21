@@ -14,7 +14,7 @@ const PRESS_SPEED: float = 8.0
 var spec: MechanismSpecs.PlateSpec
 var pressed: bool = false
 ## いま乗っている重さ（ホストだけが数える。表示用）。
-var weight: int = 0
+var weight: float = 0.0
 
 var _amount: float = 0.0
 var _players: Array[AnimationPlayer] = []
@@ -53,12 +53,13 @@ func covers(feet: Vector3) -> bool:
 
 
 ## 乗っている重さから、押されているかを決める（ホスト）。変わったら true。
-func evaluate(feet_points: Array[Vector3]) -> bool:
-	weight = 0
-	for feet in feet_points:
-		if covers(feet):
-			weight += 1
-	var now := weight >= spec.required_weight
+## weights は feet_points と同じ順の重さ（ふつうは 1。「重い」を持つものは BodyTraits.weight_units）。
+func evaluate(feet_points: Array[Vector3], weights: Array[float] = []) -> bool:
+	weight = 0.0
+	for i in feet_points.size():
+		if covers(feet_points[i]):
+			weight += weights[i] if i < weights.size() else 1.0
+	var now := weight >= float(spec.required_weight)
 	if now == pressed:
 		return false
 	pressed = now

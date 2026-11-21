@@ -3,7 +3,9 @@ extends RefCounted
 ## 地形のセルを動くブロックにする／地形へ戻す（2026-11-19 本人の判断: どのブロックにも渡せる）。
 ## GameWorld から切り出した。ブロックの ID はセルの並び順で決まるので、復元しても同じ ID になる。
 
-const MODELS := {"grass": "grass_cell", "rock": "rock_cell", "sand": "sandstone_cell"}
+const MODELS := {
+	"grass": "grass_cell", "rock": "rock_cell", "sand": "sandstone_cell", "ice": "ice_cell"
+}
 
 
 static func build(w: GameWorld, boxes: Array) -> void:
