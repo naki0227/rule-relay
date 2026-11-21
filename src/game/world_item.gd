@@ -13,13 +13,13 @@ var _visual: Node3D
 var _time: float = 0.0
 
 
-func setup(v: RuleVessel, t: RuleToken) -> void:
+func setup(v: RuleVessel, t: RuleToken, ability_only: bool = false) -> void:
 	vessel_id = v.id
 	name = "WorldItem%d" % v.id
 	_visual = Node3D.new()
 	_visual.name = "Visual"
 	_visual.position.y = 0.7
-	_visual.add_child(_make_model(t))
+	_visual.add_child(medal_model(t) if ability_only else _make_model(t))
 	add_child(_visual)
 	var shadow := MeshInstance3D.new()
 	var disc := CylinderMesh.new()
@@ -118,10 +118,11 @@ static func sync_all(parent: Node, ledger: RuleLedger, nodes: Dictionary[int, Wo
 		present[v.id] = true
 		_place(parent, nodes, v.id, v, ledger.token(v.token_id))
 	for t in PartyQuery.dropped_tokens(ledger):
+		# 器を離れて落ちている能力は、中身だけ（メダル）で見せる。装備の能力でも入れ物の姿にしない
 		var stand_in := RuleVessel.new()
 		stand_in.world_position = t.drop_position
 		present[-t.id] = true
-		_place(parent, nodes, -t.id, stand_in, t)
+		_place(parent, nodes, -t.id, stand_in, t, true)
 	for key: int in nodes.keys():
 		if not present.has(key):
 			nodes[key].queue_free()
@@ -129,14 +130,28 @@ static func sync_all(parent: Node, ledger: RuleLedger, nodes: Dictionary[int, Wo
 
 
 static func _place(
-	parent: Node, nodes: Dictionary[int, WorldItem], key: int, v: RuleVessel, t: RuleToken
+	parent: Node,
+	nodes: Dictionary[int, WorldItem],
+	key: int,
+	v: RuleVessel,
+	t: RuleToken,
+	ability_only: bool = false
 ) -> void:
 	if not nodes.has(key):
 		var node := WorldItem.new()
-		node.setup(v, t)
+		node.setup(v, t, ability_only)
 		parent.add_child(node)
 		nodes[key] = node
 	nodes[key].position = v.world_position
+
+
+## 拾ったときの知らせ。装備品は、つけるまで効かないことと、つけ方を添える（docs/adr/0018）。
+static func pickup_text(v: RuleVessel, t: RuleToken) -> String:
+	var item_label := v.item_name if v.item_name != "" else t.describe()
+	var bag := InputMode.token(&"inventory")
+	if v.is_equipment():
+		return "%s を拾いました（つけるまで効きません。%s で開いて「そうびする」）" % [item_label, bag]
+	return "%s を拾いました（通常インベントリ。%s で開いて使う）" % [item_label, bag]
 
 
 ## 拾える距離にある、いちばん近い器（無ければ null）。

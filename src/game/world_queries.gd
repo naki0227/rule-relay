@@ -12,7 +12,7 @@ static func describe(t: RuleToken, result: RuleLedger.LendResult, use_range: boo
 		RuleLedger.LendResult.ALREADY_LENT:
 			return "%s は貸出中です（%s で回収）" % [t.describe(), InputMode.token(&"interact")]
 		RuleLedger.LendResult.EQUIPPED_CANNOT_LEND:
-			return "装備しているものは渡せません（外してホットバーに置くと渡せます）"
+			return "身につけている装備からは渡せません（外してホットバーに置くと、中の能力だけを渡せます）"
 		RuleLedger.LendResult.NO_TARGETS:
 			return "範囲内にブロックがありません"
 	return "付与できません（%s）" % RuleLedger.LendResult.keys()[result]
