@@ -14,6 +14,8 @@ extends Node
 ## - ゴールにまだ来ていない人: 協力中、島の条件がそろうか誰かがゴールに入ったら HUD に名前を出す
 ##   （試遊 G5。情報だけで、外したり止めたりはしない）
 ## - クリア: ステージのクリア条件を満たしたら、資格のある人に報酬を配り、しばらくしてハブへ戻る
+## - 広場へ戻ると、入ったステージのポータルの前に立つ（PortalReturn）。メニューの「広場へもどる」は
+##   ひとりならすぐ、協力中は投票（StageLeaveVote）。目的の一覧の進み具合はホストが数えて配る（docs/adr/0018）
 ## 子ノード名は固定（"Director"）。RPC のパスを両側でそろえるため。
 
 signal world_changed(world: StageWorld)
@@ -42,6 +44,11 @@ var stage_run_id: String = ""
 var last_clear_text: String = ""
 ## ゴールにまだ来ていない生きている人（ホストが決めて party の配信で参加者へも届く。HUD の表示用）。
 var goal_missing: PackedInt32Array = PackedInt32Array()
+## ステージの目的の一覧（StageObjectives。広場では空）。進み具合はホストが数え、参加者へは party で届く。
+var objectives: Array[StageObjectives.Item] = []
+## 広場へ戻ったときの立ち位置（入ったステージのポータルの前）と、メニューの「広場へもどる」の投票。
+var portal_return: PortalReturn = PortalReturn.new()
+var leave_vote: StageLeaveVote = StageLeaveVote.new()
 ## ステージの島を置く親（既定は自分。物理の世界を分けたいときは SubViewport を渡す）。
 var world_parent: Node
 ## ハブの入口を最初から全部開けておく（試遊の版。本人が全部を順に試せるように）。
@@ -69,12 +76,15 @@ var _runs: Array[StageRunRewards] = []
 var _known_players: Dictionary[int, bool] = {}
 ## 「チェックポイントにできない」を一度伝えた人（台座の上で毎フレーム出さないため）。
 var _warned_checkpoint: Dictionary[int, int] = {}
+## 目的の一覧の数（StageObjectives.measure の形）。変わったら配る。
+var _objective_counts: PackedInt32Array = PackedInt32Array()
 
 
 func _ready() -> void:
 	name = "Director"
 	var loaded := store.load_progress(profile)
 	progress = loaded.progress
+	portal_return.portal = progress.last_portal()
 
 
 ## 1人用・ホストか（ルールを決める側か）。
@@ -111,9 +121,15 @@ func enter_stage(new_stage_id: String) -> void:
 	if not is_authority() or StageCatalog.by_id(new_stage_id) == null:
 		return
 	var players := _present_players()
+	var from_stage := in_stage()
+	var first_visit := world == null
 	_run_serial += 1
 	var run_id := "%s#%d-%d" % [new_stage_id, Time.get_unix_time_from_system(), _run_serial]
 	_build(new_stage_id, run_id)
+	# ステージから出てきた（または起動して最初の広場）なら、入ったステージのポータルの前へ
+	portal_return.choose(world.def, from_stage, first_visit)
+	if in_stage() and portal_return.remember(new_stage_id, progress):
+		store.save(profile, progress)
 	for player_id in players:
 		if not world.ledger.has_entity(player_id):
 			world.ledger.register_player(player_id)
@@ -130,8 +146,19 @@ func enter_stage(new_stage_id: String) -> void:
 	if _online():
 		_enter.rpc(new_stage_id, run_id, overworld_state().to_dict())
 	for player_id in players:
-		_teleport(player_id, world.spawn_for(player_id))
+		_teleport(player_id, arrival_for(player_id), portal_return.yaw)
 	_broadcast_party()
+
+
+## その人が広場・ステージで立つ場所（広場でポータルの前に戻ったなら、出現地点と同じ並びでその前）。
+func arrival_for(player_id: int) -> Vector3:
+	var spawn := world.spawn_for(player_id)
+	return spawn if in_stage() else portal_return.spot_for(player_id, spawn)
+
+
+## クリアして、広場へ戻るのを待っているか。
+func is_cleared() -> bool:
+	return _clear_timer >= 0.0
 
 
 func _build(new_stage_id: String, run_id: String) -> void:
@@ -143,8 +170,11 @@ func _build(new_stage_id: String, run_id: String) -> void:
 	stage_run_id = run_id
 	last_clear_text = ""
 	goal_missing = PackedInt32Array()
+	leave_vote = StageLeaveVote.new()
 	world = StageWorld.new()
 	world.setup(_def_for(new_stage_id))
+	objectives = StageObjectives.build(world.def)
+	_objective_counts = PackedInt32Array()
 	world.vote_request = request_vote
 	world.restart_request = request_restart
 	world.ledger.allow_prohibition_to_player = allow_prohibition_to_player
@@ -158,7 +188,7 @@ func _build(new_stage_id: String, run_id: String) -> void:
 		world.checkpoint_interacted.connect(_on_checkpoint_interacted)
 		world.entrance_chosen.connect(_on_entrance_chosen)
 		world.return_chosen.connect(
-			func(player_id: int) -> void: _teleport(player_id, world.spawn_for(player_id))
+			func(player_id: int) -> void: _teleport(player_id, arrival_for(player_id))
 		)
 		world.ledger.changed.connect(func() -> void: tracker.observe(world.ledger))
 	world.message_posted.emit(
@@ -181,6 +211,8 @@ func _present_players() -> PackedInt32Array:
 func _on_entrance_chosen(_player_id: int, chosen: String) -> void:
 	if in_stage():
 		return
+	if portal_return.blocks(chosen):
+		return  # 戻ったばかりのポータル（クリアの直後の連打で、また入らないように）
 	var state := overworld_state()
 	if not state.is_stage_open(chosen):
 		world.message_posted.emit(CampaignPlan.lock_reason(chosen, state.cleared, state.found))
@@ -226,12 +258,15 @@ func _physics_process(delta: float) -> void:
 			enter_stage(StageCatalog.HUB_ID)
 		return
 	if not in_stage():
+		portal_return.tick(delta)
 		_rescue_in_hub()
 		OptionalSecrets.check(self)  # 寄り道のワールドの秘密の入口（docs/campaign-plan.md）
 		return
 	tracker.seconds += delta
 	# 時間切れを死亡より先に見る（切れた票が、同じコマの死亡で成立しないように）
 	var changed := _check_vote_timeout(delta)
+	if leave_vote.tick(delta):
+		tell_everyone("広場へもどる投票は時間切れになりました")
 	changed = _check_deaths() or changed
 	changed = _check_checkpoints() or changed
 	if lifecycle.has_pending_reset():
@@ -248,7 +283,7 @@ func _check_vote_timeout(delta: float) -> bool:
 		return false
 	lifecycle.cancel_vote()
 	world.message_posted.emit("全員リセットの投票は時間切れになりました")
-	_notice_everyone()
+	notice_everyone()
 	return true
 
 
@@ -264,45 +299,7 @@ func _check_deaths() -> bool:
 
 
 func _check_checkpoints() -> bool:
-	var changed := false
-	for player_id in lifecycle.players_in(PartyLifecycle.State.ACTIVE):
-		var avatar := world.avatar_of(player_id)
-		var cp := "" if avatar == null else world.checkpoint_at(avatar.global_position)
-		if cp == "":
-			_warned_checkpoint.erase(player_id)
-		elif not _safe_to_save(player_id, avatar):
-			_warn_unsafe_checkpoint(player_id, avatar)
-			continue
-		if cp != "" and lifecycle.activate_checkpoint(player_id, cp):
-			_snapshots[cp] = _capture()
-			world.message_posted.emit(
-				"チェックポイントがチーム共通になりました（台座で %s: 全員復活）" % InputMode.token(&"interact")
-			)
-			world.sound_requested.emit(&"save", Vector3.ZERO, false)
-			changed = true
-	return changed
-
-
-## 詰みにつながる状態（自分で一歩も歩けない・空中・ジャンプを遠くへ貸したまま）では、
-## チェックポイントを有効にしない（2026-11-20 試遊 F4・F8）。
-func _safe_to_save(player_id: int, avatar: PlayerAvatar) -> bool:
-	return _save_blockers(player_id, avatar).is_empty()
-
-
-func _save_blockers(player_id: int, avatar: PlayerAvatar) -> Array[CheckpointPolicy.Blocker]:
-	var on_floor := avatar.is_on_floor() if avatar == world.player else avatar.remote_on_floor
-	return CheckpointPolicy.save_blockers(world.ledger, on_floor, 0, player_id)
-
-
-## 理由が変わったとき・台座に乗り直したときだけ伝える（台座の上で毎フレーム出さない）。
-func _warn_unsafe_checkpoint(player_id: int, avatar: PlayerAvatar) -> void:
-	var blockers := _save_blockers(player_id, avatar)
-	if blockers.is_empty() or blockers[0] == CheckpointPolicy.Blocker.AIRBORNE:
-		return
-	if _warned_checkpoint.get(player_id, -1) == blockers[0]:
-		return
-	_warned_checkpoint[player_id] = blockers[0]
-	world.message_posted.emit("チェックポイントにできません（%s）" % CheckpointPolicy.describe(blockers[0]))
+	return CheckpointWatch.check(self)
 
 
 ## クリアを調べ、ゴールにまだ来ていない人の一覧も更新する。一覧が変わったら true（配信する）。
@@ -312,12 +309,15 @@ func _check_clear() -> bool:
 		lifecycle.formal_participants(), lifecycle.players_in(PartyLifecycle.State.ACTIVE)
 	)
 	var missing := PackedInt32Array()
+	var counts := StageObjectives.measure(objectives, snapshot)
+	var counts_changed := counts != _objective_counts
+	_objective_counts = counts
 	if world.def.clear_condition.is_met(snapshot):
 		_on_clear()
 	elif net != null and lifecycle.formal_participants().size() > 1:
 		missing = world.def.clear_condition.goal_stragglers(snapshot)
 	if missing == goal_missing:
-		return false
+		return counts_changed
 	goal_missing = missing
 	return true
 
@@ -337,7 +337,28 @@ func _rescue_in_hub() -> void:
 	for player_id in world.ledger.players():
 		var avatar := world.avatar_of(player_id)
 		if avatar != null and avatar.global_position.y < Tuning.FALL_LIMIT_Y:
-			_teleport(player_id, world.spawn_for(player_id))
+			_teleport(player_id, arrival_for(player_id), portal_return.yaw)
+
+
+# --- 広場へもどる ------------------------------------------------------------
+
+
+## メニューの「広場へもどる」。ひとりならすぐ戻る。協力中は投票（過半数。全員リセットと同じ母数）で、
+## 揃ったら全員で、入ったステージのポータルの前へ戻る。参加者はホストへ送る。
+func request_leave_stage() -> void:
+	if not in_stage():
+		return
+	if is_authority():
+		StageLeaveVote.vote(self, local_id())
+	else:
+		_vote_leave.rpc_id(1)
+
+
+## 全員の画面に知らせる（権威の知らせを参加者にも出す）。
+func tell_everyone(text: String) -> void:
+	world.message_posted.emit(text)
+	if _online() and net.is_host():
+		_say.rpc(text)
 
 
 # --- 全員復活・全員リセット ------------------------------------------------
@@ -389,7 +410,7 @@ func _vote_as(player_id: int, seen_resets: int) -> void:
 	if lifecycle.vote_reset(player_id):
 		# 新しく開いた投票だけ知らせる（2票目以降と、1票でその場で決まったときは鳴らさない）
 		if not was_open and lifecycle.is_vote_open():
-			_notice_everyone()
+			notice_everyone()
 		world.message_posted.emit(
 			(
 				"全員リセットの投票 %d / %d（%s 長押しで賛成）"
@@ -544,62 +565,12 @@ func _update_spectate() -> void:
 
 ## ホスト移譲に備えて、進行の状態をまるごと書き出す（ホストが参加者へ定期的に配る）。
 func export_state() -> Dictionary:
-	var runs: Array[Dictionary] = []
-	for rewards in _runs:
-		runs.append(rewards.to_dict())
-	return {
-		"stage_id": stage_id,
-		"run_id": stage_run_id,
-		"world": WorldSnapshot.capture(world),
-		"loadout": loadout.capture_state() if loadout != null else {},
-		"lifecycle": lifecycle.to_dict(),
-		"snapshots": _snapshots,
-		"tracker": tracker.to_dict(),
-		"allow_prohibition_to_player": allow_prohibition_to_player,
-		"activated": world.activated.duplicate(),
-		"overworld": overworld_state().to_dict(),
-		"runs": runs,
-		"host_id": local_id(),
-	}
+	return DirectorHandover.export(self)
 
 
-## ホスト移譲: 新しいホストになった自分が、前のホストの最後の状態から続ける。
-## 世界を権威として作り直し、台帳・ブロック・進行を戻す（自分のアバターの位置はいまの位置のまま）。
-## 前のホストは「通信が切れた人」になる（戻ってくれば同じプレイヤーに戻る）。
+## ホスト移譲: 新しいホストになった自分が、前のホストの最後の状態から続ける（DirectorHandover.adopt）。
 func adopt_state(state: Dictionary) -> void:
-	var here := world.player.global_position if world != null else Vector3.ZERO
-	allow_prohibition_to_player = bool(state.get("allow_prohibition_to_player", false))
-	# 広場の試遊の設定は前のホストのものを引き継ぐ（クリアの記録は、新しいホストの進行を使う）
-	var overworld := OverworldState.from_dict(state.get("overworld", {}) as Dictionary)
-	all_stages_open = overworld.all_stages_open
-	all_regions_open = overworld.all_regions_open
-	all_abilities_unlocked = overworld.all_abilities
-	_build(String(state["stage_id"]), String(state["run_id"]))
-	WorldSnapshot.apply(world, state["world"] as Dictionary)
-	world.player.global_position = here
-	world.player.velocity = Vector3.ZERO
-	loadout = StageLoadout.new(world.def, world.entity_ids)
-	if not (state["loadout"] as Dictionary).is_empty():
-		loadout.restore_state(state["loadout"] as Dictionary)
-	var restored := PartyLifecycle.from_dict(state["lifecycle"] as Dictionary)
-	lifecycle = restored if restored != null else PartyLifecycle.new()
-	_snapshots = state["snapshots"] as Dictionary
-	tracker.restore(state["tracker"] as Dictionary, world.ledger)
-	world.activated = (state.get("activated", PackedStringArray()) as PackedStringArray).duplicate()
-	_runs.clear()
-	for data: Dictionary in state["runs"] as Array:
-		var rewards := StageRunRewards.from_dict(data)
-		if rewards != null:
-			_runs.append(rewards)
-	for player_id in world.ledger.players():
-		_known_players[player_id] = true
-	# 前のホストも、つなぎ直してくる人も、入ってくるまでは「通信が切れた人」
-	if in_stage():
-		for player_id in lifecycle.formal_participants():
-			if player_id != local_id():
-				lifecycle.disconnect_player(player_id)
-	world.message_posted.emit("あなたがホストになりました")
-	_broadcast_party()
+	DirectorHandover.adopt(self, state)
 
 
 ## 参加者: ホストから「このステージへ」と届くまで、仮のハブを作っておく（NetWorld をつなぐ先）。
@@ -643,7 +614,7 @@ func _on_player_joined(player_id: int) -> void:
 			lifecycle.reconnect(player_id)
 	if not _known_players.has(player_id):
 		_known_players[player_id] = true
-		_teleport(player_id, world.spawn_for(player_id))
+		_teleport(player_id, arrival_for(player_id), portal_return.yaw)
 	_broadcast_party()
 	deliver_rewards()
 
@@ -669,29 +640,31 @@ func leave_room() -> bool:
 func _broadcast_party() -> void:
 	party_changed.emit()
 	if _online() and net.is_host():
-		_party.rpc(lifecycle.to_dict(), goal_missing)
+		_party.rpc(lifecycle.to_dict(), goal_missing, _objective_counts)
 
 
 ## 全員に関わるお知らせの音（投票の開始・時間切れ）。権威が鳴らし、参加者の画面へも頼む。
 ## 投票の文言はホストにしか出ないが、参加者は札（PartyBanner）で投票を見ているので、音だけを送る。
-func _notice_everyone() -> void:
+func notice_everyone() -> void:
 	world.sound_requested.emit(&"ui_notice", Vector3.ZERO, false)
 	if _online() and net.is_host():
 		_notice_sound.rpc()
 
 
 ## 権威がプレイヤーを動かす。自分ならその場で、仲間ならその人の画面へ頼む（アバターは各自が動かすため）。
-func _teleport(player_id: int, at: Vector3) -> void:
+## yaw があれば（NAN でなければ）、その向きに体と視点を向ける（ポータルの前に戻ったとき）。
+func _teleport(player_id: int, at: Vector3, yaw: float = NAN) -> void:
 	if player_id == local_id():
 		world.player.global_position = at
 		world.player.velocity = Vector3.ZERO
+		PortalReturn.face(world, yaw)
 		return
 	var avatar := world.avatar_of(player_id)
 	if avatar != null:
 		avatar.global_position = at
 		avatar.apply_remote(at, avatar.remote_yaw, false, true)
 	if _online() and net.session.peer_of_player(player_id) != -1:
-		_moved.rpc_id(net.session.peer_of_player(player_id), at)
+		_moved.rpc_id(net.session.peer_of_player(player_id), at, yaw)
 
 
 func _online() -> bool:
@@ -714,12 +687,20 @@ func _enter(new_stage_id: String, run_id: String, overworld: Dictionary) -> void
 
 
 @rpc("authority", "call_remote", "reliable")
-func _party(state: Dictionary, missing: PackedInt32Array) -> void:
+func _party(state: Dictionary, missing: PackedInt32Array, counts: PackedInt32Array) -> void:
 	var replica := PartyLifecycle.from_dict(state)
 	if replica != null:
 		lifecycle = replica
 		goal_missing = missing
+		_objective_counts = counts
+		StageObjectives.apply(objectives, counts)
 		party_changed.emit()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _say(text: String) -> void:
+	if world != null:
+		world.message_posted.emit(text)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -729,10 +710,11 @@ func _notice_sound() -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _moved(at: Vector3) -> void:
+func _moved(at: Vector3, yaw: float) -> void:
 	if world != null and world.player != null:
 		world.player.global_position = at
 		world.player.velocity = Vector3.ZERO
+		PortalReturn.face(world, yaw)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -775,6 +757,13 @@ func _vote(seen_resets: int) -> void:
 	var sender := net.session.player_of_peer(multiplayer.get_remote_sender_id())
 	if is_authority() and sender != -1 and in_stage():
 		_vote_as(sender, seen_resets)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _vote_leave() -> void:
+	var sender := net.session.player_of_peer(multiplayer.get_remote_sender_id())
+	if is_authority() and sender != -1 and in_stage():
+		StageLeaveVote.vote(self, sender)
 
 
 @rpc("any_peer", "call_remote", "reliable")

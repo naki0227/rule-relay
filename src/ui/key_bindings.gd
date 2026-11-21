@@ -44,6 +44,7 @@ const NAMES: Dictionary[StringName, String] = {
 	&"hotbar_prev": "ホットバーの前の枠",
 	&"hotbar_next": "ホットバーの次の枠",
 	&"release_mouse": "マウスを離す",
+	&"show_objectives": "目的を見る",
 }
 
 

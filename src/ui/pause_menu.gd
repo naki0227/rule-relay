@@ -12,6 +12,11 @@ const ITEMS: Array[Array] = [
 	["latest", "チェックポイントへもどる", "最後に保存したときの世界に、まるごともどります。"],
 	["previous", "ひとつ前の保存へもどる", "最後の保存を取り消します。詰んだまま保存してしまったときに。"],
 	["restart", "島のはじめから", "保存をすべて消して、島に来たときにもどります。"],
+	[
+		"leave",
+		"広場へもどる",
+		"ステージを出て、入ったポータルの前にもどります。協力中は投票になり、半分より多くがえらぶともどります。",
+	],
 	["settings", "せってい", "キー割り当て・文字の大きさ・視点の速さ・音の大きさを変えます。"],
 	[
 		"quit",
@@ -28,6 +33,9 @@ var play_sound: Callable
 ## 「ゲームをやめる」で呼ぶ関数（GameRoot.quit_game: 協力中の参加者は退出を伝えてから終わる。PartyExit）。
 ## 無ければその場で終わる。
 var quit_request: Callable
+## 「広場へもどる」で呼ぶ関数（PartyDirector.request_leave_stage。ステージにいるときだけ GameRoot が渡す）。
+## 無ければ項目を出さない（広場・1人用の試作の島）。
+var leave_request: Callable
 
 var _card: PanelContainer
 var _buttons: Dictionary[String, Button] = {}
@@ -80,6 +88,7 @@ func refresh() -> void:
 	if world == null or _buttons.is_empty():
 		return
 	_buttons["previous"].disabled = not world.can_restore_previous_checkpoint()
+	_buttons["leave"].visible = leave_request.is_valid()
 	_buttons["restart"].text = "もう一度えらぶと、はじめから" if _restart_armed else "島のはじめから"
 	_saves.text = "保存 %d / %d" % [world.checkpoint_save_count(), CheckpointHistory.CAPACITY]
 
@@ -111,6 +120,10 @@ func choose(item: String) -> void:
 				_restart_armed = true
 				refresh()
 				_describe("もう一度えらぶと、保存をすべて消して島のはじめにもどります。")
+		"leave":
+			close()
+			if leave_request.is_valid():
+				leave_request.call()
 		"settings":
 			_card.visible = false
 			settings_menu.open()

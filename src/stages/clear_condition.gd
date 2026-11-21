@@ -36,6 +36,9 @@ var height: float = 0.0
 var target_key: String = ""
 ## ALL_OF: これが全部成り立てばクリア（手分けして別々の鐘を鳴らす、など）。
 var parts: Array[ClearCondition] = []
+## 画面の目的の一覧に出す短い文（任意。空なら種類と対象から決める。StageObjectives）。
+## 種類だけでは遊ぶ人に伝わらない条件（ブロックを運ぶ先が決まっている、など）に付ける。判定には使わない。
+var objective_text: String = ""
 
 
 static func none() -> ClearCondition:
@@ -89,6 +92,12 @@ static func activate(key: String) -> ClearCondition:
 	c.kind = Kind.ACTIVATE
 	c.target_key = key
 	return c
+
+
+## 目的の一覧の文を付けて自分を返す（ステージの定義で `ClearCondition.carry_object(...).titled("…")`）。
+func titled(text: String) -> ClearCondition:
+	objective_text = text
+	return self
 
 
 func is_met(snapshot: Dictionary) -> bool:

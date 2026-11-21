@@ -122,8 +122,12 @@ static func ruined_fort() -> StageDef:
 		. all_of(
 			[
 				ClearCondition.activate("keep_bell"),
-				ClearCondition.carry_object(
-					"keystone", AABB(Vector3(8.0, -1.2, 3.0), Vector3(3.0, 1.0, 3.0))
+				(
+					ClearCondition
+					. carry_object(
+						"keystone", AABB(Vector3(8.0, -1.2, 3.0), Vector3(3.0, 1.0, 3.0))
+					)
+					. titled("要石を窪みへ")
 				),
 				ClearCondition.all_at_goal(goal),
 			]

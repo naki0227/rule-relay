@@ -43,7 +43,6 @@ const ISLE_RADIUS := Vector2(5.0, 4.5)
 ## 建物と住む生き物の場所（ポータルからのずれ。ポータルが南を向くとき）
 const BUILDING_OFFSET := Vector3(3.0, 0.0, -2.5)
 const HOME_OFFSET := Vector3(-2.5, 0.0, 1.5)
-
 const _MOVES: Array[RuleAction.Kind] = [
 	RuleAction.Kind.FORWARD, RuleAction.Kind.LEFT, RuleAction.Kind.BACK, RuleAction.Kind.RIGHT
 ]
@@ -71,6 +70,7 @@ static func build(state: OverworldState) -> StageDef:
 		def.spawn_points.append(SPAWN_CENTER + Vector3(dx, 0.0, 0.0))
 	_loadout(def, state)
 	_portals(def, layout, state)
+	PortalSpots.place(def, layout, field)  # ステージから戻ったときの立ち位置（docs/adr/0018）
 	_settle(layout, state)
 	OverworldScenery.scatter(layout, field, def)
 	return def

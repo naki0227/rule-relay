@@ -211,6 +211,15 @@ func _on_world_changed(world: StageWorld) -> void:
 	if _banner.get_parent() != null:
 		_banner.get_parent().remove_child(_banner)
 	_hud.add_child(_banner)
+	# ステージの目的（隅の短い一覧。入ったときだけ大きく出す）と、メニューの「広場へもどる」
+	var objectives := ObjectivePanel.new()
+	objectives.name = "Objectives"
+	objectives.director = director
+	objectives.hud = _hud
+	_hud.add_child(objectives)
+	if director.in_stage():
+		_hud.pause_menu.leave_request = director.request_leave_stage
+		_hud.pause_menu.refresh()
 	# 参加者もホストから届いた島の作り直しでここを通るので、いまいる島の曲になる
 	music.play_scene(MusicPlayer.scene_for_stage(director.stage_id))
 	music.duck_source = _hud.is_menu_open
