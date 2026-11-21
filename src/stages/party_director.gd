@@ -19,6 +19,8 @@ extends Node
 signal world_changed(world: StageWorld)
 ## チーム進行の状態が変わった（HUD の表示用）。
 signal party_changed
+## 参加者: 部屋を出たことをホストが受け付けた（PartyExit が待つ。届いてから通信を閉じる）。
+signal left_room
 
 ## クリアしてからハブへ戻るまでの秒数。
 const RETURN_DELAY: float = 4.0
@@ -52,6 +54,8 @@ var all_regions_open: bool = true
 var all_abilities_unlocked: bool = false
 ## 部屋のオプション: 禁止をプレイヤーへ直接渡せる（ホストが部屋を作るときに選ぶ。既定は渡せない）。
 var allow_prohibition_to_player: bool = false
+## 寄り道の入口の発見を届けた人（ワールドの id → {プレイヤー: true}。OptionalSecrets が使う）。
+var secrets_told: Dictionary[String, Dictionary] = {}
 
 ## 参加者: ホストから届いた広場の様子（OverworldState.to_dict）。協力中はホストの進行で広場が決まる。
 var _remote_overworld: Dictionary = {}
@@ -442,11 +446,7 @@ func _capture() -> Dictionary:
 
 func _on_clear() -> void:
 	var rewards := StageRunRewards.new(stage_id, stage_run_id)
-	var statuses: Dictionary[String, int] = {}
-	for player_id in world.ledger.players():
-		statuses[str(player_id)] = _reward_status(player_id)
-	for player_id in lifecycle.players_in(PartyLifecycle.State.LEFT):
-		statuses[str(player_id)] = StageRunRewards.Status.LEFT_BEFORE_CLEAR
+	var statuses := PartyExit.reward_statuses(lifecycle, world.ledger.players())
 	rewards.settle(statuses, tracker.metrics(), int(Time.get_unix_time_from_system()))
 	_runs.append(rewards)
 	_clear_timer = RETURN_DELAY
@@ -467,19 +467,6 @@ func _on_clear() -> void:
 	deliver_rewards()
 
 
-func _reward_status(player_id: int) -> int:
-	match lifecycle.state_of(player_id):
-		PartyLifecycle.State.ACTIVE:
-			return StageRunRewards.Status.ACTIVE
-		PartyLifecycle.State.DEAD_SPECTATING:
-			return StageRunRewards.Status.DEAD_SPECTATING
-		PartyLifecycle.State.DISCONNECTED:
-			return StageRunRewards.Status.DISCONNECTED
-		PartyLifecycle.State.WAITING_SPECTATOR:
-			return StageRunRewards.Status.WAITING_SPECTATOR
-	return StageRunRewards.Status.LEFT_BEFORE_CLEAR
-
-
 func _show_clear(text: String) -> void:
 	last_clear_text = text
 	if world.player != null:
@@ -495,11 +482,9 @@ func _show_clear(text: String) -> void:
 func deliver_rewards() -> void:
 	if not is_authority():
 		return
-	var connected := PackedStringArray([str(local_id())])
-	if net != null:
-		for player_id in world.ledger.players():
-			if net.session.peer_of_player(player_id) != -1:
-				connected.append(str(player_id))
+	var connected := PackedStringArray()
+	for player_id in connected_players():
+		connected.append(str(player_id))
 	for rewards in _runs:
 		for event in rewards.events_to_send(connected):
 			var key := String(event["player_key"])
@@ -519,6 +504,16 @@ func _apply_reward(event: Dictionary) -> bool:
 		var head := "初回クリア" if result.first_clear else "クリア"
 		world.message_posted.emit("%s の報酬: %s" % [head, got])
 	return result.should_acknowledge()
+
+
+## いまつながっている人（自分を含む。1人用なら自分だけ）。報酬と寄り道の入口の発見を届ける相手。
+func connected_players() -> PackedInt32Array:
+	var result := PackedInt32Array([local_id()])
+	if _online():
+		for player_id in world.ledger.players():
+			if player_id != local_id() and net.session.peer_of_player(player_id) != -1:
+				result.append(player_id)
+	return result
 
 
 # --- 観戦（自分の画面） -------------------------------------------------------
@@ -653,32 +648,22 @@ func _on_player_joined(player_id: int) -> void:
 	deliver_rewards()
 
 
-## 抜けた人の手元を置く場所: 地面に立っていればその足もと、空中・谷の上なら最後のチェックポイント
-## （無ければ出発点）。誰でも歩いて拾いに行ける場所にする。
-func _drop_point(player_id: int) -> Vector3:
-	var avatar := world.avatar_of(player_id)
-	if avatar != null:
-		var on_floor := avatar.is_on_floor() if avatar == world.player else avatar.remote_on_floor
-		if on_floor and avatar.global_position.y > -0.5:
-			return avatar.global_position
-	var cp := lifecycle.latest_checkpoint()
-	if cp != "" and cp != PartyLifecycle.STAGE_START:
-		return world.checkpoint_position(cp)
-	return world.spawn_for(RuleLedger.PLAYER_ID)
-
-
 func _on_player_disconnected(player_id: int) -> void:
+	if not world.ledger.players().has(player_id):
+		return  # 自分で部屋を出た後に通信を閉じただけ（退出のまま。報酬の扱いは変えない）
 	if in_stage():
 		lifecycle.disconnect_player(player_id)
-	world.message_posted.emit(_name(player_id) + "の通信が切れました")
+	world.message_posted.emit(_name(player_id) + "の通信が切れました（部屋があるうちに戻れば、報酬は届きます）")
 	_broadcast_party()
 
 
-## 部屋を出る（明示的な退出。クリア前ならその回の報酬は受け取らない）。
-func leave_room() -> void:
-	if net == null or is_authority():
-		return
+## 部屋を出る（明示的な退出。クリア前ならその回の報酬は受け取らない）。参加者だけが送れる。
+## 送ったら true。ホストの受け付けは left_room で届く（メニューの「やめる」は PartyExit で待ってから閉じる）。
+func leave_room() -> bool:
+	if not _online() or is_authority():
+		return false
 	_leave.rpc_id(1)
+	return true
 
 
 func _broadcast_party() -> void:
@@ -757,6 +742,18 @@ func _cleared(text: String) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
+func _left() -> void:
+	left_room.emit()
+
+
+## 寄り道のワールドの入口の発見（ホストから、その場にいた人へ。何度届いても同じ）。
+@rpc("authority", "call_remote", "reliable")
+func _secret(world_id: String) -> void:
+	if world != null and CampaignPlan.world(world_id) != null:
+		OptionalSecrets.record(self, world_id)
+
+
+@rpc("authority", "call_remote", "reliable")
 func _reward(event: Dictionary) -> void:
 	if world != null and _apply_reward(event):
 		_ack.rpc_id(
@@ -790,7 +787,7 @@ func _leave() -> void:
 	for rewards in _runs:
 		if rewards.is_settled():
 			rewards.mark_left_after_clear(str(sender))
-	var drop_at := _drop_point(sender)
+	var drop_at := PartyExit.drop_point(self, sender)
 	world.ledger.set_player_present(sender, false, drop_at)
 	world.message_posted.emit(_name(sender) + "が部屋を出ました（持っていた物はその場に落ちています）")
 	if in_stage():
@@ -798,3 +795,4 @@ func _leave() -> void:
 			"人数が変わりました。%s 長押しで、今の人数に合わせてやり直せます" % InputMode.token(&"vote_reset")
 		)
 	_broadcast_party()
+	_left.rpc_id(multiplayer.get_remote_sender_id())  # 受け付けた（参加者はこれを待ってから閉じる）

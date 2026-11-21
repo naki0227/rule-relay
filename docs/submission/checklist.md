@@ -50,13 +50,15 @@
 
 ## 5. 実行ファイル（ZIP）
 
-`tools/check.sh --build` が `build/submission/rule-relay-windows.zip` と `rule-relay-macos.zip` を作り、`tools/check_submission.py` で中身を確かめる。CI でも毎回作り、`rule-relay-submission` という成果物に残る。
+`tools/check.sh --build` が `build/submission/rule-relay-windows.zip`・`rule-relay-macos.zip`・`rule-relay-linux.zip` を作り、`tools/check_submission.py` で中身を確かめる。CI でも毎回作り、`rule-relay-submission` という成果物に残る。タグ（`v*`）の GitHub Release の ZIP も、同じスクリプトの `--release-tag` で作って同じ検査をする（Mac 版は署名と公証を済ませた .app）。
 
 - [ ] 【自動】Steam が入っていない（Steam のコード・DLL・`steam_appid.txt`・印の文字列。`tools/check_no_steam.py` と同じ検査）。Steam なしで動く提出版（ソロと直接接続）
 - [ ] 【自動】秘密のファイルが無い（`.env`・鍵・証明書・`export_credentials.cfg`）
 - [ ] 【自動】user:// に書かれるもの（進行 `progress/`・設定 `settings.cfg`・合言葉 `session/`・案内の記録 `hints/`・ログ）と、`_sc_`・`override.cfg` が無い
 - [ ] 【自動】ソース素材・テスト・道具・文書（`art/`・`tests/`・`tools/`・`docs/`・`.blend`・`.py`・`.md`）が無い。pck の一番上は決めたものだけ（`ALLOWED_PCK_TOP`）
 - [ ] 【自動】`LICENSES.txt` が ZIP の一番上にあり、リポジトリの版と同じで、エンジンが報告する部品の一覧と食い違っていない
+- [ ] 【自動】Windows 版の ZIP の一番上に `README_Windows.txt`（SmartScreen・スマート アプリ コントロールの案内）があり、リポジトリの版と同じ
+- [ ] 【自動】書き出した exe と Mac の .app の版が `export_presets.cfg` と同じ（タグの書き出しではタグとも同じ。`tools/release_version.py`）
 - [ ] 【本人】Windows 11 実機で ZIP を展開して起動し、ひとりで 1 ステージクリアできる（SmartScreen の警告の出方も確かめ、企画書 3.3 と合わせる）
 - [ ] 【本人】Mac（Apple シリコン）で同じことをする。署名・公証済みの版を出すかを決める（`docs/macos-signing.md`）
 - [ ] 【本人】別々の PC 2 台で「部屋を作る／部屋に入る」がつながる（Windows と Mac の組み合わせも）

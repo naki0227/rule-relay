@@ -207,6 +207,7 @@ func _on_world_changed(world: StageWorld) -> void:
 	_hud.sounds = sounds
 	_hud.hints = _hints
 	add_child(_hud)
+	_hud.pause_menu.quit_request = quit_game
 	if _banner.get_parent() != null:
 		_banner.get_parent().remove_child(_banner)
 	_hud.add_child(_banner)
@@ -236,6 +237,12 @@ func handle_party_action(action: StringName) -> void:
 		return
 	if action == &"vote_reset":
 		director.request_vote()
+
+
+## メニューの「ゲームをやめる」。協力中の参加者は、部屋を出たことをホストへ伝え、受け付け（最長 2 秒）を
+## 待ってから通信を閉じて終わる（自分で出たのを通信切断として扱わせない。PartyExit）。
+func quit_game() -> void:
+	await PartyExit.quit(director, get_tree().quit)
 
 
 ## 通信を閉じる（テスト・タイトルへ戻るとき）。
