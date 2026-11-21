@@ -28,8 +28,9 @@ static func _check_vessels(ledger: RuleLedger, errors: PackedStringArray) -> voi
 			errors.append("vessel %d is in the world but owned by %d" % [v.id, v.owner_id])
 		if not in_world and not _is_player(ledger, v.owner_id):
 			errors.append("vessel %d is carried by non-player %d" % [v.id, v.owner_id])
-		if in_world and t != null and not t.is_in_vessel():
-			errors.append("token %d left a vessel still in the world" % v.token_id)
+		# 世界にある器の中身が外に出ていてもよい: 抜けた人の器は中身を貸したまま島に残る（docs/adr/0007）。
+		# 装備は入れ物と中身を別々に扱う（docs/adr/0018）。ただし世界の器の中身を「器の持ち主」は持てない
+		# （持ち主がいない）ので、ここで確かめることは無い
 
 
 static func _check_slots(ledger: RuleLedger, errors: PackedStringArray) -> void:

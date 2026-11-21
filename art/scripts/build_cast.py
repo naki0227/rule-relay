@@ -278,7 +278,7 @@ def _keys_puff(frames, values, thin=1.0):
 def _creature(name, file_name, size, sprout_open, body_color, wing_color):
     """丸いからだに小さな羽と足、頭に芽。願いの「高いところへ」を、上へ伸びる芽で示す。
     size はからだの高さ（m）。正面は +Y、原点は足もと。
-    部品（Body・WingL/R・FootL/R・Sprout）を別々に作り、骨格で動かす（idle / walk / happy）。"""
+    部品（Body・WingL/R・FootL/R・Sprout）を別々に作り、骨格で動かす（idle / walk / happy / look / hop）。"""
     base.reset_scene()
     fur = mat("Fur", body_color, 0.9)
     belly = mat("Belly", pal.CREAM, 0.9)
@@ -378,6 +378,27 @@ def _creature(name, file_name, size, sprout_open, body_color, wing_color):
         "b_wing_l": _keys_rot(20, [-0.2, -1.0, -0.2, -1.0], 2),
         "b_wing_r": _keys_rot(20, [0.2, 1.0, 0.2, 1.0], 2),
         "b_sprout": _keys_rot(20, [0.3, -0.3], 2),
+    })
+    # 待っている間のしぐさ（2026-11-21 本人「ビヘイビアツリーみたいな感じで動けるんやったら動かしてほしい」）
+    rigmod.action(rig, "look", 64, {
+        # 見回す: からだごと左を見て、右を見て、正面へ戻る。芽は少し遅れて揺れる
+        "b_body": [(1, (0.0, 0.0, 0.0), None, None), (14, (0.0, 0.55, 0.0), None, None),
+                   (26, (0.0, 0.55, 0.0), None, None), (40, (0.0, -0.55, 0.0), None, None),
+                   (52, (0.0, -0.55, 0.0), None, None), (65, (0.0, 0.0, 0.0), None, None)],
+        "b_sprout": _keys_rot(64, [0.0, 0.18, 0.0, -0.18], 2),
+        "b_wing_l": _keys_rot(64, [0.0, -0.25, 0.0, 0.0], 2),
+        "b_wing_r": _keys_rot(64, [0.0, 0.0, 0.0, 0.25], 2),
+    })
+    rigmod.action(rig, "hop", 18, {
+        # その場で小さく跳ねる: 縮んでから跳び、着地で少しつぶれる
+        "b_root": [(1, None, (0.0, 0.0, 0.0), None), (5, None, (0.0, 0.0, 0.0), None),
+                   (10, None, (0.0, 0.13 * s, 0.0), None), (15, None, (0.0, 0.0, 0.0), None),
+                   (19, None, (0.0, 0.0, 0.0), None)],
+        "b_body": [(1, None, None, (1.0, 1.0, 1.0)), (5, None, None, (1.08, 0.88, 1.08)),
+                   (10, None, None, (0.95, 1.08, 0.95)), (15, None, None, (1.06, 0.92, 1.06)),
+                   (19, None, None, (1.0, 1.0, 1.0))],
+        "b_wing_l": _keys_rot(18, [0.0, -0.7, 0.0], 2),
+        "b_wing_r": _keys_rot(18, [0.0, 0.7, 0.0], 2),
     })
     root = group(name + "Root", [rig])
     rigmod.save_and_export_rigged(file_name, [root, rig] + objects)

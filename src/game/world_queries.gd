@@ -12,7 +12,7 @@ static func describe(t: RuleToken, result: RuleLedger.LendResult, use_range: boo
 		RuleLedger.LendResult.ALREADY_LENT:
 			return "%s は貸出中です（%s で回収）" % [t.describe(), InputMode.token(&"interact")]
 		RuleLedger.LendResult.EQUIPPED_CANNOT_LEND:
-			return "装備しているものは渡せません（外してホットバーに置くと渡せます）"
+			return "身につけている装備からは渡せません（外してホットバーに置くと、中の能力だけを渡せます）"
 		RuleLedger.LendResult.NO_TARGETS:
 			return "範囲内にブロックがありません"
 	return "付与できません（%s）" % RuleLedger.LendResult.keys()[result]
@@ -171,3 +171,43 @@ static func ground_heights(terrain: TerrainGrid, center: Vector2i, radius: int) 
 					heights[Vector2i(x, z)] = float(y + 1)
 					break
 	return heights
+
+
+## 生き物が、行き先へ近づくとき・散歩するときに通らないマス {Vector2i: true}（docs/adr/0019）:
+## 重さの板・ワープの石・スイッチの扉・レバー・時の鐘・鐘。勝手に乗って仕掛けを動かし、謎を解いたり
+## 崩したりしないように。完全な道（高い所への道）は、いままでどおりこれらも通る。
+static func creature_avoid(w: GameWorld, center: Vector2i, radius: int) -> Dictionary:
+	var avoid := {}
+	var area := Rect2i(
+		center - Vector2i(radius, radius), Vector2i(radius, radius) * 2 + Vector2i.ONE
+	)
+	for bell in w.bells:
+		_avoid_point(avoid, area, bell.global_position)
+	var mechanisms := MechanismSet.of(w)
+	if mechanisms == null or mechanisms.specs == null:
+		return avoid
+	var specs := mechanisms.specs
+	for plate in specs.plates:
+		_avoid_box(avoid, area, Vector2i(plate.cell.x, plate.cell.z), plate.size)
+	for door in specs.doors:
+		_avoid_box(
+			avoid, area, Vector2i(door.cell.x, door.cell.z), Vector2i(door.size.x, door.size.z)
+		)
+	for warp in specs.warps:
+		_avoid_box(avoid, area, Vector2i(warp.cell.x, warp.cell.z), Vector2i.ONE)
+	for lever in specs.levers:
+		_avoid_point(avoid, area, lever.position)
+	for bell in specs.timed_bells:
+		_avoid_point(avoid, area, bell.position)
+	return avoid
+
+
+static func _avoid_point(avoid: Dictionary, area: Rect2i, at: Vector3) -> void:
+	_avoid_box(avoid, area, Vector2i(floori(at.x), floori(at.z)), Vector2i.ONE)
+
+
+static func _avoid_box(avoid: Dictionary, area: Rect2i, origin: Vector2i, size: Vector2i) -> void:
+	for x in range(origin.x, origin.x + maxi(size.x, 1)):
+		for z in range(origin.y, origin.y + maxi(size.y, 1)):
+			if area.has_point(Vector2i(x, z)):
+				avoid[Vector2i(x, z)] = true

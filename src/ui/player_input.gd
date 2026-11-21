@@ -180,13 +180,20 @@ func _handle_radial(event: InputEvent) -> void:
 
 
 ## 持ち物画面を開いている間（検索欄に入力中のキーは検索欄が受け取るので、ここには来ない）。
-## ゲームパッド: 十字←→ で持ち物を選び、LB/RB で入れる枠を選んで A でホットバーへ、X でかばんへ、Y で装備。
+## 1〜9 は、マウスが指している器をその番号のホットバーへ（入っていた器と入れ替え）。ホットバーの選択は変えない。
+## ゲームパッド: 十字←→ で持ち物を選び、A で持ち上げ、LB/RB で入れる枠を選んで A で置く。X でかばんへ、Y で装備。
 func _handle_inventory(event: InputEvent) -> void:
+	var panel := hud.inventory
 	for i in RuleLedger.HOTBAR_SIZE:
 		if event.is_action_pressed(StringName("slot_%d" % (i + 1))):
-			hud.inventory.move_selected_to_hotbar(i)
+			panel.number_key(i)
+			get_viewport().set_input_as_handled()
+			return
 	if event.is_action_pressed(&"store_item"):
-		hud.inventory.move_selected_to_inventory()
+		if panel.is_holding():
+			panel.click_bag(-1)
+		else:
+			panel.move_selected_to_inventory()
 	if not event is InputEventJoypadButton:
 		return
 	_step_hotbar(event)
@@ -195,11 +202,17 @@ func _handle_inventory(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"ui_right"):
 		_step_inventory(1)
 	elif event.is_action_pressed(&"jump"):
-		hud.inventory.move_selected_to_hotbar(world.selected_slot)
+		if panel.is_holding():
+			panel.click_hotbar(world.selected_slot)
+		else:
+			panel.pick(panel.selected_vessel_id())
 	elif event.is_action_pressed(&"interact"):
-		hud.inventory.move_selected_to_inventory()
+		if panel.is_holding():
+			panel.click_bag(-1)
+		else:
+			panel.move_selected_to_inventory()
 	elif event.is_action_pressed(&"toggle_reach"):
-		hud.inventory.toggle_equip_selected()
+		panel.toggle_equip_selected()
 
 
 ## LB/RB: ホットバーの枠を1つ前・後ろへ（端で反対側へ回る）。選び替えたら true。
@@ -234,15 +247,18 @@ func _look_with_stick(delta: float) -> void:
 		world.camera_rig.rotate_by(look * speed * delta)
 
 
-## Esc は検索欄に入力中でも持ち物画面を閉じる（世界は戻さない）。GUI より先に受け取る。
+## Esc: 検索欄に入力中ならそこから出るだけ、持ち上げていればやめるだけ。どちらでもなければ持ち物画面を閉じる
+## （世界は戻さない）。GUI より先に受け取る。
 func _input(event: InputEvent) -> void:
 	InputMode.observe(event)
 	if hud == null or not hud.is_inventory_open():
 		return
 	if event.is_action_pressed(&"restore_checkpoint"):
+		get_viewport().set_input_as_handled()
+		if hud.inventory.handle_escape():
+			return
 		hud.toggle_inventory()
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-		get_viewport().set_input_as_handled()
 
 
 ## V 長押し（十字↓ 長押し）で全員リセットの投票。持ち物画面を開いている間は数えない。

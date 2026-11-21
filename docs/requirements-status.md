@@ -53,6 +53,7 @@
 |---|---|---|---|
 | 器と能力を区別。付与しても器は残り、位置は変わらない。複製しない | 実装＋テスト | `rule_ledger.gd`、`rule_vessel.gd` | `test_acceptance` 1、`test_rule_ledger` |
 | 装備中: 本人に有効、装備由来の能力は付与不可 | 実装＋テスト | `rule_ledger.gd` `_applies_to_player`／`EQUIPPED_CANNOT_LEND` | `test_equipment` |
+| 装備は入れ物: ホットバーの装備から渡すと中の能力だけが移り、F で入れ物へ戻る（2026-11-21、ADR 0018） | 実装＋テスト | `rule_ledger.gd`／`item_painter.gd`／`item_icons.gd` | `test_equipment_vessels`・`test_equipment_vessels_world`・`test_equipment_vessels_net` |
 | 未装備・器に能力あり: 付与できる／貸出中: 回収まで再付与不可 | 実装＋テスト | `rule_ledger.gd` `lend` | `test_equipment` |
 | 装備部位は各部位1個。ジャンプブーツ（約2ブロック）、クライミンググローブ | 実装＋テスト | `rule_ledger.gd` `equip`、`player_avatar.gd` `jump_height`／`_should_climb` | `test_equipment`、`test_equipment_in_world` |
 | ブロックに渡した登る（2026-11-19 本人の判断: 隣でいちばん高い上面まで登ってつかまる） | 実装＋テスト | `rule_block.gd` `_integrate_climb`、`game_world.gd` `_tick_climbers` | `test_block_climb` |
