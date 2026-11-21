@@ -33,6 +33,7 @@ static func capture(w: GameWorld) -> Dictionary:
 		"avatars": avatar_states,
 		"bells": bell_states,
 		"balls": balls,
+		"mechanisms": MechanismSet.capture_frame(w),
 	}
 
 
@@ -53,6 +54,7 @@ static func apply(w: GameWorld, data: Dictionary, ghosts: Array[MeshInstance3D])
 	for i in mini(bell_states.size(), w.bells.size()):
 		w.bells[i].remaining = float(bell_states[i])
 	_apply_balls(w, data.get("balls", []) as Array, ghosts)
+	MechanismSet.apply_frame(w, data.get("mechanisms", {}) as Dictionary)
 
 
 ## ホストで動くブロックになった地形のセルを、参加者の画面でもブロックにする（戻ったセルは地形へ）。

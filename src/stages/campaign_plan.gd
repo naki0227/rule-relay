@@ -20,18 +20,8 @@ const GRANT_ACTIONS: Dictionary[String, RuleAction.Kind] = {
 	"DASH": RuleAction.Kind.DASH,
 }
 ## 新しいコードが要る能力・仕掛け（docs/campaign-plan.md の「要実装」）。
-const NEEDS_CODE: PackedStringArray = [
-	"FLOAT",
-	"HEAVY",
-	"SWIM",
-	"timed_bell",
-	"weight_plate",
-	"wind",
-	"ice",
-	"warp_stone",
-	"current",
-	"switch_door"
-]
+## 時の鐘・重さの板・ワープの石・スイッチの扉は実装済み（MechanismSpecs。docs/adr/0014）。
+const NEEDS_CODE: PackedStringArray = ["FLOAT", "HEAVY", "SWIM", "wind", "ice", "current"]
 
 static var _worlds: Array[World] = []
 ## 作ってあるステージの id → [表示名, 目安の分]（StageCatalog.all_stages() は毎回すべての定義を作るので、
@@ -362,7 +352,7 @@ static func _bell_vale() -> World:
 		w,
 		"w2_timed_bells",
 		"時の鐘",
-		"鳴っている間だけ開く道（要実装: 時間の鐘）",
+		"鳴っている間だけ開く道（時の鐘）",
 		Vector2(46.5, -11.5),
 		{"species": "bunny", "tint": Color("#e8d4f0"), "building": "ow_house"}
 	)
@@ -460,7 +450,7 @@ static func _forest() -> World:
 		w,
 		"w4_weight_plates",
 		"重さの板",
-		"乗ると沈む板と「重い」（要実装: 重さの板・重い）",
+		"乗ると沈む板と「重い」（要実装: 重い）",
 		Vector2(-52.5, -5.5),
 		{"grants": "HEAVY", "species": "lamb", "building": "ow_stall"}
 	)
@@ -542,7 +532,7 @@ static func _peaks() -> World:
 		w,
 		"w6_warp_stones",
 		"ワープの石",
-		"ステージの中の対になった石で移る（要実装: ワープの石）",
+		"ステージの中の対になった石で移る（ワープの石）",
 		Vector2(-12.5, -27.5),
 		{"y": 4, "grants": "FLOAT", "species": "bunny", "building": "ow_house"}
 	)

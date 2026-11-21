@@ -32,6 +32,7 @@ static func capture(w: GameWorld) -> Dictionary:
 		"selected_slot": w.selected_slot,
 		"lend_mode": w.lend_mode,
 		"goal_cleared": w.goal_cleared,
+		"mechanisms": MechanismSet.capture(w),
 	}
 
 
@@ -69,3 +70,4 @@ static func apply(w: GameWorld, snapshot: Dictionary) -> void:
 	w.selected_slot = int(snapshot["selected_slot"])
 	w.lend_mode = int(snapshot["lend_mode"]) as TriggerMode.Kind
 	w.goal_cleared = bool(snapshot["goal_cleared"])
+	MechanismSet.restore(w, snapshot.get("mechanisms", {}) as Dictionary)

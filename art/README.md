@@ -12,6 +12,7 @@
 | `scripts/build_markers.py` | ゴールの旗と四隅の灯り・チェックポイントの台・入口の門・器のメダル（能力／禁止）・装備（ジャンプブーツ・クライミンググローブ）・ダッシュの羽根 |
 | `scripts/build_hub_props.py` | 広場の置物（街灯・柵・鉢植え・ベンチ） |
 | `scripts/build_contraptions.py` | 発射台と鐘（テクスチャを焼き込む） |
+| `scripts/build_switches.py` | スイッチの仕掛け（重さの板・スイッチの扉・レバー・ワープの石・時の鐘の砂時計）。どれも部品ごとに作り、骨格とアニメーション付き（`docs/adr/0014`） |
 | `scripts/build_icons.py` | 能力・禁止の器のアイコンと、メダルの面に重ねる記号だけの白い絵（`glyph_*.png`）を `assets/icons/`（128px・透明背景）に書き出す |
 | `scripts/render_previews.py` | 原本を1枚ずつ描画して確認用の PNG を作る（Cycles・CPU）。名前を並べるとそれだけ描く |
 | `source/*.blend` | Blender の原本（スクリプトが書き出す。手で直したら、スクリプトにも反映する） |
@@ -25,6 +26,7 @@ blender -b --factory-startup --python art/scripts/build_cast.py                #
 blender -b --factory-startup --python art/scripts/build_markers.py             # 目印・器・装備
 blender -b --factory-startup --python art/scripts/build_hub_props.py           # 広場の置物
 blender -b --factory-startup --python art/scripts/build_overworld.py           # ポータル・建物
+blender -b --factory-startup --python art/scripts/build_switches.py            # スイッチの仕掛け
 blender -b --factory-startup --python art/scripts/build_icons.py               # アイコン
 blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/previews traveler goal_flag
 ```
@@ -75,6 +77,11 @@ blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/pre
 | `island_base` | build_assets | 浮かぶ島の底（ゲーム側で島の大きさに拡大） |
 | `tree_round` / `tree_tall` / `grass_tuft` / `flower` / `pebbles` | build_assets | 置物 |
 | `launcher` / `bell` | build_contraptions | 発射台と鐘（テクスチャを焼き込む） |
+| `pressure_plate` | build_switches | 重さの板。石の縁と木の天板（花の印）。天板（`Top`）が骨で沈む `press`（`PressurePlate`） |
+| `switch_door` | build_switches | スイッチの扉（幅 1・高さ 2）。木の板・石の帯・空色の印。扉板（`Gate`）が床へ沈む `open`（`SwitchDoor`） |
+| `switch_lever` | build_switches | レバー。苔の付いた石の台と木の柄。柄（`Handle`）が倒れる `flip`（`SwitchLever`） |
+| `warp_stone` | build_switches | ワープの石。平たい石の空色の輪と、浮かぶ結晶（`Crystal`）がゆれる `hover`・光って跳ねる `warp`（`WarpStone`） |
+| `bell_timer` | build_switches | 時の鐘の脇の砂時計。ガラス（`Glass`）が返る `flip`（`TimedBell`） |
 | `item_icons.blend` → `assets/icons/` | build_icons | 器のアイコン。金のメダル＝能力、灰色＋赤い輪と斜線＝禁止。記号は矢印（W/A/S/D）・二重の山形（ジャンプ）・矢印と流れる線（ダッシュ）など |
 
 2026-11-20 に `goal_beacon`（石の柱と回る結晶）をやめ、`goal_flag` に置き換えた。
