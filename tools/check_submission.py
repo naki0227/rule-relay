@@ -3,7 +3,7 @@
 
   python3 tools/check_submission.py
       build/windows/rule-relay.exe と build/macos/rule-relay.zip（tools/check.sh --build の書き出し）から
-      build/submission/rule-relay-windows.zip と rule-relay-macos.zip を作り、次を確かめる。
+      build/submission/rule-relay-windows.zip・rule-relay-macos.zip・rule-relay-linux.zip を作り、次を確かめる。
         - Steam が入っていない（tools/check_no_steam.py と同じ検査）
         - 秘密のファイル（.env・鍵・証明書・export_credentials.cfg など）が無い
         - user:// に書かれる物（進行・設定・合言葉・操作の案内の記録・ログ）や、
@@ -11,6 +11,7 @@
         - 書き出さないと決めたもの（art/・tests/・tools/・docs/・build/・.github/・.claude/、
           Blender の原本・Python・Markdown）が pck に無い
         - LICENSES.txt が ZIP の一番上にあり、リポジトリの LICENSES.txt と同じ
+        - Windows 版には README_Windows.txt（署名の無い exe の起動のしかた）が一番上にあり、リポジトリのものと同じ
         - pck に入っているフォントなどのサードパーティ素材が、すべて LICENSES.txt に載っている
       最後に、同梱しているサードパーティのライセンスの一覧を出す。
   python3 tools/check_submission.py --godot godot
@@ -18,9 +19,16 @@
       コミットしてある LICENSES.txt と同じかを確かめる（エンジンの版を上げたときの更新漏れを防ぐ）。
   python3 tools/check_submission.py --write-licenses --godot godot
       LICENSES.txt を作り直して書く（ZIP は作らない）。
+  python3 tools/check_submission.py --release-tag v0.2.1 --windows-exe … --macos-zip … --linux-bin … \
+      --out-dir release --require-notarized
+      GitHub Release に付ける ZIP（rule-relay-<タグ>-windows.zip・-macos.zip・-linux.zip）を、提出用と同じ作り方・
+      同じ検査で作る（CI の release ジョブ）。--macos-zip には署名と公証を済ませた .app の ZIP を渡す。
+      --require-notarized は、Mac の .app に署名（_CodeSignature）と公証の票（stapler が書く Contents/CodeResources）
+      があることも確かめる。exe と .app の版がタグと同じかも確かめる（tools/release_version.py）。
 
 何を書き出すか（理由は docs/submission/checklist.md の「同梱するもの」）:
-  入れる: 実行ファイル（pck を埋め込んだ exe / Mac の .app）と LICENSES.txt だけ。
+  入れる: 実行ファイル（pck を埋め込んだ exe・Linux の x86_64 / Mac の .app）と LICENSES.txt だけ。
+        Windows 版だけ README_Windows.txt も入れる（コード署名をしないので、SmartScreen などの案内が要る）。
   入れない: ソース素材（art/）・テスト・道具・文書・ログ・秘密・利用者のデータ・Steam 版。
 
 見つかったら終了コード 1。標準ライブラリと tools/check_no_steam.py だけを使う。
@@ -39,13 +47,24 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_no_steam  # noqa: E402  （同じフォルダの検査を使い回す）
+import release_version  # noqa: E402  （配布版の版の検査）
 
 ROOT = Path(__file__).resolve().parent.parent
 LICENSES = ROOT / "LICENSES.txt"
 LICENSES_NAME = "LICENSES.txt"
+# Windows 版の ZIP に入れる、署名の無い exe の起動のしかた（SmartScreen・スマート アプリ コントロール）
+WINDOWS_README = ROOT / "README_Windows.txt"
+WINDOWS_README_NAME = "README_Windows.txt"
 FONT_LICENSE = ROOT / "assets" / "fonts" / "OFL-zenmarugothic.txt"
 WINDOWS_EXE = Path("build/windows/rule-relay.exe")
 MACOS_ZIP = Path("build/macos/rule-relay.zip")
+LINUX_BIN = Path("build/linux/rule-relay.x86_64")
+# ZIP の一番上に置く実行ファイルの名前（Mac は .app のフォルダ）
+PROGRAM_NAMES = ("rule-relay.exe", "rule-relay.x86_64")
+# pck を埋め込んだ実行ファイル・pck 単体（中身の一覧まで確かめる）
+PCK_SUFFIXES = (".exe", ".pck", ".x86_64")
+# ditto が .app の拡張属性を入れる場所（署名済みの Mac 版の ZIP にあれば、そのまま残す）
+MACOS_METADATA = "__MACOSX/"
 OUT_DIR = Path("build/submission")
 
 # 提出版のプリセット（Steam 版以外）が外していなければならないフォルダ。
@@ -192,11 +211,20 @@ def check_pck_bytes(label: str, data: bytes) -> tuple[list[str], set[str]]:
     return problems + listing_problems, found
 
 
+def _allowed_entry(name: str) -> bool:
+    """ZIP に入れてよい場所: 実行ファイル・.app の中身・ditto が残す .app の拡張属性。"""
+    if name.startswith(MACOS_METADATA):
+        name = name[len(MACOS_METADATA) :]
+    return name in PROGRAM_NAMES or name.split("/", 1)[0].endswith(".app")
+
+
 def check_submission_zip(path: Path, licenses_text: bytes) -> tuple[list[str], set[str]]:
     problems = []
     found: set[str] = set()
     has_licenses = False
     has_program = False
+    has_windows_readme = False
+    has_exe = False
     with zipfile.ZipFile(path) as archive:
         for info in archive.infolist():
             name = info.filename
@@ -208,15 +236,20 @@ def check_submission_zip(path: Path, licenses_text: bytes) -> tuple[list[str], s
                 if archive.read(info) != licenses_text:
                     problems.append(f"{label}: リポジトリの LICENSES.txt と違う")
                 continue
-            # 入れてよいのは exe か .app の中身だけ
-            top = name.split("/", 1)[0]
-            if not (name == "rule-relay.exe" or top.endswith(".app")):
+            if name == WINDOWS_README_NAME:
+                has_windows_readme = True
+                if archive.read(info) != WINDOWS_README.read_bytes():
+                    problems.append(f"{label}: リポジトリの README_Windows.txt と違う")
+                continue
+            has_exe = has_exe or name == "rule-relay.exe"
+            # 入れてよいのは exe・x86_64 か .app の中身だけ
+            if not _allowed_entry(name):
                 problems.append(f"{label}: 実行ファイルと LICENSES.txt のほかに入っている")
             reason = forbidden_file(name)
             if reason:
                 problems.append(f"{label}: {reason}")
             data = archive.read(info)
-            if name.endswith((".exe", ".pck")):
+            if name.endswith(PCK_SUFFIXES) and not name.startswith(MACOS_METADATA):
                 has_program = True
                 pck_problems, pck_found = check_pck_bytes(label, data)
                 problems.extend(pck_problems)
@@ -227,19 +260,60 @@ def check_submission_zip(path: Path, licenses_text: bytes) -> tuple[list[str], s
                 problems.append(f"{label}: Steam の印 {', '.join(markers)}")
     if not has_licenses:
         problems.append(f"{path}: 一番上に {LICENSES_NAME} が無い")
+    if has_exe and not has_windows_readme:
+        problems.append(f"{path}: Windows 版の一番上に {WINDOWS_README_NAME}（起動のしかた）が無い")
+    if has_windows_readme and not has_exe:
+        problems.append(f"{path}: {WINDOWS_README_NAME} は Windows 版だけに入れる")
     if not has_program:
-        problems.append(f"{path}: 実行ファイル（exe か .app の pck）が無い")
+        problems.append(f"{path}: 実行ファイル（exe・x86_64 か .app の pck）が無い")
     return problems, found
+
+
+def check_notarized(path: Path) -> list[str]:
+    """Mac の ZIP の .app に、署名（_CodeSignature）と公証の票（stapler が書く Contents/CodeResources）があるか。
+    ここ（Linux）では署名そのものは検証できないので、検証は macos-notarize ジョブの codesign・spctl に任せ、
+    ここでは「署名と公証を済ませた方の ZIP を渡したか」（Godot が書き出しただけの ZIP と取り違えていないか）を見る。"""
+    with zipfile.ZipFile(path) as archive:
+        names = set(archive.namelist())
+    apps = {n.split("/", 1)[0] for n in names if n.split("/", 1)[0].endswith(".app")}
+    if len(apps) != 1:
+        return [f"{path.name}: .app がちょうど 1 つではない: {sorted(apps)}"]
+    app = next(iter(apps))
+    problems = []
+    for part, what in (("Contents/_CodeSignature/CodeResources", "署名"), ("Contents/CodeResources", "公証の票")):
+        if f"{app}/{part}" not in names:
+            problems.append(f"{path.name}: {app} に{what}（{part}）が無い（署名と公証を済ませた ZIP を渡す）")
+    return problems
+
+
+def _write_program(archive: zipfile.ZipFile, source: Path, name: str) -> None:
+    """実行ファイルを、展開したらそのまま起動できる権限（rwxr-xr-x）で入れる。"""
+    info = zipfile.ZipInfo.from_file(source, name)
+    info.external_attr = (0o100755 & 0xFFFF) << 16
+    info.compress_type = zipfile.ZIP_DEFLATED
+    with source.open("rb") as src, archive.open(info, "w") as dst:
+        while chunk := src.read(1 << 20):
+            dst.write(chunk)
 
 
 def build_windows_zip(exe: Path, out: Path) -> None:
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
-        archive.write(exe, "rule-relay.exe")
+        _write_program(archive, exe, "rule-relay.exe")
+        archive.write(LICENSES, LICENSES_NAME)
+        archive.write(WINDOWS_README, WINDOWS_README_NAME)
+
+
+def build_linux_zip(binary: Path, out: Path) -> None:
+    """Linux（Steam Deck）版: pck を埋め込んだ x86_64 と LICENSES.txt。実行権限を付けて入れる。"""
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
+        _write_program(archive, binary, "rule-relay.x86_64")
         archive.write(LICENSES, LICENSES_NAME)
 
 
 def build_macos_zip(source: Path, out: Path) -> None:
-    """Godot が書き出した .app の ZIP に LICENSES.txt を足す（実行権限などの属性はそのまま写す）。"""
+    """.app の ZIP（Godot の書き出し、または署名と公証を済ませたもの）に LICENSES.txt を足す。
+    .app の中身は 1 バイトも変えずに写す（実行権限などの属性もそのまま。署名と公証の票が崩れない）。
+    LICENSES.txt は .app の外（ZIP の一番上）に置くので、.app の署名の対象にならない。"""
     with zipfile.ZipFile(source) as src, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
         for info in src.infolist():
             if info.filename == LICENSES_NAME:
@@ -317,21 +391,82 @@ def render_licenses(engine: dict) -> str:
     return "\n".join(lines).rstrip() + "\n"
 
 
+# README_Windows.txt に必ず書いておくこと（SmartScreen の回避・スマート アプリ コントロールの設定の場所と注意・代わりの方法）
+REQUIRED_IN_WINDOWS_README = (
+    "詳細情報",
+    "実行",
+    "プロパティ",
+    "許可する",
+    "スマート アプリ コントロール",
+    "プライバシーとセキュリティ",
+    "アプリとブラウザー コントロール",
+    "入れ直さない限り",
+    "Godot 4.6.3",
+)
+
+
+def check_windows_readme(text: str) -> list[str]:
+    return [
+        f"README_Windows.txt に「{required}」が無い"
+        for required in REQUIRED_IN_WINDOWS_README
+        if required not in text
+    ]
+
+
 def check_licenses_text(text: str) -> list[str]:
     return [
         f"LICENSES.txt に {required} が無い" for required in REQUIRED_IN_LICENSES if required not in text
     ]
 
 
-def main(argv: list[str]) -> int:
+def _targets(args: argparse.Namespace) -> list[tuple[Path, Path, object]]:
+    """(元の書き出し, 作る ZIP, 作り方) の一覧。提出用（build/submission/）か、Release 用（--release-tag）。"""
+    if args.release_tag:
+        out_dir = args.out_dir.resolve()
+        prefix = f"rule-relay-{args.release_tag}"
+        return [
+            (args.windows_exe.resolve(), out_dir / f"{prefix}-windows.zip", build_windows_zip),
+            (args.macos_zip.resolve(), out_dir / f"{prefix}-macos.zip", build_macos_zip),
+            (args.linux_bin.resolve(), out_dir / f"{prefix}-linux.zip", build_linux_zip),
+        ]
+    out_dir = ROOT / OUT_DIR
+    return [
+        (ROOT / WINDOWS_EXE, out_dir / "rule-relay-windows.zip", build_windows_zip),
+        (ROOT / MACOS_ZIP, out_dir / "rule-relay-macos.zip", build_macos_zip),
+        (ROOT / LINUX_BIN, out_dir / "rule-relay-linux.zip", build_linux_zip),
+    ]
+
+
+def _show(path: Path) -> str:
+    return str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
+
+
+def _parse(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--godot", help="Godot の実行ファイル（LICENSES.txt を作る・照らし合わせる）")
     parser.add_argument("--write-licenses", action="store_true", help="LICENSES.txt を作り直して終わる")
+    parser.add_argument("--release-tag", help="GitHub Release 用の ZIP を作る（例 v0.2.1）")
+    parser.add_argument("--windows-exe", type=Path, default=ROOT / WINDOWS_EXE)
+    parser.add_argument("--macos-zip", type=Path, default=ROOT / MACOS_ZIP)
+    parser.add_argument("--linux-bin", type=Path, default=ROOT / LINUX_BIN)
+    parser.add_argument("--out-dir", type=Path, default=Path("release"), help="Release 用の ZIP の置き場")
+    parser.add_argument(
+        "--require-notarized", action="store_true", help="Mac の .app に署名と公証の票があることも確かめる"
+    )
     args = parser.parse_args(argv)
+    if args.write_licenses and not args.godot:
+        parser.error("--write-licenses には --godot が要る")
+    if args.release_tag:
+        try:
+            release_version.version_from_tag(args.release_tag)
+        except ValueError as error:
+            parser.error(str(error))
+    return args
 
+
+def main(argv: list[str]) -> int:
+    args = _parse(argv)
     if args.write_licenses:
-        if not args.godot:
-            parser.error("--write-licenses には --godot が要る")
         LICENSES.write_text(render_licenses(dump_engine(args.godot)), encoding="utf-8")
         print(f"wrote {LICENSES.relative_to(ROOT)}")
         return 0
@@ -342,20 +477,20 @@ def main(argv: list[str]) -> int:
         return 1
     text = LICENSES.read_text(encoding="utf-8")
     problems.extend(check_licenses_text(text))
+    if not WINDOWS_README.is_file():
+        problems.append(f"{WINDOWS_README_NAME} が無い（Windows 版の ZIP に入れる起動のしかた）")
+    else:
+        problems.extend(check_windows_readme(WINDOWS_README.read_text(encoding="utf-8")))
     if args.godot and render_licenses(dump_engine(args.godot)) != text:
         problems.append("LICENSES.txt が古い（tools/check_submission.py --write-licenses --godot で作り直す）")
 
-    out_dir = ROOT / OUT_DIR
-    out_dir.mkdir(parents=True, exist_ok=True)
     found: set[str] = set()
     targets = []
-    for source, out, build in (
-        (ROOT / WINDOWS_EXE, out_dir / "rule-relay-windows.zip", build_windows_zip),
-        (ROOT / MACOS_ZIP, out_dir / "rule-relay-macos.zip", build_macos_zip),
-    ):
+    for source, out, build in _targets(args):
         if not source.is_file():
-            problems.append(f"{source.relative_to(ROOT)} が無い（先に tools/check.sh --build）")
+            problems.append(f"{_show(source)} が無い（先に tools/check.sh --build）")
             continue
+        out.parent.mkdir(parents=True, exist_ok=True)
         build(source, out)
         # 書き出しのフォルダに Steam のファイルが紛れていないか（check_no_steam と同じ）
         for sibling in source.parent.rglob("*"):
@@ -365,6 +500,11 @@ def main(argv: list[str]) -> int:
         problems.extend(zip_problems)
         found |= zip_found
         targets.append(out)
+    if args.require_notarized and args.macos_zip.is_file():
+        problems.extend(check_notarized(args.macos_zip))
+    if args.release_tag and args.windows_exe.is_file() and args.macos_zip.is_file():
+        version = release_version.version_from_tag(args.release_tag)
+        problems.extend(release_version.check_exported(version, args.windows_exe, args.macos_zip))
 
     for problem in problems:
         print(f"[submission] {problem}", file=sys.stderr)
@@ -380,7 +520,7 @@ def main(argv: list[str]) -> int:
         print(f"  - {name}（SIL Open Font License 1.1）")
     print("  - 効果音 6 種と BGM 3 曲: Stable Audio 3 medium の生成物（Stability AI Community License）")
     for out in targets:
-        print(f"submission: OK {out.relative_to(ROOT)} ({out.stat().st_size:,} bytes)")
+        print(f"submission: OK {_show(out)} ({out.stat().st_size:,} bytes)")
     return 0
 
 
