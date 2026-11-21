@@ -182,3 +182,30 @@ func test_client_lends_to_a_terrain_cell_and_sees_it_become_a_block() -> void:
 	assert_true(host_world.ledger.can_initiate(id, JUMP), "the cell got the client's jump")
 	await _until(func() -> bool: return client_world.promoted.has(cell))
 	assert_true(client_world.blocks[id].remote, "the client's copy follows the host")
+
+
+## W/A/S/D の予約（docs/adr/0003）: 参加者が跳ばせたブロックに W を押すと、ホストが予約して段の上へ動かし、
+## 両方の画面で同じマスに収まる。単発は参加者へ戻る。
+func test_client_buffered_w_climbs_a_ledge_on_both_sides() -> void:
+	for w: PrototypeIsland in [host_world, client_world]:
+		for y in 2:
+			var ledge := w.add_block(Vector3i(8, y, -3))
+			ledge.remote = w == client_world
+	var block := client_world.mover
+	var host_block := host_world.mover
+	await _place_client(_near(block))
+	client_world.set_lend_mode(TriggerMode.Kind.SINGLE_SHOT)
+	for slot: int in [JUMP_SLOT, 0]:
+		client_world.select_slot(slot)
+		client_world.lend_to(block, false)
+	var w_action := RuleAction.Kind.FORWARD
+	await _until(func() -> bool: return client_world.ledger.can_initiate(block.entity_id, w_action))
+	client_world.press_action(JUMP)
+	await _until(func() -> bool: return host_block.global_position.y > 0.7)
+	client_world.press_action(w_action)
+	await _until(func() -> bool: return host_block.cell() == Vector3i(8, 2, -3))
+	await _until(
+		func() -> bool: return block.global_position.distance_to(host_block.global_position) < 0.05
+	)
+	await _until(func() -> bool: return host_world.ledger.ability_count(w_action, B) == 1)
+	await _until(func() -> bool: return client_world.ledger.ability_count(w_action, B) == 1)

@@ -127,9 +127,10 @@ func test_gate_river_run_without_swim_you_sink() -> void:
 	await _wait_respawn()
 
 
-## 流されている筏に W を繰り返しで渡しても、北へはほとんど進まない（流れの 0.9 秒ごとの運びと、
-## 繰り返しの 1.4 秒ごとの発動が重なると、動いている途中の発動が空振りする）。単発で押せば進む。
-func test_finding_river_run_repeat_on_a_drifting_raft_rarely_fires() -> void:
+## 流されている筏に W を繰り返しで渡すと、流れの運び（0.9 秒ごと）と重なった周期も予約されて、運ばれ終わった
+## 直後に1マス動く。以前は空振りして 10 秒で3マス以下だった（finding）。2026-11-21 本人の判断「繰り返しの時も
+## 予約に」で accepted にした。止まったブロックの7マスにはまだ届かない（測定 4 マス）。単発で押す解法も残る。
+func test_accepted_river_run_repeat_on_a_drifting_raft_is_buffered() -> void:
 	await _enter(World6Stages.RIVER_ID)
 	var raft := _block("raft")
 	await _walk_to(Vector3(-3.5, 0.0, 5.0), 0.3)
@@ -142,7 +143,7 @@ func test_finding_river_run_repeat_on_a_drifting_raft_rarely_fires() -> void:
 	await wait_physics_frames(600)
 	var moved := start_z - raft.cell().z
 	print("    repeat W on a drifting raft: %d cell(s) north in 10 s" % moved)
-	assert_lt(moved, 4, "far fewer than the 7 a still block would make")
+	assert_gt(moved, 3, "ACCEPTED: buffered cycles push the raft north")
 
 
 # --- 6-5 長い尾根 ----------------------------------------------------------------
