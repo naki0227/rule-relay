@@ -29,6 +29,27 @@ func test_every_portal_has_four_spots_in_front_of_it_outside_every_entrance() ->
 				assert_gt(p.returns[i].distance_to(p.returns[i - 1]), 0.6, "spread out")
 
 
+## 戻った直後のカメラ（人の 5.5 m 後ろ）が、どの門にも入り込まず、カメラから人への視線も門を横切らない
+## （門が画面をふさがない）。正面の先・横や斜めのどちらに立つポータルでも同じ。
+func test_the_camera_after_a_return_stays_clear_of_every_arch() -> void:
+	for state in _states():
+		var def := Overworld.build(state)
+		for p in def.overworld.portals:
+			var center := Vector2(p.position.x, p.position.z)
+			for spot in p.returns:
+				var cam := PortalSpots.camera_point(spot, p.return_view_yaw)
+				assert_true(
+					PortalSpots.camera_clear_of_gates(cam, def), "%s: camera clear" % p.stage_id
+				)
+				var sight := Geometry2D.get_closest_point_to_segment(
+					center, Vector2(cam.x, cam.z), Vector2(spot.x, spot.z)
+				)
+				assert_gt(sight.distance_to(center), PortalSpots.SIGHT_CLEAR - 0.01, p.stage_id)
+				var out := Basis(Vector3.UP, p.return_yaw) * Vector3.FORWARD
+				var look := Basis(Vector3.UP, p.return_view_yaw) * Vector3.FORWARD
+				assert_gt(out.dot(look), -0.01, "%s: still looking out at the hub" % p.stage_id)
+
+
 ## 草原と鐘の谷の最初のポータルは、正面の先に立つ（広場の側を向く）。
 func test_open_portals_put_the_party_straight_ahead() -> void:
 	var def := Overworld.build(OverworldState.everything(false))
@@ -53,7 +74,7 @@ func test_choose_puts_the_party_in_front_of_the_stage_it_left() -> void:
 	back.portal = StageCatalog.BELL_ID
 	back.choose(def, true, false)
 	assert_eq(back.spots, portal.returns)
-	assert_almost(back.yaw, portal.return_yaw, 0.001, "faces away from the portal")
+	assert_almost(back.yaw, portal.return_view_yaw, 0.001, "faces away from the portal")
 	assert_eq(back.spot_for(3, Vector3.ZERO), portal.returns[2], "same order as the spawn points")
 	assert_true(back.blocks(StageCatalog.BELL_ID), "no instant re-entry")
 	assert_false(back.blocks(StageCatalog.INTRO_ID), "other portals stay open")
@@ -114,3 +135,21 @@ func test_a_vote_for_the_other_action_starts_over() -> void:
 	assert_eq(vote.action, leave)
 	assert_eq(vote.counts(three), Vector2i(1, 2), "the restart vote is not carried over")
 	assert_eq(vote.cast(2, three, 30.0, leave), StageLeaveVote.Result.PASSED)
+
+
+## 門の上の文字は、カメラが近いと画面で大きくなりすぎない（LABEL_FULL_AT より近いと画面での大きさを止め、
+## すぐそばでは薄くして消す）。中くらいのきょりではそのまま読める。
+func test_portal_labels_do_not_grow_huge_up_close() -> void:
+	var portal := OverworldPortal.new()
+	portal.label = KeyLabel3D.new()
+	portal.fit_label(20.0)
+	assert_almost(portal.label.scale.x, 1.0, 0.001, "full size from mid range")
+	assert_almost(portal.label.modulate.a, 1.0, 0.001)
+	for near: float in [6.0, 4.0]:
+		portal.fit_label(near)
+		var on_screen := portal.label.scale.x / near
+		assert_almost(on_screen, 1.0 / OverworldPortal.LABEL_FULL_AT, 0.001, "same size on screen")
+	portal.fit_label(1.0)
+	assert_false(portal.label.visible, "gone right next to the camera")
+	portal.label.free()
+	portal.free()

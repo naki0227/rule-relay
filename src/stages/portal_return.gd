@@ -38,7 +38,7 @@ func choose(def: StageDef, from_stage: bool, first_visit: bool) -> void:
 	if first_visit and not spec.open:
 		return
 	spots = spec.returns.duplicate()
-	yaw = spec.return_yaw  # ポータルに背を向けて広場の側を見る
+	yaw = spec.return_view_yaw  # 広場の側を見る。カメラは門の外で、門が横に見える（PortalSpots.view_yaw）
 	grace_portal = portal
 	grace_left = GRACE
 

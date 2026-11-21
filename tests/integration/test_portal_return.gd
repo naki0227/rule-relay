@@ -60,8 +60,8 @@ func _assert_in_front_of(stage_id: String) -> void:
 	var spot := portal.returns[0]
 	assert_lt(Vector2(at.x - spot.x, at.z - spot.z).length(), 0.3, "in front of %s" % stage_id)
 	assert_eq(director.world.entrance_at(at), "", "not inside any portal")
-	assert_almost(director.world.camera_rig.yaw, portal.return_yaw, 0.01, "looks away")
-	assert_almost(_player().facing(), portal.return_yaw, 0.01, "the body faces away too")
+	assert_almost(director.world.camera_rig.yaw, portal.return_view_yaw, 0.01, "looks away")
+	assert_almost(_player().facing(), portal.return_view_yaw, 0.01, "the body faces away too")
 
 
 func test_clearing_a_stage_returns_to_its_portal() -> void:

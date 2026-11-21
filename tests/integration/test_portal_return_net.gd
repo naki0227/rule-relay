@@ -39,7 +39,9 @@ func _assert_spread_and_facing(stage_id: String) -> void:
 	var host_at := party.world(0).player.global_position
 	var client_at := party.world(1).player.global_position
 	assert_gt(host_at.distance_to(client_at), 0.8, "spread like the spawn points")
-	assert_almost(party.world(1).camera_rig.yaw, portal.return_yaw, 0.01, "the client looks away")
+	assert_almost(
+		party.world(1).camera_rig.yaw, portal.return_view_yaw, 0.01, "the client looks away"
+	)
 	for i in party.count():
 		var w := party.world(i)
 		assert_eq(w.entrance_at(w.player.global_position), "", "side %d is outside the portal" % i)

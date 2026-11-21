@@ -90,6 +90,13 @@ static func _keep_out(layout: OverworldLayout, def: StageDef) -> Array:
 			spots.append([w.teaser, 3.0])
 	for sign in layout.signs:
 		spots.append([sign.position, 1.2])
+	# ステージから戻った人の立ち位置と、そのときのカメラ・視線の上に木を置かない（PortalSpots。docs/adr/0020）
+	for p in layout.portals:
+		for spot in p.returns:
+			var cam := PortalSpots.camera_point(spot, p.return_view_yaw)
+			spots.append([spot, 1.0])
+			spots.append([cam, 1.8])
+			spots.append([spot.lerp(cam, 0.5), 1.4])
 	for b in def.blocks:
 		spots.append([Vector3(b.cell) + Vector3(0.5, 0.0, 0.5), 2.0])
 	for bell in def.bells:
