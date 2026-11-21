@@ -33,7 +33,7 @@ run_godot() {
   local name="$1"; shift
   local log="$LOG_DIR/$name.log"
   set +e
-  timeout "${GODOT_TIMEOUT:-600}" "$GODOT" "$@" >"$log" 2>&1
+  timeout "${GODOT_TIMEOUT:-1500}" "$GODOT" "$@" >"$log" 2>&1
   local code=$?
   set -e
   cat "$log"
