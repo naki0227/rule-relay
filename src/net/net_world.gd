@@ -25,6 +25,8 @@ var manage_falls: bool = true
 var _send_timer: float = 0.0
 var _ledger_dirty: bool = false
 var _ball_ghosts: Array[MeshInstance3D] = []
+## 投げたメダルの見た目（番号 → MedalVisual。MedalThrow.apply_frame）。
+var _medal_ghosts: Dictionary = {}
 
 
 func _ready() -> void:
@@ -95,6 +97,7 @@ func bind(new_world: GameWorld) -> void:
 		if session.player_id != -1:
 			_adopt_local_id(session.player_id)
 	_ball_ghosts.clear()
+	_medal_ghosts.clear()
 	sync_avatars()
 
 
@@ -231,7 +234,7 @@ func _send_action(op: Dictionary) -> void:
 
 @rpc("authority", "call_remote", "unreliable_ordered")
 func _frame(data: Dictionary) -> void:
-	WorldFrame.apply(world, data, _ball_ghosts)
+	WorldFrame.apply(world, data, _ball_ghosts, _medal_ghosts)
 
 
 @rpc("authority", "call_remote", "reliable")

@@ -209,3 +209,40 @@ func test_client_buffered_w_climbs_a_ledge_on_both_sides() -> void:
 	)
 	await _until(func() -> bool: return host_world.ledger.ability_count(w_action, B) == 1)
 	await _until(func() -> bool: return client_world.ledger.ability_count(w_action, B) == 1)
+
+
+## 投げたメダル（docs/adr/0017）: 参加者が「投げる」で遠くのブロックへ投げると、ホストがメダルを飛ばして
+## 当たったブロックへ付与する。参加者の画面にも飛んでいるメダルが見え、両方の台帳に同じ結果がそろう。
+func test_client_throws_a_medal_that_the_host_flies_and_applies() -> void:
+	var block := client_world.mover
+	var host_block := host_world.mover
+	await _place_client(block.global_position + Vector3(-8.0, -0.5, 0.0))
+	client_world.toggle_reach()
+	assert_true(client_world.throw_mode, "the client throws")
+	client_world.select_slot(JUMP_SLOT)
+	client_world.set_lend_mode(TriggerMode.Kind.REPEAT)
+	assert_eq(client_world.lend_to(block, false), RuleLedger.LendResult.OK)
+	assert_true(client_world.player.is_throwing(), "the client's own arm throws at once")
+	await _until(func() -> bool: return not MedalThrow.flying(host_world).is_empty())
+	assert_true(host_world.avatars[B].throw_serial > 0, "the host shows the client's throw")
+	assert_true(
+		host_world.ledger.tokens_on(host_block.entity_id).is_empty(), "nothing lands at once"
+	)
+	var seen := [false]
+	await _until(
+		func() -> bool:
+			seen[0] = (
+				seen[0] or client_world.find_children("*", "MedalVisual", false, false).size() > 0
+			)
+			return host_world.ledger.can_initiate(host_block.entity_id, JUMP)
+	)
+	assert_true(seen[0], "the client saw the medal in the air")
+	var t := host_world.ledger.tokens_on(host_block.entity_id)[0]
+	assert_eq(t.lender_id, B, "the client is the lender")
+	assert_eq(t.mode, TriggerMode.Kind.REPEAT, "the client's mode is kept")
+	await _until(func() -> bool: return client_world.ledger.can_initiate(block.entity_id, JUMP))
+	await _until(
+		func() -> bool:
+			return client_world.find_children("*", "MedalVisual", false, false).is_empty()
+	)
+	assert_false(client_world.ledger.player_can(JUMP, B), "the client's jump left with the medal")

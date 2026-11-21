@@ -115,6 +115,7 @@ func test_accepted_hill_top_jump_and_give_from_inside_the_goal() -> void:
 			break
 	assert_true(given, "gave the jump while airborne inside the goal box")
 	assert_true(_goal().has_point(_me().global_position), "the giver never left the goal box")
+	assert_true(await wait_throws(w), "the thrown medal lands")
 	assert_eq(w.ledger.ability_count(JUMP, B), 2, "the teammate below now has jump x2")
 
 
@@ -207,7 +208,7 @@ func _trap_in_floating_goal() -> void:
 	# 「投げる」で、ジャンプを真ん中の島の遠くの地面へ繰り返しで貸す（F で回収できない距離）
 	var far := w.terrain_target(Vector3i(0, -1, 3))
 	w.toggle_reach()
-	_lend(far, _slot_of(JUMP), TriggerMode.Kind.REPEAT)
+	await _lend(far, _slot_of(JUMP), TriggerMode.Kind.REPEAT)
 	w.toggle_reach()
 	assert_false(w.ledger.player_can(JUMP, _me().player_id), "lent the jump away")
 	# 北の鐘（窪みのすぐ南）をよけて、東の縁から入る

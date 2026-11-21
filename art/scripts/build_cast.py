@@ -10,7 +10,7 @@
   ゲーム側（ArtPalette.tint_player）が色を差し替える。
 - 部品（プレイヤーは Body Head ArmL ArmR LegL LegR）は別オブジェクトで、原点を関節に置く。
 - 動きは骨格とアニメーション（rig.py。2026-11-21 本人の指示）。部品は 1 本の骨に重み 1.0 で結ぶ。
-  アニメーションは idle / walk / happy（プレイヤーは jump も）。ゲーム側の RigAnimator が状態で切り替える。
+  アニメーションは idle / walk / happy（プレイヤーは jump・throw も）。ゲーム側の RigAnimator が状態で切り替える。
 """
 
 import math
@@ -148,7 +148,7 @@ def build_player():
 
 
 def _traveler_rig(objects):
-    """旅の人の骨格（腰・胴・頭・腕・脚）と動き（idle / walk / jump / happy）。"""
+    """旅の人の骨格（腰・胴・頭・腕・脚）と動き（idle / walk / jump / throw / happy）。"""
     rig = rigmod.armature("TravelerRig", [
         ("b_root", (0, 0, 0), None, 0.2),
         ("b_torso", (0, 0, 0.42), "b_root", 0.4),
@@ -199,6 +199,35 @@ def _traveler_rig(objects):
     }
     rigmod.action(rig, "jump", 12, {
         b: [(1, r, None, None), (13, r, None, None)] for b, r in jump_pose.items()
+    })
+    # 投げる（docs/adr/0017）: 右腕を後ろ上へ振りかぶり、前へ振り下ろす。胴は少しひねる。
+    # 手を離すのは 7 フレーム目（ゲーム側の MedalThrow.RELEASE_DELAY = 6/24 秒）。14 フレームで休みへ戻る
+    rigmod.action(rig, "throw", 14, {
+        "b_arm_r": [
+            (1, (0.0, 0.0, 0.0), None, None),
+            (4, (-2.5, 0.0, 0.35), None, None),
+            (7, (-0.9, 0.0, 0.15), None, None),
+            (9, (0.9, 0.0, 0.05), None, None),
+            (15, (0.0, 0.0, 0.0), None, None),
+        ],
+        "b_arm_l": [
+            (1, (0.0, 0.0, 0.0), None, None),
+            (4, (0.5, 0.0, -0.5), None, None),
+            (9, (-0.35, 0.0, -0.2), None, None),
+            (15, (0.0, 0.0, 0.0), None, None),
+        ],
+        "b_torso": [
+            (1, (0.0, 0.0, 0.0), None, None),
+            (4, (-0.08, -0.3, 0.0), None, None),
+            (9, (0.14, 0.25, 0.0), None, None),
+            (15, (0.0, 0.0, 0.0), None, None),
+        ],
+        "b_head": [
+            (1, (0.0, 0.0, 0.0), None, None),
+            (4, (0.0, 0.25, 0.0), None, None),
+            (9, (0.05, -0.15, 0.0), None, None),
+            (15, (0.0, 0.0, 0.0), None, None),
+        ],
     })
     # 喜ぶ: その場で小さく跳ね、両腕を上げて振る
     rigmod.action(rig, "happy", 24, {

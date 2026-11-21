@@ -16,6 +16,8 @@ const RADIUS: float = 0.3
 ## x = 右(+)/左(-)、y = 前(+)/後(-)。値は -1〜1。
 ## 足音の間隔（歩いた距離、m）。
 const STEP_DISTANCE: float = 1.7
+## 投げる動き（Blender の throw、14 フレーム / 24fps）の長さ。
+const THROW_TIME: float = 0.58
 
 var move_intent: Vector2 = Vector2.ZERO
 ## 移動の基準にするカメラの水平向き（ラジアン、Y軸回り）。
@@ -41,6 +43,8 @@ var nature: NatureField
 var slide: Vector2 = Vector2.ZERO
 ## 水に浮いている・泳いでいる（水面から跳べる）。
 var afloat: bool = false
+## 投げた回数（通信で配る。変わったら仲間の画面でも投げる動きを再生する）。
+var throw_serial: int = 0
 
 var _jump_requested: bool = false
 ## ダッシュの残りの距離（m）と向き。ダッシュ中は重力を受けない（穴の上も抜けられる）。
@@ -55,6 +59,8 @@ var _model: Node3D
 var _rig: RigAnimator
 ## 喜ぶ動き（happy）を続ける残り秒数（クリアしたときなど）。
 var _cheer_left: float = 0.0
+## 投げる動き（throw）を続ける残り秒数。
+var _throw_left: float = 0.0
 var _facing: float = 0.0
 
 
@@ -97,18 +103,53 @@ func is_dashing() -> bool:
 	return _dash_left > 0.0
 
 
-## 通信で受け取った仲間の状態。
-func apply_remote(at: Vector3, yaw: float, moving: bool, on_floor: bool) -> void:
+## 通信で受け取った仲間の状態。serial は投げた回数（-1 なら見ない）。
+func apply_remote(at: Vector3, yaw: float, moving: bool, on_floor: bool, serial: int = -1) -> void:
 	remote_position = at
 	remote_yaw = yaw
 	remote_moving = moving
 	remote_on_floor = on_floor
+	if serial >= 0 and serial != throw_serial:
+		throw_serial = serial
+		_start_throw_animation()
 
 
-## 送る自分の状態 [位置, 体の向き, 歩いているか, 床にいるか]。
+## 送る自分の状態 [位置, 体の向き, 歩いているか, 床にいるか, 投げた回数]。
 func remote_state() -> Array:
 	var moving := Vector2(velocity.x, velocity.z).length() > 0.1
-	return [global_position, _facing, moving, is_on_floor()]
+	return [global_position, _facing, moving, is_on_floor(), throw_serial]
+
+
+## 投げる動きを始める（docs/adr/0017）。toward（水平の向き）があれば、自分のアバターはそちらへ体を向ける。
+func play_throw(toward: Vector3 = Vector3.ZERO) -> void:
+	throw_serial += 1
+	var flat := Vector3(toward.x, 0.0, toward.z)
+	if not puppet and flat.length() > 0.01:
+		_facing = atan2(-flat.x, -flat.z)
+		if _visual != null:
+			_visual.rotation.y = _facing
+	_start_throw_animation()
+
+
+func _start_throw_animation() -> void:
+	_throw_left = THROW_TIME
+	if _rig != null:
+		_rig.play_once(RigAnimator.THROW)
+
+
+func is_throwing() -> bool:
+	return _throw_left > 0.0
+
+
+## 手を離す瞬間の右手の位置（throw の 7 フレーム目。体の向きから求める）。
+func hand_position() -> Vector3:
+	var basis := Basis(Vector3.UP, _facing)
+	return global_position + basis * Vector3(0.28, 1.5, -0.2)
+
+
+## 体の向き（ラジアン、Y軸回り）。
+func facing() -> float:
+	return _facing
 
 
 func feet_position() -> Vector3:
@@ -293,6 +334,9 @@ func _animate(delta: float, direction: Vector3) -> void:
 ## 進んでいれば walk（速さに合わせて再生を速める）、空中なら jump、止まっていれば idle。
 func _animate_limbs(delta: float, direction: Vector3, grounded: bool) -> void:
 	if _rig == null:
+		return
+	if _throw_left > 0.0:
+		_throw_left = maxf(0.0, _throw_left - delta)
 		return
 	if _cheer_left > 0.0:
 		_cheer_left = maxf(0.0, _cheer_left - delta)

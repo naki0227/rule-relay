@@ -27,7 +27,7 @@ func test_gate_first_signs_signs_hold_the_lift_and_the_bunny() -> void:
 	assert_almost(lift.global_position.y, rest_y, 0.05, "the sign keeps the lift down")
 	assert_ne(_slot_of(JUMP), -1, "the single shot came back")
 	await _walk_to(Vector3(0.5, 0.0, -3.7), 0.3)
-	_lend_by_throwing(_creature("sign_bunny"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("sign_bunny"), _slot_of(THROW))
 	assert_false(await _wait_until_rung("terrace_bell", 240), "the signed bunny does not throw")
 
 

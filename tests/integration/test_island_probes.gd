@@ -94,6 +94,9 @@ func _lend(target: Node3D, slot: int, mode: TriggerMode.Kind) -> void:
 	w.select_slot(slot)
 	w.set_lend_mode(mode)
 	assert_eq(w.lend_to(target, false), RuleLedger.LendResult.OK, "lend to %s" % target.name)
+	if w.throw_mode:
+		# 投げたメダルが当たるまで待つ（docs/adr/0017。呼び出し側は await する）
+		assert_true(await wait_throws(w), "the thrown medal lands")
 
 
 func _block(key: String) -> RuleBlock:
@@ -416,7 +419,7 @@ func test_accepted_quarry_floor_without_jump_needs_the_reset_vote() -> void:
 	await _walk_to(Vector3(-3.5, 0.0, -3.5))
 	w.toggle_reach()
 	assert_true(w.throw_mode, "throw reach")
-	_lend(w.terrain_target(Vector3i(-11, 4, -11)), _slot_of(JUMP), TriggerMode.Kind.REPEAT)
+	await _lend(w.terrain_target(Vector3i(-11, 4, -11)), _slot_of(JUMP), TriggerMode.Kind.REPEAT)
 	w.toggle_reach()
 	assert_false(w.ledger.player_can(JUMP, _me().player_id), "jump is away")
 	# いちばん近い底の隅から F で回収を試みる
@@ -448,7 +451,7 @@ func test_gate_no_way_to_walk_cannot_be_saved_and_restart_recovers() -> void:
 		Vector3i(0, -1, -4), Vector3i(1, -1, -4), Vector3i(2, -1, -4), Vector3i(3, -1, -4)
 	]
 	for i in MOVES.size():
-		_lend(w.terrain_target(cells[i]), _slot_of(MOVES[i]), TriggerMode.Kind.SIGNAL)
+		await _lend(w.terrain_target(cells[i]), _slot_of(MOVES[i]), TriggerMode.Kind.SIGNAL)
 	w.toggle_reach()
 	_me().move_intent = Vector2(0.0, 1.0)
 	w.press_action(DASH)

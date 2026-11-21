@@ -3,7 +3,9 @@ extends RefCounted
 ## ホストが 1 秒に 20 回配る「世界のいまの様子」（位置と見た目だけ。ルールの状態は台帳で別に配る）。
 ## {"blocks": {id: [位置, 光っているか(信号)]}, "creatures": {id: [位置, 向き, 持ち物, 頭の上の印]},
 ##  "avatars": {player_id: [位置, 向き, 歩いているか, 床にいるか]}, "bells": [残り時間...],
-##  "balls": [位置...], "nature": 自然の仕掛けの時計（脈打つ風の拍子をそろえる）}
+##  "balls": [位置...], "medals": 投げたメダル（MedalThrow.capture_frame）,
+##  "nature": 自然の仕掛けの時計（脈打つ風の拍子をそろえる）}
+## アバターの5番目は投げた回数（変わったら投げる動きを再生する）。
 
 
 static func capture(w: GameWorld) -> Dictionary:
@@ -19,7 +21,9 @@ static func capture(w: GameWorld) -> Dictionary:
 		avatar_states[w.player.player_id] = w.player.remote_state()
 	for player_id in w.avatars:
 		var a := w.avatars[player_id]
-		avatar_states[player_id] = [a.remote_position, a.remote_yaw, a.remote_moving, true]
+		avatar_states[player_id] = [
+			a.remote_position, a.remote_yaw, a.remote_moving, true, a.throw_serial
+		]
 	var bell_states: Array[float] = []
 	for bell in w.bells:
 		bell_states.append(bell.remaining)
@@ -33,13 +37,16 @@ static func capture(w: GameWorld) -> Dictionary:
 		"avatars": avatar_states,
 		"bells": bell_states,
 		"balls": balls,
+		"medals": MedalThrow.capture_frame(w),
 		"nature": w.nature.clock,
 		"mechanisms": MechanismSet.capture_frame(w),
 	}
 
 
 ## 参加者の画面に反映する。知らない ID・壊れた値は無視する（通信から来た値なので信用しない）。
-static func apply(w: GameWorld, data: Dictionary, ghosts: Array[MeshInstance3D]) -> void:
+static func apply(
+	w: GameWorld, data: Dictionary, ghosts: Array[MeshInstance3D], medal_ghosts: Dictionary = {}
+) -> void:
 	_apply_promoted(w, data.get("promoted", []) as Array)
 	var block_states := data.get("blocks", {}) as Dictionary
 	for id: int in block_states:
@@ -56,6 +63,7 @@ static func apply(w: GameWorld, data: Dictionary, ghosts: Array[MeshInstance3D])
 	for i in mini(bell_states.size(), w.bells.size()):
 		w.bells[i].remaining = float(bell_states[i])
 	_apply_balls(w, data.get("balls", []) as Array, ghosts)
+	MedalThrow.apply_frame(w, data.get("medals", []) as Array, medal_ghosts)
 	if typeof(data.get("nature")) == TYPE_FLOAT:
 		w.nature.clock = float(data["nature"])
 	MechanismSet.apply_frame(w, data.get("mechanisms", {}) as Dictionary)
@@ -83,7 +91,10 @@ static func _apply_avatars(w: GameWorld, states: Dictionary) -> void:
 		var s := states[player_id] as Array
 		if player_id == me or not w.avatars.has(player_id) or s.size() < 4:
 			continue
-		w.avatars[player_id].apply_remote(s[0] as Vector3, float(s[1]), bool(s[2]), bool(s[3]))
+		var serial := int(s[4]) if s.size() >= 5 else -1
+		w.avatars[player_id].apply_remote(
+			s[0] as Vector3, float(s[1]), bool(s[2]), bool(s[3]), serial
+		)
 
 
 ## 飛んでいる玉は見た目だけ（参加者の画面では当たり判定をしない）。

@@ -95,7 +95,7 @@ func _give(i: int, j: int, action: RuleAction.Kind) -> void:
 	await party.settle(j)
 	var w := _w(i)
 	var before := _w(j).ledger.ability_count(action, party.pid(j))
-	# 自分の器に無ければ、空の枠を選ぶ（仲間から受け取って持っている能力を渡す。GameWorld._give_to）
+	# 自分の器に無ければ、空の枠を選ぶ（仲間から受け取って持っている能力を渡す。WorldLending.give）
 	var slot := _slot(i, action)
 	w.select_slot(slot if slot != -1 else _free_slot(i))
 	assert_eq(w.lend_to(w.avatars[party.pid(j)], false), RuleLedger.LendResult.OK, "give")

@@ -5,6 +5,7 @@ extends RefCounted
 ## 生き物、鐘の鳴っている残り時間、発射台の周期、選んでいる枠と付与方式、到達済みか。
 ## 自然の仕掛けの時計と、ブロック・器を運ぶ途中の経過時間（NatureField.to_dict）も残す。
 ## 飛んでいる途中の玉と、ブロックの W/A/S/D の予約（BlockMoveBuffer）は記録しない（復元したら消える）。
+## 投げたメダル（ThrownMedal）も記録しない。飛んでいる間も能力は手元にあるので、復元すると手元に戻っている。
 
 
 static func capture(w: GameWorld) -> Dictionary:
@@ -70,6 +71,7 @@ static func apply(w: GameWorld, snapshot: Dictionary) -> void:
 		w._launch_timers[id] = float(timers[id])
 	for ball in w.get_tree().get_nodes_in_group(&"thrown_balls"):
 		ball.queue_free()
+	MedalThrow.clear(w)
 	var creature_states := snapshot.get("creatures", {}) as Dictionary
 	for id: int in creature_states:
 		w.creatures[id].restore_state(creature_states[id] as Dictionary)

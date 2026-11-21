@@ -48,7 +48,7 @@ blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/pre
 - キャラクターの正面は Blender の +Y（Godot の前方 -Z になる）。足元が原点。手足・頭は別オブジェクトで、原点を関節に置く（`Body` `Head` `ArmL` `ArmR` `LegL` `LegR`）。
 - **動くものは骨格で動かす**（2026-11-21 本人の指示「生き物とかは部分ごとに作り Rig とかもいるやつは使いながらで」）。
   部品ごとのメッシュを 1 本の骨（`b_torso` など、関節から上向き）に重み 1.0 で結び、アクション（`idle` `walk` `happy`、
-  プレイヤーは `jump` も）を NLA に積んで、glTF に「アクションごと」で書き出す（`rig.py`）。Godot では `Skeleton3D` と
+  プレイヤーは `jump`・`throw` も）を NLA に積んで、glTF に「アクションごと」で書き出す（`rig.py`）。Godot では `Skeleton3D` と
   `AnimationPlayer` になり、`RigAnimator`（`src/game/rig_animator.gd`）が状態で切り替える。ループはゲーム側で付ける。
   部品の名前は残すので、`find_child("Body")` などはそのまま使える。当たり判定はゲーム側の箱・カプセルのまま。
 - 回る部品（風車の羽根 `Sails` の `spin`、ポータルの渦 `Swirl` の `swirl`）はオブジェクトのアニメーションにする。

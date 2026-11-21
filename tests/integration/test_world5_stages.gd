@@ -264,7 +264,7 @@ func test_ice_garden_boots_onto_the_shelf() -> void:
 func test_ice_garden_coop_double_jump() -> void:
 	await _enter(World5Stages.ICE_ID)
 	await _walk_to(Vector3(-5.5, 0.0, 5.4))
-	_lend_by_throwing(_creature("ice_bunny"), _slot_of(THROW))
+	await _lend_by_throwing(_creature("ice_bunny"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("ice_bell"), "thrown to the bunny from the shore")
 	_gift_from_teammate(JUMP)
 	await _ice_leap(-5.1, Vector3(4.5, 2.0, -7.5))
@@ -351,7 +351,7 @@ func test_sign_relay_throw_the_lambs_sign_onto_the_heavy_stone() -> void:
 	for v in w.ledger.inventory_vessels(_me().player_id):
 		if w.ledger.token(v.token_id).is_prohibition:
 			assert_true(w.ledger_actions.move_to_hotbar(v.id, slot), "the sign to the hotbar")
-	_lend_by_throwing(_block("heavy_stone"), slot)
+	await _lend_by_throwing(_block("heavy_stone"), slot)
 	assert_true(await _door_open("hedge_gate"), "the banned stone is light: the gate opens")
 	await _walk_to(Vector3(-4.5, 0.0, 8.5), 0.6)
 	w.interact(null)  # おもりを拾う（通常インベントリへ。_heavy_slot がホットバーへ移す）

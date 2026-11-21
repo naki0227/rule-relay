@@ -63,7 +63,7 @@ func _give_creature(key: String, slots: Array[int], by_throw: bool = false) -> v
 	for slot in slots:
 		assert_ne(slot, -1, "has the ability to give")
 		if by_throw:
-			_lend_by_throwing(critter, slot)
+			await _lend_by_throwing(critter, slot)
 		else:
 			_lend(critter, slot, TriggerMode.Kind.NONE)
 
@@ -136,7 +136,7 @@ func _wait_door(key: String, closed: bool, frames: int = 600) -> bool:
 func _throw_lend(target: Node3D, slot: int, mode: TriggerMode.Kind) -> void:
 	w.toggle_reach()
 	assert_true(w.throw_mode, "throw reach is on")
-	_lend(target, slot, mode)
+	await _lend(target, slot, mode)
 	if w.throw_mode:
 		w.toggle_reach()
 

@@ -94,6 +94,9 @@ func _lend(target: Node3D, slot: int, mode: TriggerMode.Kind) -> void:
 	w.select_slot(slot)
 	w.set_lend_mode(mode)
 	assert_eq(w.lend_to(target, false), RuleLedger.LendResult.OK, "lend to %s" % target.name)
+	if w.throw_mode:
+		# 投げたメダルが当たるまで待つ（docs/adr/0017。呼び出し側は await する）
+		assert_true(await wait_throws(w), "the thrown medal lands")
 
 
 func _block(key: String) -> RuleBlock:
@@ -195,7 +198,7 @@ func _run_and_jump(start: Vector3, edge: Vector3, land: Vector3, frames: int = 2
 func _lend_by_throwing(target: Node3D, slot: int) -> void:
 	w.toggle_reach()
 	assert_true(w.throw_mode, "throw reach is on")
-	_lend(target, slot, TriggerMode.Kind.NONE)
+	await _lend(target, slot, TriggerMode.Kind.NONE)
 	if w.throw_mode:
 		w.toggle_reach()
 

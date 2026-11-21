@@ -79,6 +79,9 @@ var _world_items: Dictionary[int, WorldItem] = {}
 var _terrain_ids: Dictionary[Vector3i, int] = {}
 var _terrain_kinds: Dictionary[Vector3i, String] = {}
 var _terrain_target: TerrainCell
+## 照準の光線が付与先に当たった点（投げたメダルはここを狙う。MedalThrow.aim_point）。
+## {"target": Node3D, "cell": Vector3i（地形のセルのとき）, "point": Vector3}
+var _aim_hint: Dictionary = {}
 
 
 func _ready() -> void:
@@ -321,80 +324,12 @@ func lend_to(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
 	if replica:
 		var ref := WorldQueries.target_ref(self, target)
 		action_requested.emit({"op": "lend", "target": ref, "range": use_range})
+		if throw_mode and target != null and is_within_reach(target):
+			player.play_throw(target.global_position - player.global_position)  # 投げるのはホスト
 		return RuleLedger.LendResult.OK
-	return _give_to(target as PlayerAvatar) if target is PlayerAvatar else _lend(target, use_range)
-
-
-func _lend(target: Node3D, use_range: bool) -> RuleLedger.LendResult:
-	var v := selected_vessel()
-	if v == null:
-		_post("ホットバー %d は空です" % (selected_slot + 1))
-		_ui_sound(&"ui_error")
-		return RuleLedger.LendResult.NO_SUCH_VESSEL
-	if target == null or not _within_reach(target):
-		_post("届きません（%s: %.1fブロック）" % ["投げる" if throw_mode else "触る", reach()])
-		_ui_sound(&"ui_error")
-		return RuleLedger.LendResult.NO_TARGETS
-	var t := ledger.token(v.token_id)
-	var mode := TriggerMode.Kind.NONE if t.is_prohibition else lend_mode
-	var result: RuleLedger.LendResult
-	if target is Bell:
-		_post("鐘には渡せません（%s で鳴らす）" % InputMode.token(&"interact"))
-		_ui_sound(&"ui_error")
-		return RuleLedger.LendResult.UNKNOWN_TARGET
-	if target is TerrainCell:
-		target = TerrainPromotion.promote(self, (target as TerrainCell).cell)
-	if use_range and not (target is RuleBlock or target is TerrainCell):
-		_post("生き物には範囲で渡せません（%s で1匹に渡す）" % InputMode.token(&"lend_single"))
-		_ui_sound(&"ui_error")
-		return RuleLedger.LendResult.RANGE_ONLY_FOR_BLOCKS
-	if use_range:
-		var selection := range_selection(target)
-		var ids := selection["ids"] as PackedInt32Array
-		for cell: Vector3i in selection["cells"] as Array:
-			# 範囲内の地形のセルも、全部ブロックとして受け取る
-			ids.append(TerrainPromotion.promote(self, cell).entity_id)
-		selection["ids"] = ids
-		result = ledger.lend(v.id, ids, mode, selection)
-	else:
-		result = ledger.lend(v.id, PackedInt32Array([_entity_of(target)]), mode)
-	_post(WorldQueries.describe(t, result, use_range))
-	if result == RuleLedger.LendResult.OK:
-		# 法則の音（能力ごとの音程）と、受け取った物が自分の材質の声で応える音
-		var motif := (
-			"%s@%d" % ["lend_range" if use_range else "lend", RuleAction.motif_semitone(t.action)]
-		)
-		_sound(StringName(motif), target.global_position)
-		_sound(WorldQueries.receive_sound(target), target.global_position)
-	else:
-		_ui_sound(&"ui_error")
-	if result == RuleLedger.LendResult.OK and mode == TriggerMode.Kind.SIGNAL:
-		for holder in t.holder_ids:
-			_signal_timers[holder] = Tuning.REPEAT_PERIOD - 0.25
-	if result == RuleLedger.LendResult.OK and mode == TriggerMode.Kind.REPEAT:
-		for holder in t.holder_ids:
-			# 付与してすぐ動き出すように、最初の周期を短くする
-			_repeat_timers[holder] = Tuning.REPEAT_PERIOD - 0.25
-	return result
-
-
-## 仲間へ能力を渡す（受け手の承認なし。2026-11-19 本人確定）。選んでいる枠の能力から渡す。
-## 枠の器が空なら、受け取って持っている同じ種類の能力を渡す。
-func _give_to(target: PlayerAvatar) -> RuleLedger.LendResult:
-	var token_id := WorldQueries.giveable_token(ledger, acting_id(), selected_slot)
-	if token_id == -1 or not _within_reach(target):
-		_post("渡せる能力がないか、届きません")
-		_ui_sound(&"ui_error")
-		return RuleLedger.LendResult.NO_TARGETS
-	var result := ledger.give_to_player(token_id, acting_id(), target.player_id)
-	var t := ledger.token(token_id)
-	if result == RuleLedger.LendResult.OK:
-		_post("%s を仲間に渡しました" % t.describe())
-		_sound(&"lend", target.global_position)
-	else:
-		_post(WorldQueries.describe(t, result, false))
-		_ui_sound(&"ui_error")
-	return result
+	if target is PlayerAvatar:
+		return WorldLending.give(self, target as PlayerAvatar)
+	return WorldLending.lend(self, target, use_range)
 
 
 ## 範囲付与で選ばれるブロック（プレビューと付与で同じ計算）。動くブロックの ID と、地形のままのセル
@@ -576,12 +511,14 @@ func aimed_block() -> Node3D:
 	var query := PhysicsRayQueryParameters3D.create(from, to, mask | Tuning.LAYER_AVATARS)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
 	var collider: Node3D = null if hit.is_empty() else hit["collider"] as Node3D
+	_aim_hint = {}
 	if (
 		collider is RuleBlock
 		or collider is Creature
 		or collider is Bell
 		or collider is PlayerAvatar
 	):
+		_aim_hint = {"target": collider, "point": hit["position"]}
 		return collider
 	# 付与先に当たらなかったら、照準の近くの生き物・ブロックを選ぶ（地形のセルより優先する）
 	var assisted := AimAssist.pick(self, cam)
@@ -591,8 +528,18 @@ func aimed_block() -> Node3D:
 		var cell := TerrainGrid.cell_at_hit(hit["position"] as Vector3, hit["normal"] as Vector3)
 		if terrain.has_cell(cell):
 			_terrain_target.point_at(cell)
+			_aim_hint = {"target": _terrain_target, "cell": cell, "point": hit["position"]}
 			return _terrain_target
 	return null
+
+
+## 照準の光線が target に当たった点（当たっていなければ null）。投げたメダルはここを狙う。
+func aim_hint_for(target: Node3D) -> Variant:
+	if _aim_hint.is_empty() or _aim_hint["target"] != target:
+		return null
+	if target is TerrainCell and (target as TerrainCell).cell != _aim_hint.get("cell"):
+		return null
+	return _aim_hint["point"]
 
 
 func update_highlight(target: Node3D) -> void:
@@ -772,6 +719,11 @@ func _ui_sound(event: StringName) -> void:
 		post_sink.call("", event)
 		return
 	sound_requested.emit(event, Vector3.ZERO, false)
+
+
+## メッセージを出す（いま操作している人へ。投げたメダルからも使う）。
+func notify(text: String) -> void:
+	_post(text)
 
 
 func _post(text: String) -> void:

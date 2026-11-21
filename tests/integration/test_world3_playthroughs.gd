@@ -170,7 +170,7 @@ func test_gap_relay_launcher_keeps_the_bridge_up() -> void:
 	await _enter(World3Stages.GAP_RELAY_ID)
 	assert_false(_door_closed("relay_bridge"), "no bridge yet")
 	await _walk_to(Vector3(5.5, 0.0, 0.5), 0.3)
-	_lend_by_throwing(_block("launcher"), _slot_of(THROW))
+	await _lend_by_throwing(_block("launcher"), _slot_of(THROW))
 	assert_true(await _wait_until_rung("bridge_bell"), "the launcher rang the bell")
 	assert_true(await _wait_door("relay_bridge", true), "the bridge rose")
 	await _walk_to(Vector3(0.0, 0.0, 0.5), 0.3)

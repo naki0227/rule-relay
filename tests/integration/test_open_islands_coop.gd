@@ -85,7 +85,7 @@ func test_quarry_banned_lift_after_moving_the_ban_away() -> void:
 	for v in w.ledger.inventory_vessels(_me().player_id):
 		if w.ledger.token(v.token_id).is_prohibition:
 			assert_true(w.ledger_actions.move_to_hotbar(v.id, ban_slot), "ban to the hotbar")
-	_lend_by_throwing(_block("stone_b"), ban_slot)
+	await _lend_by_throwing(_block("stone_b"), ban_slot)
 	assert_true(w.ledger.player_can(JUMP, _me().player_id), "can jump again")
 	await _lift_up("banned_lift", Vector3(0.5, 3.0, 8.5), Vector3(1.5, 5.0, 9.6))
 	await _walk_into_goal(RIM_TO_GOAL)
@@ -105,7 +105,9 @@ func test_three_bells_creature_throws_its_nut_at_the_north_bell() -> void:
 	w.interact(w.bells_by_key["north_bell"])
 	await wait_physics_frames(2)
 	assert_false(w.activated.has("north_bell"), "the bell is out of reach from below")
-	_lend_by_throwing(critter, _slot_of(THROW))
+	# 投げたメダルは本当に飛ぶ（docs/adr/0017）。崖の真下からは山なりでも崖の縁に当たるので、2 歩下がって投げる
+	await _walk_to(Vector3(-0.5, 0.0, -11.5))
+	await _lend_by_throwing(critter, _slot_of(THROW))
 	assert_true(await _wait_until_rung("north_bell"), "the creature's nut rang the bell")
 	assert_eq(critter.held_item, "", "the nut is gone")
 
@@ -128,7 +130,7 @@ func test_floating_isles_creature_rings_the_west_bell_across_the_gap() -> void:
 	await _enter(StageCatalog.FLOATING_ID)
 	var critter := _creature("isle_creature")
 	await _walk_to(Vector3(-5.5, 0.0, 4.5))
-	_lend_by_throwing(critter, _slot_of(THROW))
+	await _lend_by_throwing(critter, _slot_of(THROW))
 	assert_true(await _wait_until_rung("west_bell"), "the creature's nut rang the bell")
 	assert_lt(_me().global_position.x, -4.0, "never crossed the gap")
 	assert_gt(_me().global_position.x, -6.5, "still on the middle island")
