@@ -1,14 +1,13 @@
 extends "res://tests/integration/island_probing.gd"
 ## 鐘の谷（W2）の新しいステージの関所と詰みを、プレイヤーと同じ操作で壊しにいく試遊（2026-11-21）。
 ## 書き方は test_island_probes.gd と同じ（test_gate_* / test_accepted_* / test_finding_*）。
-## どの島にもダッシュは無い。谷は「転がる玉」の幅 10（歩いても跳んでも、受け入れた重ね跳びでも越えない）と、
-## 「鳴りつづける鐘」の幅 3（跳んで渡る道。関所ではない）だけ。
+## どの島にもダッシュは無い。谷は「転がる玉」の幅 10（歩いても跳んでも、受け入れた重ね跳びでも越えない）だけ。
+## 「鳴りつづける鐘」（2-5。時の鐘）は test_world2_timed_bells_probes.gd。
 
 const BACK := RuleAction.Kind.BACK
 const RIGHT := RuleAction.Kind.RIGHT
 const ECHO_ID := "w2_echo_bells"
 const ROLLING_ID := "w2_rolling_shots"
-const RINGING_ID := "w2_timed_bells"
 
 
 func _give_kit_a_move() -> void:
@@ -259,52 +258,3 @@ func test_gate_rolling_goal_without_the_bell_and_the_kit_is_not_a_clear() -> voi
 	await _lift_up("plateau_lift", Vector3(0.5, 0.0, -7.5), Vector3(-2.5, 2.0, -8.5))
 	await _walk_into_goal()
 	assert_false(await _cleared(120), "at the goal, but no bell and no kit")
-
-
-# --- 鳴りつづける鐘 ---------------------------------------------------------------
-
-
-func test_gate_ringing_stone_waits_for_the_bell_and_one_ring_is_not_enough() -> void:
-	await _enter(RINGING_ID)
-	await _give_kit_a_move()
-	assert_eq(await _block_cell_after("walking_stone", 240), Vector3i(6, 0, 6), "no bell, no walk")
-	await _jump_across(Vector3(6.6, 0.0, 1.5), Vector3(10.5, 0.0, 1.5))
-	await _ring_here("rock_bell")
-	var cell := await _block_cell_after("walking_stone", 420)
-	assert_eq(cell, Vector3i(6, 0, 3), "three steps in one ring")
-	assert_lt(await _creature_top("kit", 120), 1.6, "the kit cannot reach the plateau yet")
-	assert_false(OpenIslandsW2.RINGING_NEST.has_point(_creature("kit").global_position))
-
-
-## 発射台が最初の列のままでは、玉は鐘に当たらない（岩の南を通り過ぎる）。
-func test_gate_ringing_launcher_misses_from_its_starting_row() -> void:
-	await _enter(RINGING_ID)
-	var launcher := _block("launcher")
-	await _walk_to(launcher.global_position + Vector3(-1.5, -0.5, 0.0), 0.3)
-	_lend(launcher, _slot_of(THROW), TriggerMode.Kind.NONE)
-	assert_false(await _wait_until_rung("rock_bell", 300), "the shots miss the rock bell")
-
-
-func test_gate_ringing_plateau_is_not_a_plain_jump() -> void:
-	await _enter(RINGING_ID)
-	var best := await _jump_against(Vector3(-3.5, 0.0, -2.6), Vector3(-3.5, 2.0, -5.5))
-	assert_lt(best, 1.5, "shore (0) to plateau (2)")
-
-
-func test_gate_ringing_goal_without_the_kit_is_not_a_clear() -> void:
-	await _enter(RINGING_ID)
-	await _lift_up("plateau_lift", Vector3(1.5, 0.0, -2.5), Vector3(0.5, 2.0, -5.5))
-	await _walk_into_goal()
-	assert_false(await _cleared(120), "everyone at the goal, but the kit is not home")
-
-
-## 岩へ渡る谷（幅 3）に落ちても、復活して浜に戻る（詰まない）。
-func test_gate_ringing_falling_into_the_gap_respawns() -> void:
-	await _enter(RINGING_ID)
-	await _walk_to(Vector3(6.5, 0.0, 1.5), 0.2)
-	_me().view_yaw = atan2(-1.0, 0.0)
-	_me().move_intent = Vector2(0.0, 1.0)
-	await wait_physics_frames(90)
-	_me().move_intent = Vector2.ZERO
-	await _wait_respawn()
-	assert_lt(_me().global_position.x, 7.0, "back on the shore")

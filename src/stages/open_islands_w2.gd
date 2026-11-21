@@ -10,8 +10,7 @@ extends RefCounted
 ## 発射台の玉は 1 個の「投げる」で約 6.4 m、2 個で約 12.9 m 届く（玉の重力は 6）。
 ## 数値の目安は OpenIslands の冒頭と同じ。上昇中のブロックの上で自分も跳ぶ技（受け入れた技）は、
 ## 同じ高さへ 8.4 m 飛ぶので、それで届かない場所（谷の幅 10）を「歩いては行けない場所」にした。
-## 2-5 は計画では「時の鐘」だったが、並行の作業の新しい仕掛け（時の鐘など）を使わず、今ある信号の方式と発射台で
-## 「鳴っている間だけ」を作った。
+## 2-5 は時の鐘（docs/adr/0014）を初めて出すステージ（2026-11-21 本人の判断で作り直した）。
 ## クリアは「島の条件＋生きている全員がゴールの窪み（OpenIslands.goal_hollow）に集まる」。配置・目安時間は仮。
 
 const LIFT_COLOR := Color(0.7, 0.58, 0.86)
@@ -21,8 +20,14 @@ const ECHO_COLOR := Color(0.55, 0.78, 0.86)
 const ECHO_NEST := AABB(Vector3(-5.0, 4.5, -14.0), Vector3(2.0, 2.0, 2.0))
 ## 転がる玉: 子どもの生き物の巣（台地の西の小山。高さ 3）。
 const ROLLING_NEST := AABB(Vector3(-9.0, 2.5, -8.0), Vector3(2.0, 2.0, 2.0))
-## 鳴りつづける鐘: 子どもの生き物の巣（台地の東の小山。高さ 3）。
-const RINGING_NEST := AABB(Vector3(3.0, 2.5, -8.0), Vector3(2.0, 2.0, 2.0))
+## 鳴りつづける鐘: 子どもの生き物の巣（北の台地の小山。高さ 5）。
+const RINGING_NEST := AABB(Vector3(-2.0, 4.5, -18.0), Vector3(2.0, 2.0, 2.0))
+## 鳴りつづける鐘: 時の鐘（鐘の段の東。橋のたもとから F が届く）と、鳴る秒数。
+const RINGING_BELL := "timed_bell"
+const RINGING_BELL_AT := Vector3(3.5, 2.0, -1.5)
+const RINGING_BELL_TIME := 5.0
+## 鳴りつづける鐘: 信号の石の最初のセル（西へ 5 マス歩いて (0, 0, 1) で止まる）。
+const RINGING_STONE_START := Vector3i(5, 0, 1)
 
 
 ## こだまの鐘（2-2。目安 6 分・仮）。下の原（高さ 0）・中の段（2）・頂（4）。頂の西の小山（5）が巣。
@@ -109,40 +114,65 @@ static func rolling_shots() -> StageDef:
 	return def
 
 
-## 鳴りつづける鐘（2-5。目安 11 分・仮。計画の「時の鐘」を今ある仕組みで置き換えた）。
-## 浜（高さ 0）の北に台地（2）。台地の東の小山（3）が巣（石が着く壁ぎわから 8 マス以内）。東の岩（谷の幅 3 の先）に鐘がある。
-## 新しい組み合わせ: 2-1 の発射台・2-2 の信号・2-4 の発射台を押す。
-## 浜の南東の石には「信号の W（北へ動く）」が付いていて、鐘が鳴っている間だけ北へ進み、9 マス先の台地の壁で
-## 止まって生き物の 1 段の足場になる。鐘 1 回（5 秒）では 3 マスしか進まない。
-## - 発射台を北へ 5 マス押して鐘と同じ列に合わせ、「投げる」を渡すと、1.4 秒ごとに玉が当たって鐘が鳴りつづける
-## - または谷を跳んで岩に渡り、鳴りやむたびに鐘を鳴らし直す（3 回）
-## 生き物はジャンプを 1 つ持っている。移動を渡せば、石が壁ぎわに着いたら巣へ向かう。
-## 協力: 1 人が岩で鐘を鳴らし続け、もう 1 人が生き物と発射台を受け持つ。
-## ゴール: 台地の西の窪み（高さ 1、4×2）。
+## 鳴りつづける鐘（2-5。目安 10 分・仮。時の鐘の初出。2026-11-21 本人の判断で時の鐘を使って作り直した）。
+## 南の浜（高さ 0）・鐘の段（2）・幅 10 の谷・北の台地（4）。台地の巣の小山（5）が生き物の巣。
+## 新しい仕掛け: 時の鐘（MechanismSpecs.TimedBellSpec。5 秒。足もとの輪が縮んで残りを見せる）。
+## 鳴っている間だけ、谷の底から橋（逆向きのスイッチの扉 2 枚。高さ 2 の短い板と高さ 3 の長い板）がせり上がり、
+## 浜の石（信号の A。西へ歩く）が 1.4 秒ごとに 1 マス進む。鳴りやむと橋は谷の底へ沈む（上にいれば落ちる）。
+## - 谷の幅 10 は、走って跳んでも、受け入れた重ね跳び（同じ高さへ約 8.4 m）でも越えない（関所）
+## - 沈んだ橋の上面は落下の境（-12）より下（落ちた人・生き物・ブロックは戻される。谷底に立って詰まない）
+## - 石は鐘の段の壁ぞいを 5 マス歩き、出っ張りで止まって生き物の 1 段の足場になる。鐘 1 回では 3 マスで、
+##   まだ生き物が探す 8 マスの外（2 回目の途中で生き物が気づく）
+## 生き物はジャンプを 1 つ持っている。移動を渡すと、石の段で鐘の段へ上がり、橋が架かれば短い板 → 長い板 →
+## 北の台地 → 巣の小山と 1 段ずつ上がる。橋を渡りきるまで 6 秒以上かかるので、鐘 1 回（5 秒）では途中で落ちる。
+## 鳴らしつづける方法は自由:
+## - 鐘のそばで、鳴りやむ前に F で鳴らし直す（鳴らすたびに残りが 5 秒に戻る）
+## - 発射台を鐘の列（z = -2）へ押し、鐘の届く所（西へ 1 マス）まで寄せて「投げる」を渡す（1.4 秒ごとに玉が当たる）
+## プレイヤーは、鳴らしてから 5 秒の間に走って渡る（橋のたもとからでも鐘に F が届く）。発射台が鳴らしつづければ歩いて渡れる。
+## 石は自分で押してもよい（地形のセルを押して段にするなど、ほかの作り方も止めない）。
+## 協力: 1 人が鐘を鳴らしつづけ、ほかの人が生き物と一緒に渡る。最後の人は走って渡る（または発射台に任せる）。
+## ゴール: 北の台地の窪み（高さ 3、4×2）。北にチェックポイントは置かない（取り残されても谷へ落ちれば南へ戻る）。
 static func ringing_bell() -> StageDef:
-	var def := _base("w2_timed_bells", "鳴りつづける鐘", 11)
-	var m := IslandMap.blank(Vector2i(-10, -14), 24, 23)
-	m.fill(-8, -3, 6, 8, 0)
-	m.fill(-8, -12, 6, -4, 2)
-	m.fill(3, -8, 4, -7, 3)
-	# 東の岩（谷の幅 3）
-	m.fill(10, 1, 12, 3, 0)
-	var goal := OpenIslands.goal_hollow(m, -5, -11, -2, -10)
-	var lift := StageDef.BlockSpec.new("plateau_lift", m.pit(0, -3))
-	lift.color = LIFT_COLOR
-	def.blocks.append(lift)
+	var def := _base("w2_timed_bells", "鳴りつづける鐘", 10)
+	var m := IslandMap.blank(Vector2i(-10, -27), 24, 38)
+	m.fill(-8, 1, 12, 8, 0)
+	m.fill(-8, -3, 12, 0, 2)
+	# 石を止める出っ張り（鐘の段と同じ高さ 2。生き物はここへは上がれない）
+	m.fill(-1, 1, -1, 1, 2)
+	# 北の台地（谷 z = -13〜-4 の先）と巣の小山
+	m.fill(-8, -25, 6, -14, 4)
+	m.fill(-2, -18, -1, -17, 5)
+	var goal := OpenIslands.goal_hollow(m, 1, -23, 4, -22)
 	def.terrain_boxes = m.boxes()
-	_signal_stone(def, "walking_stone", Vector3i(6, 0, 6), RuleAction.Kind.FORWARD)
-	var launcher := StageDef.BlockSpec.new("launcher", Vector3i(4, 0, 7))
-	launcher.launcher_direction = Vector3i(1, 0, 0)
+	_signal_stone(def, "walking_stone", RINGING_STONE_START, RuleAction.Kind.LEFT)
+	var launcher := StageDef.BlockSpec.new("launcher", Vector3i(11, 2, -3))
+	launcher.launcher_direction = Vector3i(-1, 0, 0)
 	def.blocks.append(launcher)
-	def.bells = [StageDef.BellSpec.new("rock_bell", Vector3(10.5, 0.0, 2.5))]
-	# 生き物は台地の壁の近く（発射台の最初の位置は、生き物が探す 8 マスの外。乗って待ってしまわない）
-	_kit(def, Vector3(2.5, 0.0, -1.5))
+	_timed_bridge(def.mechanisms)
+	_kit(def, Vector3(-6.5, 0.0, 1.5))
 	def.spawn_points = _spawns(Vector3(-2.0, 0.0, 6.5))
-	def.checkpoints = [Vector3(-6.5, 0.0, 5.5), Vector3(-6.5, 2.0, -6.5)]
+	def.checkpoints = [Vector3(-5.5, 0.0, 6.5), Vector3(-5.5, 2.0, -1.5)]
 	def.clear_condition = _kit_and_goal(RINGING_NEST, goal)
 	return def
+
+
+## 時の鐘と、鳴っている間だけ架かる橋（逆向きの扉。開く = 谷の底へ沈む、閉じる = せり上がる）。
+## 沈んだときの上面が落下の境（Tuning.FALL_LIMIT_Y = -12）より下になる高さにした。
+static func _timed_bridge(m: MechanismSpecs) -> void:
+	m.timed_bells = [
+		MechanismSpecs.TimedBellSpec.new(RINGING_BELL, RINGING_BELL_AT, RINGING_BELL_TIME)
+	]
+	var short_span := MechanismSpecs.DoorSpec.new(
+		"bridge_low", Vector3i(0, -14, -5), PackedStringArray([RINGING_BELL])
+	)
+	short_span.size = Vector3i(2, 16, 2)
+	var long_span := MechanismSpecs.DoorSpec.new(
+		"bridge_high", Vector3i(0, -13, -13), PackedStringArray([RINGING_BELL])
+	)
+	long_span.size = Vector3i(2, 16, 8)
+	for span: MechanismSpecs.DoorSpec in [short_span, long_span]:
+		span.inverted = true
+		m.doors.append(span)
 
 
 static func _base(stage_id: String, display_name: String, minutes: int) -> StageDef:
