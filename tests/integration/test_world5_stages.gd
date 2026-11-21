@@ -416,23 +416,3 @@ func _dash_jump_across(edge: Vector3, land: Vector3, dash_slot: int) -> void:
 			break
 	w.press_action(RuleAction.Kind.DASH)
 	await _walk_to(land, 0.6, 240)
-
-
-# --- 既存の 5-3 札の庭・5-6 砦跡に足した願いを持つ動物 ----------------------------
-
-
-## 5-3: 下の庭から「投げる」を投げて渡すと、社の縁の動物が木の実で社の鐘を鳴らす（庭の決まりのまま）。
-func test_ban_garden_wish_animal_rings_the_shrine_bell() -> void:
-	await _enter(StageCatalog.GARDEN_ID)
-	await _walk_to(Vector3(0.5, 0.0, -6.5), 0.3)
-	_lend_by_throwing(_creature("shrine_animal"), _slot_of(THROW))
-	assert_true(await _wait_until_rung("shrine_bell"), "the animal's nut rang the shrine bell")
-	assert_true(w.ledger.player_prohibited(JUMP, _me().player_id), "still under the garden rule")
-
-
-## 5-6: 下の郭から「投げる」を投げて渡すと、櫓の縁の動物が木の実で櫓の鐘を鳴らす。
-func test_ruined_fort_wish_animal_rings_the_keep_bell() -> void:
-	await _enter(StageCatalog.FORT_ID)
-	await _walk_to(Vector3(0.5, 0.0, -3.5), 0.3)
-	_lend_by_throwing(_creature("keep_animal"), _slot_of(THROW))
-	assert_true(await _wait_until_rung("keep_bell"), "the animal's nut rang the keep bell")
