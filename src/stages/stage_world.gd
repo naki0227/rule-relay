@@ -88,6 +88,8 @@ func _ready() -> void:
 	var goal := def.clear_condition.goal_area()
 	if goal.has_volume():
 		_add_goal_marker(goal)
+	if def.festival:
+		SummitFestival.build(self, goal)  # 最終ステージのお祝い（見た目と知らせだけ）
 	spawn_player(def.spawn_point(0))
 
 

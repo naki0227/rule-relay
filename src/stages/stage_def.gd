@@ -58,6 +58,8 @@ var target_minutes: int = 0
 var provisional: bool = true
 ## スイッチの仕掛け（重さの板・扉・レバー・時の鐘・ワープの石。docs/adr/0014）。
 var mechanisms: MechanismSpecs = MechanismSpecs.new()
+## 最終ステージのお祝い（全員がそろってクリアすると、願いをかなえた生き物が集まる。SummitFestival）。
+var festival: bool = false
 
 
 ## 発動方式つきの能力・禁止（ブロック・生き物に最初から付いているもの）。
