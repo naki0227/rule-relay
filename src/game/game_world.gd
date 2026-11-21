@@ -51,6 +51,8 @@ var post_sink: Callable = Callable()
 var ledger_actions: LedgerActions = LedgerActions.new()
 ## 自然の仕掛け（風・氷・水。docs/adr/0015）。置き方は NatureBuilder が StageDef.nature から入れる。
 var nature: NatureField = NatureField.new()
+## ブロックの W/A/S/D の予約（空中・移動中に起動したら、動けるようになった瞬間に1マス。ホストだけ）。
+var move_buffer: BlockMoveBuffer = BlockMoveBuffer.new()
 
 var _next_block_id: int = FIRST_BLOCK_ID
 var _repeat_cursors: Dictionary[int, RepeatCursor] = {}
@@ -679,6 +681,7 @@ func _physics_process(delta: float) -> void:
 	if replica:
 		return  # ルールと物理はホストが決める
 	WorldTicks.climbers(self)
+	move_buffer.advance(self, delta)
 	WorldTicks.repeats(self, delta)
 	WorldTicks.signals(self, delta)
 	WorldTicks.launchers(self, delta)

@@ -28,6 +28,8 @@ var _step_time: float = -1.0
 var _step_duration: float = Tuning.BLOCK_STEP_DURATION
 ## ダッシュ中（重力を受けずに北へまっすぐ進む）。
 var _dashing: bool = false
+## 空中で始めた1マス移動（予約した W/A/S/D。BlockMoveBuffer）。途中で塞がれたら元のマスの列へ戻す。
+var _air_step: bool = false
 var _outline: MeshInstance3D
 var _outline_material: StandardMaterial3D
 var _corner_markers: Node3D
@@ -88,6 +90,30 @@ func is_ready_for(action: RuleAction.Kind) -> bool:
 	return not test_move(global_transform, dir * 0.98)
 
 
+## 横の1マス移動を、いまの高さのまま始められるか（W/A/S/D の予約用。2026-11-21 本人の判断）。
+## 地面にいなくてもよい。横に動いている途中なら false。落ちている最中は、次の数フレームで落ちる分だけ
+## 下も含めて空いていること（縁の横に当たって途中で止まらないように）。
+func can_step_now(action: RuleAction.Kind) -> bool:
+	if is_moving_horizontally() or _dashing:
+		return false
+	var dir := Vector3(RuleAction.world_direction(action)) * SIZE * 0.98
+	if is_grounded():
+		return not test_move(global_transform, dir)
+	var drop := maxf(0.0, -velocity_y) * get_physics_process_delta_time() * 2.0
+	return not test_move(global_transform, dir + Vector3(0.0, -drop, 0.0))
+
+
+## 落ち着いているか（地面・水に立つか、登るでつかまる高さにいて、横にも動いていない）。
+## 予約した W/A/S/D は、落ち着いたときに進む先が塞がれていれば失敗になる。
+func is_settled() -> bool:
+	if is_moving_horizontally() or _dashing:
+		return false
+	if is_grounded():
+		return true
+	var bottom := global_position.y - SIZE * 0.5
+	return not is_nan(_climb_bottom) and absf(bottom - _climb_bottom) < 0.02 and velocity_y <= 0.0
+
+
 ## 行動を実行する。呼ぶ前に is_ready_for と BlockRules.attempt で成功を確かめること。
 ## high_jump: 高跳び（ジャンプブーツの能力）を持っていれば、跳ぶ高さが固定で上がる。
 ## stack: 同じ能力の数。ジャンプを n 個持てば到達高度が n 倍（2026-11-19 本人確定）。
@@ -98,6 +124,7 @@ func perform(action: RuleAction.Kind, high_jump: bool = false, stack: int = 1) -
 		jumped.emit()
 		return
 	stepped.emit()
+	_air_step = not is_grounded()
 	_step_from = global_position
 	_step_time = 0.0
 	if action == RuleAction.Kind.DASH:
@@ -118,6 +145,7 @@ func push(direction: Vector3i, duration: float = Tuning.BLOCK_STEP_DURATION) -> 
 	var dir := Vector3(direction) * SIZE
 	if test_move(global_transform, dir * 0.98):
 		return false
+	_air_step = false
 	_step_from = global_position
 	_step_to = global_position + dir
 	_step_time = 0.0
@@ -150,6 +178,7 @@ func teleport(target: Vector3, new_velocity_y: float) -> void:
 	velocity_y = new_velocity_y
 	_step_time = -1.0
 	_dashing = false
+	_air_step = false
 	_finished_step = Vector3i.ZERO
 
 
@@ -297,8 +326,12 @@ func _integrate_horizontal(delta: float) -> void:
 	var motion := Vector3(target.x - global_position.x, 0.0, target.z - global_position.z)
 	var hit := KinematicCollision3D.new()
 	if test_move(global_transform, motion, hit):
-		# 途中で塞がれたら止まる（P0 ではブロックが横に押し合わない）
-		global_position += hit.get_travel()
+		# 途中で塞がれたら止まる（P0 ではブロックが横に押し合わない）。空中で始めた移動は、マス目から
+		# ずれたまま落ちないよう、元のマスの列へ戻す（その列は落ちてくる間ずっと通ってきた場所なので空いている）
+		if _air_step:
+			global_position = Vector3(_step_from.x, global_position.y, _step_from.z)
+		else:
+			global_position += hit.get_travel()
 		_step_time = -1.0
 		_dashing = false
 		return

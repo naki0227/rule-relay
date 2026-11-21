@@ -39,8 +39,10 @@ func test_finding_o3_1_the_pond_holds_you_without_a_jump() -> void:
 	)
 
 
-## 筏に W を繰り返しで渡しても、流れで運ばれる拍子とぶつかって北へは進めない（単発で漕ぐ）。
-func test_finding_o3_2_repeat_cannot_row_against_the_drift() -> void:
+## 筏に W を繰り返しで渡すと、流れで運ばれている途中の周期も予約されるので、北へ漕ぎ進める
+## （2026-11-21 本人の判断「繰り返しの時も予約に」で finding から accepted へ。以前は z -3 までしか進めなかった）。
+## 単発で漕ぐ解法も残る。新しい道として認める（関所ではない）。
+func test_accepted_o3_2_repeat_rows_against_the_drift() -> void:
 	await _enter("o3_2")
 	await _pick(Vector3(2.5, 0.0, 6.5), FLOAT)
 	var planter := _block("planter")
@@ -52,8 +54,8 @@ func test_finding_o3_2_repeat_cannot_row_against_the_drift() -> void:
 	for i in 600:
 		furthest = mini(furthest, planter.cell().z)
 		await tree.physics_frame
-	assert_gt(
-		furthest, -4, "FINDING: the repeat W rarely beats the drift (reached z %d)" % furthest
+	assert_lt(
+		furthest, -3, "ACCEPTED: the buffered repeat W beats the drift (reached z %d)" % furthest
 	)
 
 

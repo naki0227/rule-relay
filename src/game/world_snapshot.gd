@@ -4,7 +4,7 @@ extends RefCounted
 ## 記録するもの: 能力と器の所有（台帳）、プレイヤーの位置、ブロックの位置・速度・移動と周期の途中、
 ## 生き物、鐘の鳴っている残り時間、発射台の周期、選んでいる枠と付与方式、到達済みか。
 ## 自然の仕掛けの時計と、ブロック・器を運ぶ途中の経過時間（NatureField.to_dict）も残す。
-## 飛んでいる途中の玉は記録しない（復元したら消える）。
+## 飛んでいる途中の玉と、ブロックの W/A/S/D の予約（BlockMoveBuffer）は記録しない（復元したら消える）。
 
 
 static func capture(w: GameWorld) -> Dictionary:
@@ -48,6 +48,8 @@ static func apply(w: GameWorld, snapshot: Dictionary) -> void:
 		if not w.promoted.has(cell):
 			TerrainPromotion.promote(w, cell)
 	w.ledger.restore(snapshot["ledger"] as Dictionary)
+	# W/A/S/D の予約はホストの一時的な状態なので、保存せず復元で消す（貸した単発は残り、もう一度押せる）
+	w.move_buffer.clear()
 	w.player.global_position = snapshot["player_position"] as Vector3
 	w.player.velocity = Vector3.ZERO
 	w.player.slide = Vector2.ZERO
