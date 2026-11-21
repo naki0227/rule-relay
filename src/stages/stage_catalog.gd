@@ -67,6 +67,11 @@ static func all_stages() -> Array[StageDef]:
 		World7Finale.summit_4(),
 		World7Finale.summit_5(),
 		World7Finale.summit_6(),
+		OpenIslandsW1.lift_steps(),
+		OpenIslandsW1.push_path(),
+		OpenIslandsW2.echo_bells(),
+		OpenIslandsW2.rolling_shots(),
+		OpenIslandsW2.ringing_bell(),
 	]
 	stages.sort_custom(
 		func(a: StageDef, b: StageDef) -> bool: return a.target_minutes < b.target_minutes
