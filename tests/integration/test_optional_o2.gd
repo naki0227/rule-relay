@@ -96,25 +96,6 @@ func test_o2_2_cloud_raft_heavy_then_float() -> void:
 	assert_true(await _cleared(), "cleared the cloud raft")
 
 
-## edge から跳んで滑空し、target の真上に来たら進むのをやめて降りる（浮くは落ちる速さが遅いので止まれる）。
-func _glide_to(edge: Vector3, target: Vector3, frames: int = 900) -> Vector3:
-	await _walk_to(edge, 0.2)
-	var jumped := false
-	for i in frames:
-		var flat := Vector3(
-			target.x - _me().global_position.x, 0.0, target.z - _me().global_position.z
-		)
-		_me().move_intent = _steer(target) if flat.length() > 0.3 else Vector2.ZERO
-		if not jumped and _me().is_on_floor():
-			w.press_action(JUMP)
-			jumped = true
-		elif jumped and i > 5 and _me().is_on_floor():
-			break
-		if _me().global_position.y < -8.0:
-			break
-		await tree.physics_frame
-	_me().move_intent = Vector2.ZERO
-	return _me().global_position
 
 
 # --- O2-3 落ちる島々 ----------------------------------------------------------

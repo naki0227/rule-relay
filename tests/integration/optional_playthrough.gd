@@ -146,7 +146,9 @@ func _creature_home(key: String, nest: AABB, frames: int = 2400) -> bool:
 ## ワープの石（stone はその床の真ん中）へ歩いて乗り、別の場所へ移ったら止まる。移れたら true。
 func _ride_warp(stone: Vector3, frames: int = 900) -> bool:
 	for i in frames:
-		var flat := Vector3(stone.x - _me().global_position.x, 0.0, stone.z - _me().global_position.z)
+		var flat := Vector3(
+			stone.x - _me().global_position.x, 0.0, stone.z - _me().global_position.z
+		)
 		if flat.length() > 6.0 and i > 0 and _was_near:
 			_me().move_intent = Vector2.ZERO
 			_was_near = false
@@ -171,7 +173,9 @@ func _lift_jump_toward(
 	var pressed := false
 	var left_floor := false
 	for i in frames:
-		var flat := Vector3(toward.x - _me().global_position.x, 0.0, toward.z - _me().global_position.z)
+		var flat := Vector3(
+			toward.x - _me().global_position.x, 0.0, toward.z - _me().global_position.z
+		)
 		var over := stop_over and flat.length() < 0.3
 		_me().move_intent = _steer(toward) if pressed and not over else Vector2.ZERO
 		if not pressed and w.ledger.player_can(JUMP, me) and _me().is_on_floor():
@@ -191,7 +195,7 @@ func _lift_jump_toward(
 ## 縁の手前 start から toward へ走り、edge を過ぎたら跳ぶ（浮くがあれば滑空）。床に着いた所を返す。
 func _run_jump_glide(start: Vector3, edge: Vector3, toward: Vector3, frames: int = 900) -> Vector3:
 	await _walk_to(start, 0.25)
-	var dir := (toward - start)
+	var dir := toward - start
 	dir.y = 0.0
 	dir = dir.normalized()
 	var jumped := false
@@ -249,12 +253,18 @@ func _glide_dash(
 		_lend(w.terrain_target(cell), _slot_of(JUMP), TriggerMode.Kind.SINGLE_SHOT)
 		w.press_action(JUMP)
 	for i in 1200:
-		var flat := Vector3(target.x - _me().global_position.x, 0.0, target.z - _me().global_position.z)
+		var flat := Vector3(
+			target.x - _me().global_position.x, 0.0, target.z - _me().global_position.z
+		)
 		var over := stop_over and flat.length() < 0.3
 		var moving := jumped and lifted
 		_me().move_intent = _steer(target) if (moving or not lift) and not over else Vector2.ZERO
 		if not lifted:
-			if w.ledger.player_can(JUMP, me) and _me().is_on_floor() and _me().global_position.y > edge.y + 0.3:
+			if (
+				w.ledger.player_can(JUMP, me)
+				and _me().is_on_floor()
+				and _me().global_position.y > edge.y + 0.3
+			):
 				lifted = true
 		if lifted and not jumped and _me().is_on_floor():
 			w.press_action(JUMP)
@@ -288,3 +298,52 @@ func _throw_push(key: String, action: RuleAction.Kind) -> Vector3i:
 			break
 		await tree.physics_frame
 	return block.cell()
+
+
+## 島のどこかで手に入る能力（または仲間から受け取る能力）を、持っている状態にする（抜け道の試遊の準備用。
+## 台帳の普通の配り方で、空いているホットバーに置く）。
+func _receive(action: RuleAction.Kind) -> void:
+	var slot := _free_slot()
+	assert_ne(slot, -1, "a free hotbar slot")
+	w.ledger.give_player_item(action, false, slot, _me().player_id)
+
+
+## edge から跳んで滑空し、target の真上に来たら進むのをやめて降りる（浮くは落ちる速さが遅いので止まれる）。
+func _glide_to(edge: Vector3, target: Vector3, frames: int = 900) -> Vector3:
+	await _walk_to(edge, 0.2)
+	var jumped := false
+	for i in frames:
+		var flat := Vector3(
+			target.x - _me().global_position.x, 0.0, target.z - _me().global_position.z
+		)
+		_me().move_intent = _steer(target) if flat.length() > 0.3 else Vector2.ZERO
+		if not jumped and _me().is_on_floor():
+			w.press_action(JUMP)
+			jumped = true
+		elif jumped and i > 5 and _me().is_on_floor():
+			break
+		if _me().global_position.y < -8.0:
+			break
+		await tree.physics_frame
+	_me().move_intent = Vector2.ZERO
+	return _me().global_position
+
+
+## _try_walk_to と同じく歩くが、途中で 2 m 以上落ちたら（谷へ落ちた・吹き飛ばされた）すぐ false を返す。
+## 落ちて復活した後に歩き直して「着いた」と数えないようにする（抜け道の試遊用）。
+func _walk_without_falling(target: Vector3, frames: int = 900) -> bool:
+	var floor_y := _me().global_position.y
+	for i in frames:
+		var flat := Vector3(
+			target.x - _me().global_position.x, 0.0, target.z - _me().global_position.z
+		)
+		if flat.length() <= 0.5 and absf(_me().global_position.y - target.y) < 0.7:
+			_me().move_intent = Vector2.ZERO
+			return true
+		if _me().global_position.y < floor_y - 2.0:
+			_me().move_intent = Vector2.ZERO
+			return false
+		_me().move_intent = _steer(target)
+		await tree.physics_frame
+	_me().move_intent = Vector2.ZERO
+	return false
