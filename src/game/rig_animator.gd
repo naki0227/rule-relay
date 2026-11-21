@@ -10,6 +10,9 @@ const JUMP := &"jump"
 const HAPPY := &"happy"
 ## 1 回だけ再生する動き（プレイヤーの投げる。docs/adr/0017）。
 const THROW := &"throw"
+## 願いを持つ生き物の待っている間のしぐさ（1 回だけ。見回す・その場で跳ねる。docs/adr/0019）。
+const LOOK := &"look"
+const HOP := &"hop"
 ## 繰り返す動き（Blender 側は 1 周ぶんだけ作るので、ここでループにする）。
 const LOOPED: Array[StringName] = [IDLE, WALK, HAPPY]
 const BLEND: float = 0.18

@@ -1,4 +1,4 @@
-"""目印と拾える物（ゴールの旗・チェックポイントの台・入口の門・器のメダル・装備）を作る。
+"""目印と拾える物（ゴールの旗・チェックポイントの台・入口の門・器のメダル・装備・生き物の巣）を作る。
 
     blender -b --factory-startup --python art/scripts/build_markers.py              # 全部
     blender -b --factory-startup --python art/scripts/build_markers.py -- goal      # 一部（BUILDERS）
@@ -377,12 +377,72 @@ def build_dash_feather():
     export("dash_feather", "DashFeather", [part("Feather", [vane, vane_deep, quill, wind], build)])
 
 
+# --- 生き物の巣 ----------------------------------------------------------------------
+
+
+def build_creature_nest():
+    """生き物の巣（2026-11-21 本人「巣がどこかもわかりにくい」。docs/adr/0019）: 小枝を編んだ丸い巣に、
+    干し草の寝床と若葉を 3 枚。UI が無くても「動物のおうち」と読めるようにする。
+    直径 1 m・高さ約 0.3 m で作り、ゲームが巣の箱の大きさに合わせて広げる。見た目だけ（当たり判定なし）なので、
+    生き物はふちをまたいで中へ入れる。原点は足もとの真ん中。"""
+    import random
+
+    base.reset_scene()
+    twig = mat("Twig", pal.WOOD, 0.9)
+    twig_dark = mat("TwigDark", pal.WOOD_DARK, 0.9)
+    twig_light = mat("TwigLight", pal.WOOD_LIGHT, 0.85)
+    straw = mat("Straw", pal.SUN_SOFT, 0.95)
+    leaf = mat("Leaf", pal.LEAF, 0.8)
+    rng = random.Random(19)
+
+    def build(bm):
+        # ふち: ずんぐりした輪（編んだ小枝の芯。濃い木の色）と、底の浅い皿
+        pal.torus(bm, 0.4, 0.075, (0, 0, 0.11), 40, 12, 1)
+        pal.ellipsoid(bm, 0.44, (0, 0, 0.04), (1.0, 1.0, 0.1), (32, 8), 1)
+        # 干し草の寝床（ふちより少し低い、ふっくらした丸）
+        pal.ellipsoid(bm, 0.33, (0, 0, 0.09), (1.0, 1.0, 0.22), (28, 10), 3)
+
+        # 編んだ小枝: 芯の表面を、ふちに沿って斜めに巻く（芯の断面の角度 t を進めながら。3 色を混ぜる）
+        def on_rim(a, t, lift=0.0):
+            reach = 0.4 + (0.088 + lift) * math.cos(t)
+            return (math.cos(a) * reach, math.sin(a) * reach, 0.11 + (0.088 + lift) * math.sin(t))
+
+        count = 64
+        for k in range(count):
+            a = math.tau * k / count + rng.uniform(-0.03, 0.03)
+            t = rng.uniform(-1.2, 2.6)  # 外側・上・内側の上のほう（下は地面に隠れる）
+            span = rng.uniform(0.28, 0.4)
+            turn = rng.choice((-1.0, 1.0)) * rng.uniform(0.3, 0.6)
+            radius = rng.uniform(0.014, 0.02)
+            index = rng.choice((0, 0, 0, 2))
+            pal.capsule(bm, radius, on_rim(a, t, radius * 0.5),
+                        on_rim(a + span, t + turn, radius * 0.5), 6, index)
+        # はみ出した小枝を数本（手作りらしさ）
+        for k in range(7):
+            a = math.tau * k / 7 + 0.3
+            r0, r1 = 0.42, 0.56
+            pal.capsule(bm, 0.014, (math.cos(a) * r0, math.sin(a) * r0, 0.16),
+                        (math.cos(a + 0.25) * r1, math.sin(a + 0.25) * r1, 0.2), 6, 1)
+        # 若葉 3 枚（ふちに差してある）
+        for k, a in enumerate((0.6, 2.5, 4.4)):
+            r = 0.46
+            faces = pal.ellipsoid(bm, 0.09, (0, 0, 0), (0.45, 1.0, 0.08), (12, 6), 4)
+            verts = _verts(faces)
+            bmesh.ops.rotate(bm, verts=verts, cent=(0, 0, 0), matrix=rot(25 + k * 8, "X"))
+            bmesh.ops.rotate(bm, verts=verts, cent=(0, 0, 0), matrix=rot(math.degrees(a) + 90, "Z"))
+            bmesh.ops.translate(bm, verts=verts, vec=(math.cos(a) * r, math.sin(a) * r, 0.22))
+
+    export("creature_nest", "CreatureNest", [part("Nest", [twig, twig_dark, twig_light, straw, leaf],
+                                                   build)])
+
+
 BUILDERS = {
     "goal": lambda: (build_goal_flag(), build_goal_corner()),
     "checkpoint": build_checkpoint_pad,
     "entrance": build_entrance_gate,
     "medal": lambda: (build_vessel_medal(), build_ban_medal()),
     "equipment": lambda: (build_jump_boots(), build_climbing_gloves(), build_dash_feather()),
+    "nest": build_creature_nest,
 }
 
 

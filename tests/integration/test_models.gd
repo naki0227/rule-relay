@@ -15,6 +15,7 @@ const MODELS: Array[String] = [
 	"jump_boots",
 	"climbing_gloves",
 	"dash_feather",
+	"creature_nest",
 	"hub_lamp",
 	"hub_fence",
 	"hub_planter",
@@ -32,8 +33,8 @@ const MODELS: Array[String] = [
 ## 骨格付きのモデル（art/scripts/rig.py）と、ゲームが再生するアニメーション（2026-11-21 本人の指示）。
 const RIGGED: Dictionary[String, Array] = {
 	"traveler": [&"idle", &"walk", &"jump", &"happy"],
-	"creature_wish": [&"idle", &"walk", &"happy"],
-	"creature_kit": [&"idle", &"walk", &"happy"],
+	"creature_wish": [&"idle", &"walk", &"happy", &"look", &"hop"],
+	"creature_kit": [&"idle", &"walk", &"happy", &"look", &"hop"],
 	"critter_bunny": [&"idle", &"walk", &"happy"],
 	"critter_lamb": [&"idle", &"walk", &"happy"],
 }

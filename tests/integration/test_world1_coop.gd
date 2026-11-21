@@ -80,14 +80,26 @@ func test_push_path_guest_sees_the_kits_wish() -> void:
 	assert_eq(guest_kit.wish_text(), Creature.WISH_NEST, "the guest has the wish text")
 	assert_eq(guest_kit.wish_box, OpenIslandsW1.PATH_NEST, "and the nest")
 	assert_false(_w(1).find_children("WishMarker*", "WishMarker", false, false).is_empty())
+	for i in 180:  # ホストの生き物は置かれてから 0.6 秒落ち着いてから判断する
+		if guest_kit.bubble_key() == CreatureWishView.KEY_NEED_MOVE:
+			break
+		await tree.physics_frame
 	assert_eq(guest_kit.bubble_key(), CreatureWishView.KEY_NEED_MOVE, "asks for a move")
+	assert_eq(guest_kit.shown_needs(), [FORWARD] as Array[RuleAction.Kind], "the move medal")
+	assert_true(guest_kit.shows_nest_in_bubble(), "with the tiny nest")
+	assert_eq(guest_kit.nest_tint, _creature(0, "kit").nest_tint, "the same nest colour")
+	var guest_marker := (
+		_w(1).find_children("WishMarker*", "WishMarker", false, false)[0] as WishMarker
+	)
+	assert_ne(guest_marker.nest_model(), null, "the guest sees the nest model")
+	assert_true(guest_marker.is_beam_shown(), "and the beam")
 	await _walk(1, guest_kit.global_position + Vector3(1.4, 0.0, 0.0), 0.4)
 	await _lend(1, guest_kit, RIGHT, TriggerMode.Kind.NONE)
 	var host_kit := _creature(0, "kit")
 	for i in 600:
-		if host_kit.bubble_key() == CreatureWishView.KEY_STUCK:
+		if host_kit.bubble_key() == CreatureWishView.KEY_PATH:
 			break
 		await tree.physics_frame
 	await wait_physics_frames(20)
-	assert_eq(host_kit.bubble_key(), CreatureWishView.KEY_STUCK, "stuck at the step on the host")
-	assert_eq(guest_kit.bubble_key(), CreatureWishView.KEY_STUCK, "the guest sees the same")
+	assert_eq(host_kit.bubble_key(), CreatureWishView.KEY_PATH, "stairs (needs a path) on the host")
+	assert_eq(guest_kit.bubble_key(), CreatureWishView.KEY_PATH, "the guest sees the same bubble")
