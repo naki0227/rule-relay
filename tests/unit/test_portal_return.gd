@@ -1,5 +1,5 @@
 extends TestCase
-## 広場へ戻ったときの立ち位置（Overworld.return_spots・PortalReturn。docs/adr/0018）と、
+## 広場へ戻ったときの立ち位置（Overworld.return_spots・PortalReturn。docs/adr/0020）と、
 ## メニューの「広場へもどる」の投票の数え方（StageLeaveVote）。
 
 
@@ -100,3 +100,17 @@ func test_leave_vote_needs_a_majority() -> void:
 	assert_eq(vote.cast(2, three, 30.0), StageLeaveVote.Result.OPENED, "a new vote")
 	assert_true(vote.tick(31.0), "times out")
 	assert_eq(vote.counts(three), Vector2i.ZERO)
+
+
+## 「最初から」の投票が開いているときに「出る」をえらぶと、新しい「出る」の投票に置き換わる（足し合わせない）。
+func test_a_vote_for_the_other_action_starts_over() -> void:
+	var vote := StageLeaveVote.new()
+	var three := PackedInt32Array([1, 2, 3])
+	var restart := StageLeaveVote.Action.RESTART
+	var leave := StageLeaveVote.Action.LEAVE
+	assert_eq(vote.cast(2, three, 30.0, restart), StageLeaveVote.Result.OPENED)
+	assert_eq(vote.action, restart)
+	assert_eq(vote.cast(3, three, 30.0, leave), StageLeaveVote.Result.OPENED, "replaced")
+	assert_eq(vote.action, leave)
+	assert_eq(vote.counts(three), Vector2i(1, 2), "the restart vote is not carried over")
+	assert_eq(vote.cast(2, three, 30.0, leave), StageLeaveVote.Result.PASSED)

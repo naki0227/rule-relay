@@ -181,7 +181,7 @@ func test_gate_hollow_without_jump_cannot_be_left_alone() -> void:
 		assert_true(_goal().has_point(_me().global_position), "still in the hollow")
 
 
-## ひとりなら V（全員リセットの投票）が1票で決まり、島のはじめへ戻ってジャンプも戻る。
+## ひとりなら V（全員リセットの投票）が1票で決まり、チェックポイント（無ければステージの始め）へ戻ってジャンプも戻る。
 func test_gate_hollow_trap_solo_vote_resets() -> void:
 	await _trap_in_floating_goal()
 	director.request_vote()
@@ -191,7 +191,7 @@ func test_gate_hollow_trap_solo_vote_resets() -> void:
 	assert_true(w.ledger.player_can(JUMP, _me().player_id), "the jump came back")
 
 
-## ひとりなら、メニューの「島のはじめから」で本当に最初から作り直す。
+## ひとりなら、メニューの「このステージを最初から」で本当に最初から作り直す。
 func test_gate_hollow_trap_solo_menu_restart() -> void:
 	await _trap_in_floating_goal()
 	w.restart_island()
@@ -378,7 +378,7 @@ func test_gate_lone_vote_expires_and_a_later_death_does_not_reset() -> void:
 	client.request_vote()
 	await _until(func() -> bool: return client.lifecycle.is_vote_open(), "vote on the client")
 	var key := InputMode.key(&"vote_reset")
-	var shown := "全員リセットの投票 1 / 2（%s 長押しで賛成・残り %d 秒）"
+	var shown := "チェックポイントからやり直す投票 1 / 2（%s 長押しで賛成・残り %d 秒）"
 	for d: PartyDirector in [host, client]:
 		var left := ceili(d.lifecycle.vote_seconds_left())
 		assert_gt(left, PartyLifecycle.VOTE_TIME_LIMIT - 2.0, "the clock just started")
@@ -396,8 +396,8 @@ func test_gate_lone_vote_expires_and_a_later_death_does_not_reset() -> void:
 		await tree.physics_frame
 	assert_false(host.lifecycle.is_vote_open(), "the host closed the expired vote")
 	assert_false(client.lifecycle.is_vote_open(), "the client sees it closed")
-	assert_true(messages.has("全員リセットの投票は時間切れになりました"))
-	assert_false(PartyBanner.describe(client).contains("全員リセットの投票 1"))
+	assert_true(messages.has("チェックポイントからやり直す投票は時間切れになりました"))
+	assert_false(PartyBanner.describe(client).contains("チェックポイントからやり直す投票 1"))
 	# A が東の岸から谷へ歩いて落ちる。B は何もしない
 	await _drive(host.world, Vector3(16.0, 0.0, 1.5), 120)
 	await _until(

@@ -1,9 +1,9 @@
 class_name ObjectivePanel
 extends Control
-## ステージの目的の一覧（docs/adr/0018）。画面の右上に、生成りの小さな札で短いチェックリストを出す。
+## ステージの目的の一覧（docs/adr/0020）。画面の右上に、生成りの小さな札で短いチェックリストを出す。
 ## 行は「印・短い文・チェック」。チェックは条件がそろうと若葉色に塗られる（ホストが数えた進み具合）。
 ## - ステージに入ったとき: 画面の上の真ん中に大きく BIG_SECONDS 秒出してから、右上の隅へ小さく縮む
-## - 目的を見るキー（Tab / L スティック押し込み）: もう一度大きく出す
+## - 目的を見るキー（Tab。パッドは既定で割り当て無し。Start のメニューでも見られる）: もう一度大きく出す
 ## - 一時停止のメニューを開いている間: メニューの右に大きく出す（メニューの札とは重ならない）
 ## - 広場・持ち物を開いている間は出さない
 ## 文は StageObjectives が作る（ここは表示だけ）。HUD（hud.gd）を変えずに、GameRoot が HUD に足す。
@@ -53,6 +53,8 @@ func _process(delta: float) -> void:
 		_big.visible = true
 		_big.modulate.a = 1.0
 		_big.scale = Vector2.ONE
+	if paused and _big.visible:
+		_corner.modulate.a = 0.0  # 同じ一覧を 2 か所に出さない（閉じると縮んで隅へ戻る）
 	elif not paused and _big_left <= 0.0 and _tween == null and _big.visible:
 		_shrink()
 	_refresh(false)

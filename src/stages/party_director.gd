@@ -7,15 +7,18 @@ extends Node
 ## - ステージに入る: StageWorld を組み立て、開始時の持ち物と人数別補助を置き、開始時点を記録する
 ## - 死亡: 落ちたら死亡観戦（台帳はそのまま。貸したものも手元のものも残る）。1人用・全滅は自動で戻る
 ## - チェックポイント: 1人が触れたらチーム共通。その時点の世界を記録する。台座の上の F で全員復活
-## - 全員リセット: V 長押しで投票（過半数、または死亡観戦がいるとき生存者全員）。成立したら世界を丸ごと戻し、
+## - チェックポイントからやり直す（全員リセット）: V 長押し・メニューで投票（過半数、または死亡観戦がいるとき
+##   生存者全員）。成立したら世界を丸ごと戻し、
 ##   途中参加の人を合流させ、人数が変わっていれば人数別補助を作り直す
 ## - 投票の時間切れ: 開いた投票は PartyLifecycle.VOTE_TIME_LIMIT 秒（仮 30 秒）で権威が閉じる（試遊 G4）
 ## - 投票の始まりと時間切れは、全員の画面でお知らせの音（ui_notice）を鳴らす
 ## - ゴールにまだ来ていない人: 協力中、島の条件がそろうか誰かがゴールに入ったら HUD に名前を出す
 ##   （試遊 G5。情報だけで、外したり止めたりはしない）
 ## - クリア: ステージのクリア条件を満たしたら、資格のある人に報酬を配り、しばらくしてハブへ戻る
-## - 広場へ戻ると、入ったステージのポータルの前に立つ（PortalReturn）。メニューの「広場へもどる」は
-##   ひとりならすぐ、協力中は投票（StageLeaveVote）。目的の一覧の進み具合はホストが数えて配る（docs/adr/0018）
+## - 広場へ戻ると、入ったステージのポータルの前に立つ（PortalReturn）。メニューの「このステージから出る」
+##   「このステージを最初から」は、ひとり・ホストならすぐ全員で、参加者は投票（StageLeaveVote）。
+##   最初からは、この回の世界だけを作り直す（進行・報酬には触らない）。目的の一覧の進み具合はホストが数えて配る
+##   （docs/adr/0020）
 ## 子ノード名は固定（"Director"）。RPC のパスを両側でそろえるため。
 
 signal world_changed(world: StageWorld)
@@ -26,6 +29,8 @@ signal left_room
 
 ## クリアしてからハブへ戻るまでの秒数。
 const RETURN_DELAY: float = 4.0
+## 全員リセット（V 長押し・メニューの「チェックポイントからやり直す」）の投票の、画面での呼び名（docs/adr/0020）。
+const RESET_VOTE_TITLE := "チェックポイントからやり直す投票"
 
 var world: StageWorld
 ## オンラインのとき（1人用なら null）。
@@ -266,7 +271,7 @@ func _physics_process(delta: float) -> void:
 	# 時間切れを死亡より先に見る（切れた票が、同じコマの死亡で成立しないように）
 	var changed := _check_vote_timeout(delta)
 	if leave_vote.tick(delta):
-		tell_everyone("広場へもどる投票は時間切れになりました")
+		tell_everyone(StageLeaveVote.title(leave_vote.action) + "は時間切れになりました")
 	changed = _check_deaths() or changed
 	changed = _check_checkpoints() or changed
 	if lifecycle.has_pending_reset():
@@ -282,7 +287,7 @@ func _check_vote_timeout(delta: float) -> bool:
 	if not lifecycle.tick_vote(delta):
 		return false
 	lifecycle.cancel_vote()
-	world.message_posted.emit("全員リセットの投票は時間切れになりました")
+	world.message_posted.emit(RESET_VOTE_TITLE + "は時間切れになりました")
 	notice_everyone()
 	return true
 
@@ -340,18 +345,28 @@ func _rescue_in_hub() -> void:
 			_teleport(player_id, arrival_for(player_id), portal_return.yaw)
 
 
-# --- 広場へもどる ------------------------------------------------------------
+# --- このステージから出る・最初から ------------------------------------------
 
 
-## メニューの「広場へもどる」。ひとりならすぐ戻る。協力中は投票（過半数。全員リセットと同じ母数）で、
-## 揃ったら全員で、入ったステージのポータルの前へ戻る。参加者はホストへ送る。
+## メニューの「このステージから出る」。ひとり・ホストならすぐ全員で、入ったステージのポータルの前へ戻る。
+## 参加者はホストへ送り、投票になる（過半数。「チェックポイントからやり直す」と同じ母数・30 秒）。
 func request_leave_stage() -> void:
-	if not in_stage():
+	_request_stage_action(StageLeaveVote.Action.LEAVE)
+
+
+## ホスト・ひとりはすぐ実行、参加者は投票（StageLeaveVote）。
+func _request_stage_action(action: StageLeaveVote.Action) -> void:
+	if not in_stage() or is_cleared():
 		return
 	if is_authority():
-		StageLeaveVote.vote(self, local_id())
+		carry_out(action)
 	else:
-		_vote_leave.rpc_id(1)
+		_vote_stage_action.rpc_id(1, int(action))
+
+
+## 権威: 出る・最初からやり直すを全員で行う（StageLeaveVote.carry_out）。
+func carry_out(action: StageLeaveVote.Action) -> void:
+	StageLeaveVote.carry_out(self, action)
 
 
 ## 全員の画面に知らせる（権威の知らせを参加者にも出す）。
@@ -379,19 +394,13 @@ func _on_checkpoint_interacted(player_id: int, cp: String) -> void:
 	_broadcast_party()
 
 
-## メニューの「島のはじめから」: ひとりならステージを最初から作り直す。協力中は、
-## 全員の世界を勝手に巻き戻さないよう、チェックポイントへの全員リセットの投票にする。
+## メニューの「このステージを最初から」: ひとり・ホストなら、このステージに入ったときの状態から全員でやり直す。
+## 参加者は投票（StageLeaveVote）。進行と報酬はそのまま。
 func request_restart() -> void:
-	if not in_stage():
-		return
-	if net == null:
-		enter_stage(stage_id)
-	else:
-		world.message_posted.emit("協力中は、はじめからではなくチェックポイントへの投票になります")
-		request_vote()
+	_request_stage_action(StageLeaveVote.Action.RESTART)
 
 
-## V 長押し: 全員リセットの投票（無ければ提案）。参加者はホストへ送る。
+## V 長押し・メニューの「チェックポイントからやり直す」: 全員リセットの投票（無ければ提案）。参加者はホストへ送る。
 ## 票には「見ていたリセットの回数」を添える。同時に届いた票の途中でリセットが決まったとき、
 ## 残りの票が次の投票の提案として数えられないようにするため。
 func request_vote() -> void:
@@ -413,8 +422,9 @@ func _vote_as(player_id: int, seen_resets: int) -> void:
 			notice_everyone()
 		world.message_posted.emit(
 			(
-				"全員リセットの投票 %d / %d（%s 長押しで賛成）"
+				"%s %d / %d（%s 長押しで賛成）"
 				% [
+					RESET_VOTE_TITLE,
 					lifecycle.yes_vote_count(),
 					lifecycle.required_votes(),
 					InputMode.token(&"vote_reset")
@@ -609,7 +619,7 @@ func _on_player_joined(player_id: int) -> void:
 			or lifecycle.state_of(player_id) == PartyLifecycle.State.LEFT
 		):
 			lifecycle.join(player_id)
-			world.message_posted.emit(_name(player_id) + "が来ました（次の全員リセットで合流）")
+			world.message_posted.emit(_name(player_id) + "が来ました（次にチェックポイントからやり直すと合流）")
 		else:
 			lifecycle.reconnect(player_id)
 	if not _known_players.has(player_id):
@@ -760,10 +770,10 @@ func _vote(seen_resets: int) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _vote_leave() -> void:
+func _vote_stage_action(action: int) -> void:
 	var sender := net.session.player_of_peer(multiplayer.get_remote_sender_id())
-	if is_authority() and sender != -1 and in_stage():
-		StageLeaveVote.vote(self, sender)
+	if is_authority() and sender != -1 and in_stage() and action in StageLeaveVote.Action.values():
+		StageLeaveVote.vote(self, sender, action as StageLeaveVote.Action)
 
 
 @rpc("any_peer", "call_remote", "reliable")

@@ -140,7 +140,7 @@ func test_finding_steps_repeat_push_slides_the_stone_off_the_island() -> void:
 
 
 ## ジャンプを 2 つとも動物に渡すと、動物は巣まで上がり、自分は浜から上がれなくなる（取り戻しにも行けない）。
-## 自分で選んだ詰みで、メニューの「島のはじめから」でやり直せる（ルールでは止めない）。
+## 自分で選んだ詰みで、メニューの「このステージを最初から」でやり直せる（ルールでは止めない）。
 func test_finding_steps_giving_both_jumps_away_needs_a_restart() -> void:
 	await _enter(STEPS_ID)
 	await _walk_to(Vector3(-2.5, 0.0, 0.4), 0.25)

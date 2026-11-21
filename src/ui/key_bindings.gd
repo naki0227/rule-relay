@@ -33,7 +33,7 @@ const NAMES: Dictionary[StringName, String] = {
 	&"dash": "突進",
 	&"interact": "回収・保存・拾う",
 	&"lend_single": "渡す",
-	&"vote_reset": "全員リセットの投票（長押し）",
+	&"vote_reset": "チェックポイントからやり直す投票（長押し）",
 	&"inventory": "持ち物",
 	&"restore_checkpoint": "メニュー",
 	&"toggle_reach": "触る／投げる",

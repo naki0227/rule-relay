@@ -1,12 +1,13 @@
 extends SceneTree
-## ステージの目的の一覧と、ポータルの前に戻った広場のスクリーンショット（docs/images/ux/。docs/adr/0018）。
+## ステージの目的の一覧と、ポータルの前に戻った広場のスクリーンショット（docs/images/ux/。docs/adr/0020）。
 ## 撮り方は capture_range_ux.gd と同じ（lavapipe ＋ xvfb で Forward+、HUD も入ったゲーム本体の画面）:
 ##   VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json xvfb-run -a -s "-screen 0 1280x720x24" \
 ##     godot --rendering-driver vulkan --resolution 1280x720 \
 ##     --script res://tools/capture_objectives_ux.gd -- <state> out.png
 ## state: big（ステージに入った直後の大きな一覧）/ corner（途中: 鐘を鳴らした後の右上の小さな一覧）/
-##        portal（「広場へもどる」で戻った直後の、ポータルの前。ゲームの画面のまま）/
-##        portal_look（同じ場面で視点を振り返り、背にしたポータルを見る）
+##        portal（「このステージから出る」で戻った直後の、ポータルの前。ゲームの画面のまま）/
+##        portal_look（同じ場面で視点を振り返り、背にしたポータルを見る）/
+##        pause（ステージの中の一時停止のメニュー。右に目的の一覧）
 ## ステージは鐘とどうぶつのある「転がる玉」（w2_rolling_shots）。
 
 const STAGE := "w2_rolling_shots"
@@ -58,6 +59,13 @@ func _capture() -> void:
 				hub_world.camera_rig.pitch = deg_to_rad(-22.0)
 				for i in 10:
 					await physics_frame
+		"pause":
+			for i in int((ObjectivePanel.BIG_SECONDS + 1.5) * 60.0):
+				await physics_frame
+			var menu := (game.call(&"current_hud") as Hud).pause_menu
+			menu.open()
+			for i in 30:
+				await process_frame
 		_:
 			for i in 30:
 				await physics_frame

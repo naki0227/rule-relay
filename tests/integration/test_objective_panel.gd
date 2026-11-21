@@ -1,6 +1,6 @@
 extends TestCase
-## 画面の目的の一覧（ObjectivePanel。docs/adr/0018）: ステージに入ると大きく出て、少しすると右上の隅へ縮む。
-## 目的を見るキー・一時停止のメニューでもう一度大きく出る。メニューの「広場へもどる」でポータルの前へ戻る。
+## 画面の目的の一覧（ObjectivePanel。docs/adr/0020）: ステージに入ると大きく出て、少しすると右上の隅へ縮む。
+## 目的を見るキー・一時停止のメニューでもう一度大きく出る。メニューの「このステージから出る」でポータルの前へ戻る。
 ## 広場では出さない。
 
 const PROFILE := "zz_test_objective_panel"
@@ -69,6 +69,8 @@ func test_the_pause_menu_shows_them_and_can_leave_the_stage() -> void:
 	await tree.process_frame
 	assert_true(_panel().is_big(), "shown next to the pause menu")
 	assert_true(menu.leave_request.is_valid(), "the leave item is there in a stage")
+	menu.choose("leave")
+	assert_true(menu.is_open(), "leaving needs a second press")
 	menu.choose("leave")
 	await wait_physics_frames(5)
 	assert_false(tree.paused)

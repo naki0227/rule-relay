@@ -1,6 +1,6 @@
 class_name StageObjectives
 extends RefCounted
-## ステージの目的の一覧（画面の隅の短いチェックリスト。docs/adr/0018）。ステージのクリア条件（ClearCondition）
+## ステージの目的の一覧（画面の隅の短いチェックリスト。docs/adr/0020）。ステージのクリア条件（ClearCondition）
 ## から作る純粋なデータで、物理に依存しない。
 ##
 ## - 条件の木（ALL_OF の中も）を葉に分け、同じ種類・同じ文の葉を 1 行にまとめる（鐘 3 つ → 「鐘を鳴らす 0/3」）

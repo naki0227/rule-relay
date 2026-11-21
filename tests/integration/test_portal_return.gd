@@ -1,7 +1,7 @@
 extends TestCase
 ## 広場へ戻ると、入ったステージのポータルの前に、広場の側を向いて立つ（クリア・メニューの「広場へもどる」・
 ## 次の起動）。戻ってすぐはそのポータルに入り直さない。ステージの目的の一覧は鐘・どうぶつ・ゴールで埋まる
-## （docs/adr/0018）。2 人の協力は test_portal_return_net.gd。
+## （docs/adr/0020）。2 人の協力は test_portal_return_net.gd。
 
 const PROFILE := "zz_test_portal_return"
 const ROLLING := "w2_rolling_shots"

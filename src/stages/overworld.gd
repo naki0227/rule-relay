@@ -70,7 +70,7 @@ static func build(state: OverworldState) -> StageDef:
 		def.spawn_points.append(SPAWN_CENTER + Vector3(dx, 0.0, 0.0))
 	_loadout(def, state)
 	_portals(def, layout, state)
-	PortalSpots.place(def, layout, field)  # ステージから戻ったときの立ち位置（docs/adr/0018）
+	PortalSpots.place(def, layout, field)  # ステージから戻ったときの立ち位置（docs/adr/0020）
 	_settle(layout, state)
 	OverworldScenery.scatter(layout, field, def)
 	return def

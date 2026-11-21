@@ -29,7 +29,7 @@ var _stages: Dictionary[String, Dictionary] = {}
 ## 集合（キーだけ使う）: "areas" / "hub" / "cosmetics" / "collectibles" / "applied_events" /
 ## "found_secrets"（広場で見つけた寄り道のワールドの入口。ワールドの id。docs/campaign-plan.md）
 var _sets: Dictionary[String, Dictionary] = {}
-## 最後に入ったステージ（広場へ戻ったとき・次に起動したときに、そのポータルの前に立つ。docs/adr/0018）。
+## 最後に入ったステージ（広場へ戻ったとき・次に起動したときに、そのポータルの前に立つ。docs/adr/0020）。
 ## 空なら出現地点。古い保存には無い（無ければ空として読む）。
 var _last_portal: String = ""
 

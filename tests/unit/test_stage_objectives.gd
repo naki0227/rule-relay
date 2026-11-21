@@ -1,5 +1,5 @@
 extends TestCase
-## ステージの目的の一覧（StageObjectives。docs/adr/0018）: どのステージのクリア条件からも、空でなく、
+## ステージの目的の一覧（StageObjectives。docs/adr/0020）: どのステージのクリア条件からも、空でなく、
 ## 仮の文の無い一覧ができる。進み具合は鐘・どうぶつ・ゴールに来た人の数で埋まる。
 
 const KNOWN_TEXTS: PackedStringArray = [
