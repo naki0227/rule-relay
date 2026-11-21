@@ -133,8 +133,8 @@ func test_catalog_definitions_are_consistent() -> void:
 	for def in defs:
 		assert_true(def.problems().is_empty(), "%s: %s" % [def.stage_id, def.problems()])
 		assert_eq(StageCatalog.by_id(def.stage_id).stage_id, def.stage_id)
-	# 並行で各ワールドのステージが増えるので、既存の 12 以上だけを確かめる
-	assert_true(StageCatalog.all_stages().size() >= 12, "the built stages are listed")
+	# 既存の 12 ステージに、キャンペーンの枠のステージを足していく（docs/campaign-plan.md）
+	assert_true(StageCatalog.all_stages().size() >= 12, "at least the first 12 stages")
 	var minutes: Array[int] = []
 	for def in StageCatalog.all_stages():
 		minutes.append(def.target_minutes)
