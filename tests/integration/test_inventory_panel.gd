@@ -26,7 +26,9 @@ func after_each() -> void:
 
 func test_lists_everything_with_icons() -> void:
 	assert_eq(panel.visible_vessel_ids(), PackedInt32Array([jump.id, stored_w.id, ban.id]))
-	assert_true(panel.is_typing(), "search box has focus when opened")
+	assert_false(
+		panel.is_typing(), "opening does not focus the search box (number keys work at once)"
+	)
 
 
 func test_search_and_category_narrow_the_list() -> void:
