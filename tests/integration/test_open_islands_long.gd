@@ -70,8 +70,14 @@ func test_long_expedition_by_dash_boots_and_the_creature() -> void:
 	await _walk_to(Vector3(5.5, 3.0, -21.5))
 	await _walk_to(Vector3(5.5, 3.0, -29.5))
 	await _walk_to(Vector3(5.5, 5.0, -31.5))
-	await _walk_to(Vector3(9.5, 5.0, -36.5))
-	await _walk_to(Vector3(12.0, 7.0, -36.5))
+	# 物見の窪みのブロックには札（ジャンプ禁止）。その上に立つと自分も跳べない（2026-11-21 本人「禁止はその上も
+	# 禁止」。ADR 0003 決定 7）ので、ブロックの手前の地形の縁から跳んで、ブロックの上を越える
+	assert_true(
+		await _run_and_jump(
+			Vector3(7.5, 5.0, -36.5), Vector3(9.7, 5.0, -36.5), Vector3(12.0, 7.0, -36.5)
+		),
+		"jump from the ground just before the signed lift"
+	)
 	await _ring("lookout_bell")
 	await _walk_to(Vector3(11.5, 7.0, -38.5))
 	await _walk_to(Vector3(8.5, 5.0, -38.5))
@@ -103,8 +109,14 @@ func test_long_expedition_coop_double_speed_and_double_jump() -> void:
 	await _walk_to(Vector3(5.5, 3.0, -21.5))
 	await _ring("forest_bell")
 	await _walk_to(Vector3(5.5, 5.0, -31.5))
-	await _walk_to(Vector3(9.5, 5.0, -36.5))
-	await _walk_to(Vector3(12.0, 7.0, -36.5))
+	# 物見の窪みのブロックには札（ジャンプ禁止）。その上に立つと自分も跳べない（2026-11-21 本人「禁止はその上も
+	# 禁止」。ADR 0003 決定 7）ので、ブロックの手前の地形の縁から跳んで、ブロックの上を越える
+	assert_true(
+		await _run_and_jump(
+			Vector3(7.5, 5.0, -36.5), Vector3(9.7, 5.0, -36.5), Vector3(12.0, 7.0, -36.5)
+		),
+		"jump from the ground just before the signed lift"
+	)
 	await _ring("lookout_bell")
 	assert_eq(w.ledger.tokens_on(_block("lookout_lift").entity_id).size(), 1, "sign untouched")
 	await _walk_to(Vector3(8.5, 5.0, -38.5))

@@ -9,6 +9,8 @@ signal jumped
 signal landed(impact_speed: float)
 signal footstep
 signal dashed
+## 足もとのブロックの禁止で、押した行動ができなかった（FloorBans。音と最初の一度だけの知らせに使う）。
+signal floor_ban_refused(action: RuleAction.Kind)
 
 const HEIGHT: float = 1.6
 const RADIUS: float = 0.3
@@ -45,6 +47,9 @@ var slide: Vector2 = Vector2.ZERO
 var afloat: bool = false
 ## 投げた回数（通信で配る。変わったら仲間の画面でも投げる動きを再生する）。
 var throw_serial: int = 0
+## 足もとのブロックに付いた禁止のうち、立っている自分に効くもの {RuleAction.Kind: true}（FloorBans）。
+## 自分のアバターだけが毎フレーム調べる（参加者の画面でも自分で調べるので、跳んでから戻されることはない）。
+var floor_bans: Dictionary = {}
 
 var _jump_requested: bool = false
 ## ダッシュの残りの距離（m）と向き。ダッシュ中は重力を受けない（穴の上も抜けられる）。
@@ -62,6 +67,8 @@ var _cheer_left: float = 0.0
 ## 投げる動き（throw）を続ける残り秒数。
 var _throw_left: float = 0.0
 var _facing: float = 0.0
+## 足もとの禁止で止められている W/A/S/D（押し始めに一度だけ知らせるため）。
+var _refused_moves: Dictionary = {}
 
 
 func _ready() -> void:
@@ -85,6 +92,9 @@ func request_jump() -> void:
 ## ダッシュ（方向キーの向きへ、まっすぐ 3 マス×持っている数）。W/A/D のどれかが要る。
 func request_dash() -> void:
 	if puppet or ledger == null or not ledger.player_can(RuleAction.Kind.DASH, player_id):
+		return
+	if floor_bans.has(RuleAction.Kind.DASH):
+		floor_ban_refused.emit(RuleAction.Kind.DASH)
 		return
 	if not is_on_floor() and _air_dash_used:
 		return
@@ -156,6 +166,11 @@ func feet_position() -> Vector3:
 	return global_position
 
 
+## その行動を自分から使えるか（能力があって、自分にも足もとのブロックにも禁止が無い）。
+func can(action: RuleAction.Kind) -> bool:
+	return ledger != null and ledger.player_can(action, player_id) and not floor_bans.has(action)
+
+
 ## いまのジャンプの高さ。ジャンプブーツ（高跳び）を装備していれば固定で高くなる（企画書 7）。
 ## 高跳びはジャンプの強化なので、ジャンプ自体が使えない（貸出中・禁止）なら跳べない。
 ## 仲間から集めたジャンプが n 個なら、到達高度は n 倍（Tuning.stack_factor）。
@@ -163,7 +178,7 @@ func jump_height() -> float:
 	var base := Tuning.PLAYER_JUMP_HEIGHT
 	if ledger == null:
 		return base
-	if ledger.player_can(RuleAction.Kind.HIGH_JUMP, player_id):
+	if can(RuleAction.Kind.HIGH_JUMP):
 		base = Tuning.BOOTS_JUMP_HEIGHT
 	return base * Tuning.stack_factor(ledger.ability_count(RuleAction.Kind.JUMP, player_id))
 
@@ -171,7 +186,7 @@ func jump_height() -> float:
 ## クライミンググローブ（登る）: 壁に触れていて、その壁へ向かって進もうとしているあいだ登る。
 ## 進めない方向（能力が無い・禁止）へは押せないので、移動の能力・禁止も守る。
 func _should_climb(direction: Vector3) -> bool:
-	if ledger == null or not ledger.player_can(RuleAction.Kind.CLIMB, player_id):
+	if not can(RuleAction.Kind.CLIMB):
 		return false
 	if not is_on_wall() or direction.length() < 0.1:
 		return false
@@ -187,6 +202,8 @@ func _physics_process(delta: float) -> void:
 		return
 	if is_on_floor():
 		_air_dash_used = false
+	floor_bans = FloorBans.under(ledger, self)
+	_notice_refused_moves()
 	var direction := _allowed_direction()
 	velocity.x = direction.x * Tuning.PLAYER_SPEED
 	velocity.z = direction.z * Tuning.PLAYER_SPEED
@@ -197,9 +214,15 @@ func _physics_process(delta: float) -> void:
 	if _jump_requested:
 		_jump_requested = false
 		var footing := is_on_floor() or afloat
-		if footing and ledger != null and ledger.player_can(RuleAction.Kind.JUMP, player_id):
+		if footing and can(RuleAction.Kind.JUMP):
 			velocity.y = Tuning.jump_velocity(jump_height())
 			jumped.emit()
+		elif (
+			footing
+			and floor_bans.has(RuleAction.Kind.JUMP)
+			and ledger.player_can(RuleAction.Kind.JUMP, player_id)
+		):
+			floor_ban_refused.emit(RuleAction.Kind.JUMP)
 	climbing = _should_climb(direction)
 	if climbing:
 		velocity.y = Tuning.CLIMB_SPEED
@@ -257,16 +280,16 @@ func _follow_remote(delta: float) -> void:
 ## 方向キーを押していなければ、W を持っているときだけ体の向きへ。できなければ ZERO。
 func _dash_direction() -> Vector3:
 	var local := Vector2.ZERO
-	if move_intent.y > 0.0 and ledger.player_can(RuleAction.Kind.FORWARD, player_id):
+	if move_intent.y > 0.0 and can(RuleAction.Kind.FORWARD):
 		local.y = 1.0
-	if move_intent.x < 0.0 and ledger.player_can(RuleAction.Kind.LEFT, player_id):
+	if move_intent.x < 0.0 and can(RuleAction.Kind.LEFT):
 		local.x = -1.0
-	if move_intent.x > 0.0 and ledger.player_can(RuleAction.Kind.RIGHT, player_id):
+	if move_intent.x > 0.0 and can(RuleAction.Kind.RIGHT):
 		local.x = 1.0
 	if local != Vector2.ZERO:
 		var basis := Basis(Vector3.UP, view_yaw)
 		return (basis * Vector3.FORWARD * local.y + basis * Vector3.RIGHT * local.x).normalized()
-	if ledger.player_can(RuleAction.Kind.FORWARD, player_id):
+	if can(RuleAction.Kind.FORWARD):
 		return Vector3(-sin(_facing), 0.0, -cos(_facing))
 	return Vector3.ZERO
 
@@ -296,9 +319,29 @@ func _allowed_direction() -> Vector3:
 ## 移動入力があるときだけ働き、隙間を飛び越えたり禁止を無視したりはしない。
 ## その方向へ進めるときの速さの倍率（進めなければ 0）。
 func _speed_factor(action: RuleAction.Kind) -> float:
-	if not ledger.player_can(action, player_id):
+	if not can(action):
 		return 0.0
 	return Tuning.stack_factor(ledger.ability_count(action, player_id))
+
+
+## 足もとの禁止で歩けない向きへ押し始めたら、一度だけ知らせる（押し続けても繰り返さない）。
+func _notice_refused_moves() -> void:
+	var pressed := {
+		RuleAction.Kind.FORWARD: move_intent.y > 0.0,
+		RuleAction.Kind.BACK: move_intent.y < 0.0,
+		RuleAction.Kind.LEFT: move_intent.x < 0.0,
+		RuleAction.Kind.RIGHT: move_intent.x > 0.0,
+	}
+	for action: RuleAction.Kind in pressed:
+		var refused: bool = (
+			pressed[action] and floor_bans.has(action) and ledger.player_can(action, player_id)
+		)
+		if refused and not _refused_moves.has(action):
+			floor_ban_refused.emit(action)
+		if refused:
+			_refused_moves[action] = true
+		else:
+			_refused_moves.erase(action)
 
 
 func _try_step_up(horizontal: Vector3) -> void:

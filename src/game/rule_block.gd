@@ -30,6 +30,10 @@ var _step_duration: float = Tuning.BLOCK_STEP_DURATION
 var _dashing: bool = false
 ## 空中で始めた1マス移動（予約した W/A/S/D。BlockMoveBuffer）。途中で塞がれたら元のマスの列へ戻す。
 var _air_step: bool = false
+## 一緒に1マス動いている仲間（自分を含む。範囲で渡した W/A/S/D をまとめて動かすとき。BlockMoveBuffer）。
+## 仲間どうしは同じ向き・同じ速さで動くので、横の当たり判定では互いを無視する。途中で誰かが塞がれたら全員止まる。
+var _step_mates: Array[RuleBlock] = []
+var _mate_rids: Array[RID] = []
 var _outline: MeshInstance3D
 var _outline_material: StandardMaterial3D
 var _label: Label3D
@@ -90,14 +94,37 @@ func is_ready_for(action: RuleAction.Kind) -> bool:
 ## 横の1マス移動を、いまの高さのまま始められるか（W/A/S/D の予約用。2026-11-21 本人の判断）。
 ## 地面にいなくてもよい。横に動いている途中なら false。落ちている最中は、次の数フレームで落ちる分だけ
 ## 下も含めて空いていること（縁の横に当たって途中で止まらないように）。
-func can_step_now(action: RuleAction.Kind) -> bool:
+## mates: 一緒に動く仲間の体（その仲間は同じだけ動いて空くので、塞ぐものに数えない）。
+func can_step_now(action: RuleAction.Kind, mates: Array[RID] = []) -> bool:
 	if is_moving_horizontally() or _dashing:
 		return false
 	var dir := Vector3(RuleAction.world_direction(action)) * SIZE * 0.98
 	if is_grounded():
-		return not test_move(global_transform, dir)
+		return _sweep(dir, mates) == null
 	var drop := maxf(0.0, -velocity_y) * get_physics_process_delta_time() * 2.0
-	return not test_move(global_transform, dir + Vector3(0.0, -drop, 0.0))
+	return _sweep(dir + Vector3(0.0, -drop, 0.0), mates) == null
+
+
+## 一緒に1マス動く仲間を決める（perform の直後に呼ぶ。自分を含めた全員に同じ配列を渡す）。
+func set_step_mates(mates: Array[RuleBlock]) -> void:
+	_step_mates = mates
+	_mate_rids.clear()
+	for mate in mates:
+		if mate != self:
+			_mate_rids.append(mate.get_rid())
+
+
+## motion だけ動けるか確かめる。塞がれていれば結果（移動できた分 get_travel()）、空いていれば null。
+## exclude の体は無視する（一緒に動く仲間）。
+func _sweep(motion: Vector3, exclude: Array[RID]) -> PhysicsTestMotionResult3D:
+	var params := PhysicsTestMotionParameters3D.new()
+	params.from = global_transform
+	params.motion = motion
+	params.exclude_bodies = exclude
+	var result := PhysicsTestMotionResult3D.new()
+	if PhysicsServer3D.body_test_motion(get_rid(), params, result):
+		return result
+	return null
 
 
 ## 落ち着いているか（地面・水に立つか、登るでつかまる高さにいて、横にも動いていない）。
@@ -177,6 +204,8 @@ func teleport(target: Vector3, new_velocity_y: float) -> void:
 	_dashing = false
 	_air_step = false
 	_finished_step = Vector3i.ZERO
+	_step_mates = []
+	_mate_rids.clear()
 
 
 ## チェックポイント用。1ブロック移動の途中で保存しても、復元後に同じ動きの続きをして
@@ -323,23 +352,39 @@ func _integrate_horizontal(delta: float) -> void:
 	var t := _step_time / _step_duration
 	var target := _step_from.lerp(_step_to, t)
 	var motion := Vector3(target.x - global_position.x, 0.0, target.z - global_position.z)
-	var hit := KinematicCollision3D.new()
-	if test_move(global_transform, motion, hit):
+	var hit := _sweep(motion, _mate_rids)
+	if hit != null:
 		# 途中で塞がれたら止まる（P0 ではブロックが横に押し合わない）。空中で始めた移動は、マス目から
 		# ずれたまま落ちないよう、元のマスの列へ戻す（その列は落ちてくる間ずっと通ってきた場所なので空いている）
-		if _air_step:
-			global_position = Vector3(_step_from.x, global_position.y, _step_from.z)
-		else:
-			global_position += hit.get_travel()
-		_step_time = -1.0
-		_dashing = false
+		var offset := Vector3.ZERO if _air_step else global_position + hit.get_travel() - _step_from
+		if _step_mates.is_empty():
+			_halt_at(Vector3(offset.x, 0.0, offset.z))
+			return
+		# 仲間と一緒に動いていたら、全員を同じだけ進んだ所で止める（形を崩さない・重ならない）
+		for mate: RuleBlock in _step_mates.duplicate():
+			if is_instance_valid(mate):
+				mate._halt_at(Vector3(offset.x, 0.0, offset.z))
 		return
 	global_position += motion
 	if _step_time >= _step_duration:
 		_step_time = -1.0
 		_dashing = false
+		_step_mates = []
+		_mate_rids.clear()
 		var moved := _step_to - _step_from
 		_finished_step = Vector3i(signi(roundi(moved.x)), 0, signi(roundi(moved.z)))
+
+
+## 1マス移動を、始点から offset だけ進んだ位置で止める（空中で始めた移動は元の列へ戻す）。
+func _halt_at(offset: Vector3) -> void:
+	if _step_time < 0.0:
+		return
+	var back := Vector3.ZERO if _air_step else offset
+	global_position = Vector3(_step_from.x + back.x, global_position.y, _step_from.z + back.z)
+	_step_time = -1.0
+	_dashing = false
+	_step_mates = []
+	_mate_rids.clear()
 
 
 ## 範囲プレビューの対象になっているか（右クリックを押している間）。見た目はブロックごとには出さず、

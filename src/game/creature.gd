@@ -37,6 +37,9 @@ var ledger: RuleLedger
 var survey: Callable
 ## 地形だけのマスごとの高さ（同じ形の関数）。道が無いときに近づく「高い場所」は地形からだけ選ぶ。
 var ground_survey: Callable
+## 禁止の付いたブロックのマス {Vector2i: {"top": 上面の高さ, "bans": {Kind: true}}}（FloorBans.survey）。
+## 禁止はその上に立つ者にも効くので、そのマスから跳ぶ道・歩き出す道を選ばない（docs/adr/0003 決定 7）。
+var floor_ban_survey: Callable
 var stage: CreatureMind.Stage = CreatureMind.Stage.WAIT
 var path: Array[Vector2i] = []
 ## 向いている世界の方角（x = 東、y = 南）。W はこの向き、A はその左、D は右、S は後ろ。
@@ -56,6 +59,8 @@ var wish_box: AABB = AABB()
 var _remote_target: Vector3 = Vector3.ZERO
 
 var _blocked: Dictionary = {}
+## いま足もとのブロックに付いた禁止のうち、自分に効くもの（FloorBans）。
+var _floor_bans: Dictionary = {}
 var _stuck: float = 0.0
 var _since_plan: float = 0.0
 var _needs_plan: bool = true
@@ -125,7 +130,7 @@ func is_stuck() -> bool:
 
 
 func can(action: RuleAction.Kind) -> bool:
-	return ledger != null and ledger.can_initiate(entity_id, action)
+	return ledger != null and ledger.can_initiate(entity_id, action) and not _floor_bans.has(action)
 
 
 func jump_height() -> float:
@@ -146,7 +151,13 @@ func replan() -> void:
 		abilities[action] = can(action)
 	var heights := survey.call(cell(), CreatureMind.SEARCH_RADIUS) as Dictionary
 	var plan := CreatureMind.plan(
-		cell(), heights, abilities, jump_height(), can(RuleAction.Kind.CLIMB), _blocked, _searching
+		cell(),
+		heights,
+		abilities,
+		jump_height(),
+		can(RuleAction.Kind.CLIMB),
+		_banned_steps(heights),
+		_searching
 	)
 	path = plan.path
 	if plan.stage == CreatureMind.Stage.WAIT and _lent_move:
@@ -163,6 +174,35 @@ func replan() -> void:
 	_set_stage(plan.stage)
 	_update_bubble()
 	_stuck = 0.0
+
+
+## 進めなかった一歩に、禁止の付いたブロックから出る一歩を足したもの。ジャンプ禁止のマスからは跳ばないと
+## 上がれない段へ進まず、W/A/S/D が全部禁止のマスからはどこへも歩き出さない（向きを自由に変えられるので、
+## 1つだけの禁止では道を変えない）。
+func _banned_steps(heights: Dictionary) -> Dictionary:
+	var steps := _blocked.duplicate()
+	if not floor_ban_survey.is_valid():
+		return steps
+	var banned := floor_ban_survey.call() as Dictionary
+	for spot: Vector2i in banned:
+		if not heights.has(spot):
+			continue
+		var info := banned[spot] as Dictionary
+		if absf(float(heights[spot]) - float(info["top"])) > 0.3:
+			continue  # そのマスの立つ面は、禁止のブロックではない（上に別の物がある）
+		var bans := info["bans"] as Dictionary
+		var no_walk := true
+		for move in CreatureMind.MOVES:
+			no_walk = no_walk and bans.has(move)
+		for dir: Vector2i in CreatureMind.DIRECTIONS:
+			var next := spot + dir
+			if not heights.has(next):
+				continue
+			var rise := float(heights[next]) - float(heights[spot])
+			var needs_jump := rise > CreatureMind.STEP_HEIGHT and not can(RuleAction.Kind.CLIMB)
+			if no_walk or (needs_jump and bans.has(RuleAction.Kind.JUMP)):
+				steps[CreatureMind.step_key(spot, next)] = true
+	return steps
 
 
 ## 道が無いときに、同じ高さのまま近づく道（行き先の高い場所は地形だけから選ぶ）。
@@ -182,6 +222,10 @@ func _physics_process(delta: float) -> void:
 		_animate(Vector3(step.x, 0.0, step.z).limit_length(1.0))
 		return
 	_since_plan += delta
+	var bans := FloorBans.under(ledger, self)
+	if bans != _floor_bans:
+		_floor_bans = bans
+		_needs_plan = true
 	if not is_on_floor():
 		velocity.y = maxf(velocity.y - Tuning.GRAVITY * delta, -max_fall_speed)
 	if not is_nan(surface_hold) and global_position.y < surface_hold:

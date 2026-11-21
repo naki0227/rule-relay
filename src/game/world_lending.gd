@@ -21,7 +21,7 @@ static func lend(w: GameWorld, target: Node3D, use_range: bool) -> RuleLedger.Le
 		refusal = refuse_target(w, target, use_range)
 	if refusal != RuleLedger.LendResult.OK:
 		return refusal
-	if not w.throw_mode:
+	if not (w.throw_mode and w.can_throw()):  # 足もとの「投げる禁止」で投げられないときは触る
 		return lend_token(w, v.token_id, w.acting_id(), target, use_range, w.lend_mode)
 	# 投げる: メダルを投げ、実際に当たった物へ付与する
 	var t := w.ledger.token(v.token_id)
