@@ -71,3 +71,23 @@ func test_lift_steps_two_players_relay_the_last_jump() -> void:
 	await _walk_route(0, [Vector3(0.5, 4.0, -11.5), Vector3(2.0, 3.0, -14.5)])
 	await _walk_route(1, [Vector3(0.5, 4.0, -12.0), Vector3(3.9, 3.0, -14.5)])
 	await _assert_cleared_by_everyone("w1_lift_steps")
+
+
+## 参加者の画面でも、生き物の願い（行き先の光の柱・一文・頭の上の印）がホストと同じに見える。
+func test_push_path_guest_sees_the_kits_wish() -> void:
+	await _start("w1_push_path", 52200)
+	var guest_kit := _creature(1, "kit")
+	assert_eq(guest_kit.wish_text(), Creature.WISH_NEST, "the guest has the wish text")
+	assert_eq(guest_kit.wish_box, OpenIslandsW1.PATH_NEST, "and the nest")
+	assert_false(_w(1).find_children("WishMarker*", "WishMarker", false, false).is_empty())
+	assert_eq(guest_kit.bubble_key(), CreatureWishView.KEY_NEED_MOVE, "asks for a move")
+	await _walk(1, guest_kit.global_position + Vector3(1.4, 0.0, 0.0), 0.4)
+	await _lend(1, guest_kit, RIGHT, TriggerMode.Kind.NONE)
+	var host_kit := _creature(0, "kit")
+	for i in 600:
+		if host_kit.bubble_key() == CreatureWishView.KEY_STUCK:
+			break
+		await tree.physics_frame
+	await wait_physics_frames(20)
+	assert_eq(host_kit.bubble_key(), CreatureWishView.KEY_STUCK, "stuck at the step on the host")
+	assert_eq(guest_kit.bubble_key(), CreatureWishView.KEY_STUCK, "the guest sees the same")

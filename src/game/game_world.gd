@@ -70,6 +70,8 @@ var _creature_homes: Dictionary[int, Vector3] = {}
 var _range_preview_active: bool = false
 var _previewed: Array[RuleBlock] = []
 var _range_preview_visual: RangePreview
+## 付与中の範囲の円（トークン ID → RangePreview）。
+var _range_marks: Dictionary = {}
 ## 世界に落ちている器の見た目（vessel_id → ノード）。台帳が変わるたびに合わせる。
 var _world_items: Dictionary[int, WorldItem] = {}
 var _terrain_ids: Dictionary[Vector3i, int] = {}
@@ -212,11 +214,14 @@ func add_creature(at: Vector3, look: String = Creature.MODEL_WISH) -> Creature:
 	creature.setup(id, at)
 	creature.ledger = ledger
 	creature.survey = survey_heights
+	creature.ground_survey = func(c: Vector2i, r: int) -> Dictionary:
+		return WorldQueries.ground_heights(terrain, c, r)
 	add_child(creature)
 	creatures[id] = creature
 	_creature_homes[id] = at
 	ledger.register_entity(id, EntityKind.Kind.CREATURE)
 	creature.jumped.connect(func() -> void: _sound(&"player_jump", creature.global_position))
+	creature.stuck_noticed.connect(_post)
 	creature.threw.connect(
 		func(from: Vector3, velocity: Vector3) -> void: throw_ball(from, velocity, creature)
 	)
@@ -553,19 +558,22 @@ func is_on_checkpoint() -> bool:
 	)
 
 
-## 画面中央の先にある付与先（ブロックか生き物。カメラからの光線）。
+## 画面中央の先にある付与先（ブロックか生き物。カメラからの光線。外れたら AimAssist で近くを選ぶ）。
 func aimed_block() -> Node3D:
 	if camera_rig == null or camera_rig.camera() == null:
 		return null
 	var cam := camera_rig.camera()
-	var from := cam.global_position
-	var to := from + -cam.global_basis.z * (Tuning.THROW_REACH + CameraRig.DISTANCE)
+	# 画面の中央（照準）を通る光線。カメラは肩越し（h_offset）なので、カメラの正面ではなく
+	# 照準の位置から投げる（正面から投げると、照準より 0.6 左を狙っていた）
+	var screen_center := cam.get_viewport().get_visible_rect().size * 0.5
+	var from := cam.project_ray_origin(screen_center)
+	var to := (
+		from + cam.project_ray_normal(screen_center) * (Tuning.THROW_REACH + CameraRig.DISTANCE)
+	)
 	var mask := Tuning.LAYER_TERRAIN | Tuning.LAYER_BLOCKS | Tuning.LAYER_CREATURES
 	var query := PhysicsRayQueryParameters3D.create(from, to, mask | Tuning.LAYER_AVATARS)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	if hit.is_empty():
-		return null
-	var collider := hit["collider"] as Node3D
+	var collider: Node3D = null if hit.is_empty() else hit["collider"] as Node3D
 	if (
 		collider is RuleBlock
 		or collider is Creature
@@ -573,7 +581,11 @@ func aimed_block() -> Node3D:
 		or collider is PlayerAvatar
 	):
 		return collider
-	if terrain != null and terrain.is_terrain_body(collider):
+	# 付与先に当たらなかったら、照準の近くの生き物・ブロックを選ぶ（地形のセルより優先する）
+	var assisted := AimAssist.pick(self, cam)
+	if assisted != null:
+		return assisted
+	if collider != null and terrain != null and terrain.is_terrain_body(collider):
 		var cell := TerrainGrid.cell_at_hit(hit["position"] as Vector3, hit["normal"] as Vector3)
 		if terrain.has_cell(cell):
 			_terrain_target.point_at(cell)
@@ -772,6 +784,7 @@ func _on_ledger_changed() -> void:
 	for id in creatures:
 		creatures[id].show_tokens(ledger.tokens_on(id))
 	WorldItem.sync_all(self, ledger, _world_items)
+	RangePreview.sync_lent(self, ledger, _range_marks)
 	if throw_mode and not can_throw():
 		# 「投げる」を渡した・禁止を拾ったら、その場で「触る」に戻る（最後の1回は投げられる）
 		throw_mode = false

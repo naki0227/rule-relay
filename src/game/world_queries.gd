@@ -124,3 +124,50 @@ static func receive_sound(target: Node3D) -> StringName:
 		"rock_cell", "sandstone_cell":
 			return &"receive_stone"
 	return &"receive_wood"
+
+
+## 照準の下に出す付与先の名前（地形のセルは名前を出さない）。
+static func target_name(w: GameWorld, target: Node3D) -> String:
+	if target is Creature:
+		return (target as Creature).display_name()
+	if target is Bell:
+		return "鐘"
+	if target is PlayerAvatar:
+		return "仲間"
+	if target is RuleBlock:
+		var id := (target as RuleBlock).entity_id
+		if w.promoted.values().has(id):
+			return ""
+		return "発射台" if w._launchers.has(id) else "ブロック"
+	return ""
+
+
+## 願いの一文を出す生き物: 狙っている生き物、いなければ自分から WISH_NEAR 以内のいちばん近い生き物。
+static func wish_focus(w: GameWorld, aimed: Node3D) -> Creature:
+	if aimed is Creature:
+		return aimed as Creature
+	if w.player == null:
+		return null
+	var best: Creature = null
+	var best_distance := Tuning.WISH_NEAR
+	for creature: Creature in w.creatures.values():
+		var d := creature.global_position.distance_to(w.player.global_position)
+		if d <= best_distance:
+			best = creature
+			best_distance = d
+	return best
+
+
+## 地形だけの、マスごとの立てる高さ（ブロック・鐘・動くセルを含まない）。生き物が「高い場所のふもとへ近づく」
+## ときの行き先に使う（ブロックや鐘の上を行き先にして、ステージの外れへ歩いていかないように）。
+static func ground_heights(terrain: TerrainGrid, center: Vector2i, radius: int) -> Dictionary:
+	var heights := {}
+	if terrain == null:
+		return heights
+	for x in range(center.x - radius, center.x + radius + 1):
+		for z in range(center.y - radius, center.y + radius + 1):
+			for y in range(12, -6, -1):
+				if terrain.has_cell(Vector3i(x, y, z)):
+					heights[Vector2i(x, z)] = float(y + 1)
+					break
+	return heights

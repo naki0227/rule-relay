@@ -54,6 +54,12 @@ func _process(delta: float) -> void:
 	world.player.view_yaw = world.camera_rig.yaw
 	var aimed := world.aimed_block()
 	world.update_highlight(aimed)
+	# 願いの一文は、狙っているか近くにいる生き物1匹だけに出す（にぎやかにしない）
+	var focus := WorldQueries.wish_focus(world, aimed)
+	for creature: Creature in world.creatures.values():
+		creature.show_wish(creature == focus)
+	if hud != null:
+		hud.update_wish_pointer(focus)
 	if hud != null:
 		var in_reach := world.is_within_reach(aimed)
 		var aim := Crosshair.Aim.NONE
@@ -61,9 +67,8 @@ func _process(delta: float) -> void:
 			aim = Crosshair.Aim.IN_REACH if in_reach else Crosshair.Aim.OUT_OF_REACH
 		hud.set_aim(aim)
 		hud.update_context(aimed, in_reach, world.is_on_checkpoint())
-	var preview := world.update_range_preview(aimed)
-	if hud != null:
-		hud.show_range_preview(world.is_range_preview_active(), preview)
+	# 範囲のプレビューは円と円板だけで示す（文字の札は出さない。2026-11-21 本人）
+	world.update_range_preview(aimed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -111,8 +116,11 @@ func _handle_gameplay(event: InputEvent) -> void:
 	if _step_hotbar(event):
 		_note(&"select")
 	if event.is_action_pressed(&"lend_single"):
-		if world.lend_to(world.aimed_block(), false) == RuleLedger.LendResult.OK and hud != null:
+		var target := world.aimed_block()
+		if world.lend_to(target, false) == RuleLedger.LendResult.OK and hud != null:
 			hud.hints.used("lend")
+			if target is Creature and (target as Creature).can_walk():
+				hud.hints.used("creature_move")
 	elif event.is_action_pressed(&"lend_range"):
 		world.begin_range_preview()
 	elif event.is_action_released(&"lend_range"):

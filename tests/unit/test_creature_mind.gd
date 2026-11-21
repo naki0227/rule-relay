@@ -130,3 +130,41 @@ func test_stays_within_the_search_radius_and_avoids_deep_drops() -> void:
 	assert_eq(
 		CreatureMind.plan(Vector2i(0, 0), cliff, walk, 1.3, false).stage, CreatureMind.Stage.WAIT
 	)
+
+
+# --- 道が無いとき、高い場所のふもとまで歩いて見せる（2026-11-21） ---------------------
+
+
+## 移動だけで段差 2 は上がれないが、同じ高さのまま壁のふもとまで歩いて止まる（段階は WAIT のまま）。
+func test_walks_to_the_foot_of_a_wall_it_cannot_climb() -> void:
+	var plan := CreatureMind.plan(Vector2i(0, 0), line([0, 0, 0, 2]), walk, 1.3, false)
+	assert_eq(plan.stage, CreatureMind.Stage.WAIT, "still waiting: no way up")
+	assert_eq(plan.path.size(), 0)
+	assert_eq(plan.approach, [Vector2i(1, 0), Vector2i(2, 0)] as Array[Vector2i], "to the foot")
+
+
+## ふもとに着いていれば、もう歩かない。
+func test_does_not_approach_when_already_at_the_foot() -> void:
+	var plan := CreatureMind.plan(Vector2i(2, 0), line([0, 0, 0, 2]), walk, 1.3, false)
+	assert_eq(plan.approach.size(), 0)
+
+
+## 移動の能力が無ければ歩かない。
+func test_does_not_approach_without_a_move() -> void:
+	var plan := CreatureMind.plan(Vector2i(0, 0), line([0, 0, 0, 2]), {JUMP: true}, 1.3, false)
+	assert_eq(plan.approach.size(), 0)
+	assert_true(plan.sees_unreachable_height)
+
+
+## 遠い崖（ふもとまで APPROACH_STEPS 歩より先）へは歩き出さない（段の縁で待つ生き物から、
+## 下のプレイヤーが能力を取り戻せる状態を崩さない）。
+func test_does_not_walk_towards_a_far_wall() -> void:
+	var plan := CreatureMind.plan(Vector2i(0, 0), line([0, 0, 0, 0, 0, 0, 0, 2]), walk, 1.3, false)
+	assert_eq(plan.stage, CreatureMind.Stage.WAIT)
+	assert_eq(plan.approach.size(), 0, "the foot is 6 steps away")
+
+
+## 同じ高さのマスしか通らない（降りてから近づく道は使わない。前より低い所・遠い所へ行かない）。
+func test_approach_stays_on_the_same_height() -> void:
+	var plan := CreatureMind.plan(Vector2i(0, 0), line([1, 0, 0, 3]), walk, 1.3, false)
+	assert_eq(plan.approach.size(), 0, "the only way closer goes down")

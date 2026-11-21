@@ -102,6 +102,9 @@ class CreatureSpec:
 	## 見た目のモデル（Creature.MODEL_WISH / MODEL_KIT）。
 	var look: String = Creature.MODEL_WISH
 	var tokens: Array[TokenSpec] = []
+	## 願いの一文（近づいた・狙ったときに出す）。空ならクリア条件から決める（巣へ運ぶ条件があれば
+	## Creature.WISH_NEST、無ければ Creature.WISH_HIGHER）。
+	var wish_text: String = ""
 
 	func _init(p_key: String, p_position: Vector3) -> void:
 		key = p_key

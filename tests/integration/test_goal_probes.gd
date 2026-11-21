@@ -5,8 +5,10 @@ extends "res://tests/integration/island_playthrough.gd"
 ## - test_finding_*: 試遊した時点の、意外な挙動を記録する（直すかどうかは本人が決める）
 ## - test_accepted_*: 本人が「このままでよい」と決めた挙動（G2・G5 など。決めた内容は報告の「決定」の節）
 ## 照準はゲームと同じく、カメラ（CameraRig）を回して GameWorld.aimed_block() の光線で決める。
-## カメラは頭の上 1.5 を中心に回るので、光線はいつもその点を通る。狙う点（仲間の体の高さ）へ
-## 向けた yaw・pitch を、CameraRig の範囲（-70°〜30°）に収めて与える（マウスで向けるのと同じ）。
+## カメラは頭の上 1.5 を中心に回る。照準（画面の中央）の光線は、肩越しのずれ（h_offset 0.6）の分だけ
+## その点の右を通る（2026-11-21 に光線を照準に合わせた。それまではカメラの正面から投げていて、
+## 照準より 0.6 左を狙っていた）。狙う点（仲間の体の高さ）を照準の光線が通る yaw・pitch を、
+## CameraRig の範囲（-70°〜30°）に収めて与える（マウスで向けるのと同じ）。
 ## 動かすのは move_intent・view_yaw・press_action と、渡す・F・投票の操作だけ。
 ## 例外（測定の準備）: 窪みの各点からの見通しを測るときは、観察者を窪みの床の各点に置く。
 ## 仲間（下で待つ人）は通信の操り人形と同じ WorldParty.add_avatar で置く。2人の協力のテストでは、
@@ -27,7 +29,8 @@ const CASES: Array = [
 	[StageCatalog.INTRO_ID, Vector3(0.5, 0.0, -3.5), false, true],
 	[StageCatalog.HILL_ID, Vector3(0.5, 2.0, -1.5), false, true],
 	[StageCatalog.HILL_ID, Vector3(0.5, 0.0, 5.5), false, true],
-	[StageCatalog.QUARRY_ID, Vector3(1.5, 3.0, -7.5), false, false],
+	# 光線を照準に合わせた後（2026-11-21）、跳ぶと 5 点中 1 点で合うようになった（G2 の技の範囲）
+	[StageCatalog.QUARRY_ID, Vector3(1.5, 3.0, -7.5), false, true],
 	[StageCatalog.QUARRY_ID, Vector3(0.5, 0.0, 0.5), false, true],
 	[StageCatalog.THREE_BELLS_ID, Vector3(0.5, 3.0, -16.5), false, false],
 	[StageCatalog.THREE_BELLS_ID, Vector3(-0.5, 0.0, -13.5), false, false],
@@ -291,10 +294,16 @@ func _floor_points(goal: AABB, step: float) -> Array[Vector3]:
 
 
 ## カメラを viewer の頭の上 1.5（CameraRig の回転の中心）から point へ向ける（範囲は CameraRig のまま）。
+## 照準の光線は肩越しのずれ（h_offset）の分だけ右を通るので、そのずれた線が point を通る向きに合わせる。
 func _aim_point(world: GameWorld, viewer: PlayerAvatar, point: Vector3) -> void:
-	var dir := (point - (viewer.global_position + Vector3(0.0, 1.5, 0.0))).normalized()
-	world.camera_rig.yaw = atan2(-dir.x, -dir.z)
-	world.camera_rig.pitch = clampf(asin(dir.y), CameraRig.MIN_PITCH, CameraRig.MAX_PITCH)
+	var pivot := viewer.global_position + Vector3(0.0, 1.5, 0.0)
+	var origin := pivot
+	for i in 4:
+		var dir := (point - origin).normalized()
+		world.camera_rig.yaw = atan2(-dir.x, -dir.z)
+		world.camera_rig.pitch = clampf(asin(dir.y), CameraRig.MIN_PITCH, CameraRig.MAX_PITCH)
+		var right := Vector3(cos(world.camera_rig.yaw), 0.0, -sin(world.camera_rig.yaw))
+		origin = pivot + right * world.camera_rig.camera().h_offset
 
 
 ## target の高さ offsets のどこかへ向けたとき、照準（aimed_block）が target に合うか。
