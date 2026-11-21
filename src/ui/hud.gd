@@ -116,9 +116,11 @@ func update_wish_pointer(focus: Creature) -> void:
 	if is_inventory_open():
 		focus = null
 	var target: Variant = null
+	var tint := WishPointer.FILL
 	if focus != null and focus.wish_box.has_volume() and not focus.is_wish_met():
 		target = focus.wish_box.get_center()
-	wish_pointer.point_to(world.camera_rig.camera(), target)
+		tint = focus.nest_tint
+	wish_pointer.point_to(world.camera_rig.camera(), target, tint)
 
 
 func set_aim(aim: Crosshair.Aim) -> void:

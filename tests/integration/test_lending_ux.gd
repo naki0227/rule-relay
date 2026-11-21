@@ -1,7 +1,7 @@
 extends "res://tests/integration/island_playthrough.gd"
 ## 渡しやすさ（2026-11-21、本人が「押し石の小道」（1-4）を初めて遊んだときの不満から）:
 ## - 照準の補助: 少し外れても、近くの生き物・ブロックを選ぶ。隠れているもの・届かないものは選ばない
-## - 移動をもらった生き物は、上がれない段のふもとまで歩いて「上がれない」印を出す（動かないように見せない）
+## - 移動をもらった生き物は、上がれない段のふもとまで歩いて、吹き出しに「道が要る」（階段）を出す（動かないように見せない）
 
 const BACK := RuleAction.Kind.BACK
 const PATH_ID := "w1_push_path"
@@ -16,6 +16,15 @@ func _enter_path() -> void:
 	await _enter(PATH_ID)
 	_toasts.clear()
 	w.message_posted.connect(func(text: String) -> void: _toasts.append(text))
+
+
+## 生き物についての知らせ（足りないものは吹き出しだけで見せ、知らせは出さない。2026-11-21 本人）。
+func _creature_toasts() -> PackedStringArray:
+	var found: PackedStringArray = []
+	for text in _toasts:
+		if text.contains("生き物"):
+			found.append(text)
+	return found
 
 
 ## カメラを from に置いて at を向け、その場で照準の先を調べる（同じフレームのうちに。
@@ -102,12 +111,14 @@ func test_aim_at_open_ground_still_targets_the_terrain_cell() -> void:
 # --- 移動をもらった生き物の見せ方（1-4） -------------------------------------------------
 
 
-## 移動が無い生き物は「移動？」の印で待ち、狙うと「移動の能力を渡すと歩き出す」を出す（慣れるまで）。
+## 移動が無い生き物は、吹き出しに移動のメダルを出して待ち、狙うと「移動の能力を渡すと歩き出す」を出す（慣れるまで）。
 func test_kit_without_a_move_asks_for_one() -> void:
 	await _enter_path()
 	var kit := _creature("kit")
 	await wait_physics_frames(100)
 	assert_eq(kit.bubble_key(), CreatureWishView.KEY_NEED_MOVE, "asks for a move")
+	assert_eq(kit.shown_needs(), [FORWARD] as Array[RuleAction.Kind], "the move medal")
+	assert_true(kit.shows_nest_in_bubble(), "and a tiny nest next to it")
 	var hud := Hud.new()
 	hud.world = w
 	tree.root.add_child(hud)
@@ -125,7 +136,7 @@ func test_kit_without_a_move_asks_for_one() -> void:
 
 
 ## 移動（A。自分の W は歩くのに残す。生き物の W/A/S/D は向きが基準なので、どれでも同じに歩く）を渡すと、
-## 段のふもとまで歩いて「上がれない」印と知らせを出す。縁のセルを押して階段を作ると段へ上がり、
+## 段のふもとまで歩いて、吹き出しに「道が要る」（階段）を出す（知らせの文は出さない）。縁のセルを押して階段を作ると段へ上がり、
 ## 溝を埋めると巣まで行く。
 func test_kit_walks_to_the_step_then_continues_once_the_path_is_built() -> void:
 	await _enter_path()
@@ -135,11 +146,16 @@ func test_kit_walks_to_the_step_then_continues_once_the_path_is_built() -> void:
 	_lend(kit, _slot_of(LEFT), TriggerMode.Kind.NONE)
 	assert_true(await _wait_creature_in("kit", KIT_FOOT, 400), "walked to the foot of the step")
 	assert_lt(kit.global_position.distance_to(start), 4.0, "only a few steps along the meadow")
-	await wait_physics_frames(30)
+	for i in 300:
+		if kit.is_stuck():
+			break
+		await tree.physics_frame
+	assert_lt(kit.global_position.distance_to(start), 4.0, "stopped at the foot nearest the nest")
 	assert_lt(kit.global_position.y, 0.3, "still on the meadow")
 	assert_true(kit.is_stuck(), "stuck at the step")
-	assert_eq(kit.bubble_key(), CreatureWishView.KEY_STUCK)
-	assert_true(_toasts.has("子どもの生き物: ここから上がれない…（道が要る）"), "told once")
+	assert_eq(kit.bubble_key(), CreatureWishView.KEY_PATH, "stairs in the bubble")
+	assert_true(kit.shown_needs().is_empty(), "no ability helps here")
+	assert_true(_creature_toasts().is_empty(), "no toast: the bubble says it")
 	# 階段を削る（段の縁のセルを南へ押す）
 	await _walk_to(Vector3(1.5, 0.0, 0.5), 0.3)
 	_lend(w.terrain_target(Vector3i(-1, 1, -1)), _slot_of(BACK), TriggerMode.Kind.SINGLE_SHOT)
@@ -154,8 +170,11 @@ func test_kit_walks_to_the_step_then_continues_once_the_path_is_built() -> void:
 	assert_true(
 		await _wait_creature_in("kit", OpenIslandsW1.PATH_NEST, 2400), "the kit reached its nest"
 	)
-	assert_eq(_toasts.count("子どもの生き物: ここから上がれない…（道が要る）"), 1, "only once")
+	assert_true(_creature_toasts().is_empty(), "still no toast")
 	await wait_physics_frames(30)
 	assert_eq(kit.bubble_key(), CreatureWishView.KEY_HAPPY, "happy at the nest")
 	var markers := w.find_children("WishMarker*", "WishMarker", false, false)
-	assert_false((markers[0] as WishMarker).visible, "the nest beam goes away once the wish is met")
+	var marker := markers[0] as WishMarker
+	assert_false(marker.is_beam_shown(), "the nest beam goes away once the wish is met")
+	assert_true(marker.nest_model().visible, "the nest itself stays: it is the kit's home")
+	assert_false(kit.shows_nest_in_bubble(), "no nest in the bubble any more")

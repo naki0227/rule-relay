@@ -1,7 +1,8 @@
 class_name WorldFrame
 extends RefCounted
 ## ホストが 1 秒に 20 回配る「世界のいまの様子」（位置と見た目だけ。ルールの状態は台帳で別に配る）。
-## {"blocks": {id: [位置, 光っているか(信号)]}, "creatures": {id: [位置, 向き, 持ち物, 頭の上の印]},
+## {"blocks": {id: [位置, 光っているか(信号)]},
+##  "creatures": {id: [位置, 向き, 持ち物, 頭の上の吹き出しの鍵, [見た目の動き, 回数, 体の向き]]},
 ##  "avatars": {player_id: [位置, 向き, 歩いているか, 床にいるか]}, "bells": [残り時間...],
 ##  "balls": [位置...], "medals": 投げたメダル（MedalThrow.capture_frame）,
 ##  "nature": 自然の仕掛けの時計（脈打つ風の拍子をそろえる）}
@@ -15,7 +16,9 @@ static func capture(w: GameWorld) -> Dictionary:
 	var creature_states := {}
 	for id in w.creatures:
 		var c := w.creatures[id]
-		creature_states[id] = [c.global_position, c.facing, c.held_item, c.bubble_key()]
+		creature_states[id] = [
+			c.global_position, c.facing, c.held_item, c.bubble_key(), c.act_state()
+		]
 	var avatar_states := {}
 	if w.player != null:
 		avatar_states[w.player.player_id] = w.player.remote_state()
@@ -57,7 +60,10 @@ static func apply(
 		var c := creature_states[id] as Array
 		if w.creatures.has(id) and c.size() >= 3:
 			var key := String(c[3]) if c.size() >= 4 else ""
-			w.creatures[id].set_remote_state(c[0] as Vector3, c[1] as Vector2i, String(c[2]), key)
+			var act := c[4] as Array if c.size() >= 5 and typeof(c[4]) == TYPE_ARRAY else []
+			w.creatures[id].set_remote_state(
+				c[0] as Vector3, c[1] as Vector2i, String(c[2]), key, act
+			)
 	_apply_avatars(w, data.get("avatars", {}) as Dictionary)
 	var bell_states := data.get("bells", []) as Array
 	for i in mini(bell_states.size(), w.bells.size()):
