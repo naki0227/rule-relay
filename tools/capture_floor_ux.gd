@@ -5,7 +5,8 @@ extends SceneTree
 ##     godot --rendering-driver vulkan --resolution 1280x720 \
 ##     --script res://tools/capture_floor_ux.gd -- <state> out.png
 ## state: dent（地面の円に範囲でジャンプを渡して跳ばせた最中。抜けた跡が見える）/
-##        square（2×2 のブロックに範囲で D を渡して押した、動いている途中）
+##        square（2×2 のブロックに範囲で D を渡して押した、動いている途中）/
+##        banned（ジャンプ禁止のブロックの上に立っている。ホットバーのジャンプの枠が使えない表示）
 ## 場所は「押し石の小道」（1-4）の原っぱ。
 
 
@@ -28,6 +29,8 @@ func _capture() -> void:
 	var w := director.world
 	if state == "square":
 		await _square(w)
+	elif state == "banned":
+		await _banned(w)
 	else:
 		await _dent(w)
 	for i in 4:
@@ -79,4 +82,20 @@ func _square(w: StageWorld) -> void:
 	w.ledger.lend(v.id, ids, TriggerMode.Kind.SINGLE_SHOT, spec)
 	w.press_action(RuleAction.Kind.RIGHT)
 	for i in 13:  # 1マス移動の半分ほど
+		await physics_frame
+
+
+func _banned(w: StageWorld) -> void:
+	var pad := w.add_block(Vector3i(1, 0, 3), Color(0.72, 0.42, 0.3))
+	w.ledger.place_on_entity(RuleAction.Kind.JUMP, true, pad.entity_id)
+	w.camera_rig.pitch = deg_to_rad(-30.0)
+	for i in 4:
+		await physics_frame
+	w.player.global_position = pad.global_position + Vector3(0.0, 0.55, 0.0)
+	w.player.velocity = Vector3.ZERO
+	w.select_slot(4)  # ジャンプ
+	for i in 30:
+		await physics_frame
+	w.press_action(RuleAction.Kind.JUMP)  # 跳べない（禁止の音と、最初の一度だけの知らせ）
+	for i in 10:
 		await physics_frame

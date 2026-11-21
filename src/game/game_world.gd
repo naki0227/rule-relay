@@ -109,6 +109,7 @@ func spawn_player(at: Vector3) -> PlayerAvatar:
 	# 跳躍と同じく自分の世界の音として鳴らす（ホストの音は NetWorld が参加者へ配る）
 	player.dashed.connect(func() -> void: _sound(&"dash", player.global_position))
 	player.floor_ban_refused.connect(_on_floor_ban_refused)
+	player.floor_bans_changed.connect(func() -> void: state_changed.emit())
 	camera_rig = CameraRig.new()
 	camera_rig.name = "CameraRig"
 	camera_rig.target = player
@@ -767,7 +768,7 @@ func _on_ledger_changed() -> void:
 		creatures[id].show_tokens(ledger.tokens_on(id))
 	WorldItem.sync_all(self, ledger, _world_items)
 	RangePreview.sync_lent(self, ledger, _range_marks)
-	if throw_mode and not can_throw():
+	if throw_mode and not ledger.player_can(RuleAction.Kind.THROW, acting_id()):
 		# 「投げる」を渡した・禁止を拾ったら、その場で「触る」に戻る（最後の1回は投げられる）
 		throw_mode = false
 		_post("「投げる」を手放したので、届き方は「触る」になりました")

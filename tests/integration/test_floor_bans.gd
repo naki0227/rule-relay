@@ -218,3 +218,35 @@ func test_a_creature_does_not_plan_a_jump_from_a_banned_block() -> void:
 		steps.has(CreatureMind.step_key(Vector2i(5, 0), Vector2i(6, 0))),
 		"walking onto it (a low step) is still fine"
 	)
+	assert_true(
+		c.situation().blocked.has(CreatureMind.step_key(Vector2i(6, 0), Vector2i(7, 0))),
+		"the brain's situation carries the banned step"
+	)
+
+
+## 生き物を禁止のブロック（上面 1）に乗せ、東の高さ 2 の段へはそのブロックから跳ぶしかない置き方で、
+## 段の上（x = 7）に立ったか。banned なら台にジャンプ禁止を付ける（判断は CreatureBrain の通り道）。
+func creature_climbs_from_pad(banned: bool) -> bool:
+	var c := island.creature
+	island.ledger.place_on_entity(JUMP, false, c.entity_id)
+	var step := island.add_block(Vector3i(6, 0, 0))
+	island.add_block(Vector3i(7, 0, 0))
+	island.add_block(Vector3i(7, 1, 0))
+	if banned:
+		ban(JUMP, step)
+	await wait_physics_frames(6)
+	c.restore_state({"position": Vector3(6.5, 1.05, 0.5), "velocity": Vector3.ZERO})
+	c.notify_environment_changed()
+	for i in 300:
+		await tree.physics_frame
+		if c.global_position.y > 1.9 and c.cell() == Vector2i(7, 0):
+			return true
+	return false
+
+
+func test_a_creature_jumps_up_from_the_pad_when_it_is_not_banned() -> void:
+	assert_true(await creature_climbs_from_pad(false), "control: the brain jumps up from the pad")
+
+
+func test_a_creature_on_a_jump_banned_pad_does_not_jump_up() -> void:
+	assert_false(await creature_climbs_from_pad(true), "the ban under its feet keeps it down")

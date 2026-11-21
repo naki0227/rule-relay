@@ -11,6 +11,8 @@ signal footstep
 signal dashed
 ## 足もとのブロックの禁止で、押した行動ができなかった（FloorBans。音と最初の一度だけの知らせに使う）。
 signal floor_ban_refused(action: RuleAction.Kind)
+## 足もとの禁止が変わった（乗った・降りた・禁止が付いた）。HUD のホットバーの「使えない」表示に使う。
+signal floor_bans_changed
 
 const HEIGHT: float = 1.6
 const RADIUS: float = 0.3
@@ -171,6 +173,13 @@ func can(action: RuleAction.Kind) -> bool:
 	return ledger != null and ledger.player_can(action, player_id) and not floor_bans.has(action)
 
 
+## 足もとの禁止で、その能力がいま使えないか（ジャンプ禁止なら、ブーツの高跳びも使えない）。表示用。
+func floor_blocks(action: RuleAction.Kind) -> bool:
+	if floor_bans.has(action):
+		return true
+	return action == RuleAction.Kind.HIGH_JUMP and floor_bans.has(RuleAction.Kind.JUMP)
+
+
 ## いまのジャンプの高さ。ジャンプブーツ（高跳び）を装備していれば固定で高くなる（企画書 7）。
 ## 高跳びはジャンプの強化なので、ジャンプ自体が使えない（貸出中・禁止）なら跳べない。
 ## 仲間から集めたジャンプが n 個なら、到達高度は n 倍（Tuning.stack_factor）。
@@ -202,7 +211,10 @@ func _physics_process(delta: float) -> void:
 		return
 	if is_on_floor():
 		_air_dash_used = false
-	floor_bans = FloorBans.under(ledger, self)
+	var bans := FloorBans.under(ledger, self)
+	if bans != floor_bans:
+		floor_bans = bans
+		floor_bans_changed.emit()
 	_notice_refused_moves()
 	var direction := _allowed_direction()
 	velocity.x = direction.x * Tuning.PLAYER_SPEED

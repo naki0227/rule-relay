@@ -85,6 +85,15 @@ func test_a_client_on_a_jump_banned_block_cannot_jump_and_is_not_snapped() -> vo
 	me.velocity = Vector3.ZERO
 	await wait_physics_frames(10)
 	assert_true(me.floor_bans.has(JUMP), "the client sees the ban under its own feet")
+	var hud := Hud.new()
+	hud.world = client.world
+	tree.root.add_child(hud)
+	await wait_physics_frames(2)
+	assert_true(
+		hud.hotbar_descriptions()[4].contains("足もとの禁止で使えない"),
+		"the client's own hotbar shows jump as unusable"
+	)
+	hud.queue_free()
 	var start := me.global_position.y
 	client.world.press_action(JUMP)
 	var top := start

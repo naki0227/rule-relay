@@ -221,6 +221,11 @@ func test_client_throws_a_medal_that_the_host_flies_and_applies() -> void:
 	assert_true(client_world.throw_mode, "the client throws")
 	client_world.select_slot(JUMP_SLOT)
 	client_world.set_lend_mode(TriggerMode.Kind.REPEAT)
+	# 飛ぶメダルの姿は、ホストの知らせ（WorldFrame）が届いたときに足され、次の知らせで消える。重いときは
+	# 2つの知らせが同じフレームに届き、足されてすぐ消えるので、毎フレーム数えると見落とす。足された瞬間を数える
+	var seen := [false]
+	var spot := func(node: Node) -> void: seen[0] = seen[0] or node is MedalVisual
+	client_world.child_entered_tree.connect(spot)
 	assert_eq(client_world.lend_to(block, false), RuleLedger.LendResult.OK)
 	assert_true(client_world.player.is_throwing(), "the client's own arm throws at once")
 	await _until(func() -> bool: return not MedalThrow.flying(host_world).is_empty())
@@ -228,19 +233,13 @@ func test_client_throws_a_medal_that_the_host_flies_and_applies() -> void:
 	assert_true(
 		host_world.ledger.tokens_on(host_block.entity_id).is_empty(), "nothing lands at once"
 	)
-	var seen := [false]
-	await _until(
-		func() -> bool:
-			seen[0] = (
-				seen[0] or client_world.find_children("*", "MedalVisual", false, false).size() > 0
-			)
-			return host_world.ledger.can_initiate(host_block.entity_id, JUMP)
-	)
-	assert_true(seen[0], "the client saw the medal in the air")
+	await _until(func() -> bool: return host_world.ledger.can_initiate(host_block.entity_id, JUMP))
 	var t := host_world.ledger.tokens_on(host_block.entity_id)[0]
 	assert_eq(t.lender_id, B, "the client is the lender")
 	assert_eq(t.mode, TriggerMode.Kind.REPEAT, "the client's mode is kept")
 	await _until(func() -> bool: return client_world.ledger.can_initiate(block.entity_id, JUMP))
+	client_world.child_entered_tree.disconnect(spot)
+	assert_true(seen[0], "the client saw the medal in the air")
 	await _until(
 		func() -> bool:
 			return client_world.find_children("*", "MedalVisual", false, false).is_empty()

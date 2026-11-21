@@ -46,5 +46,6 @@ static func act_as(
 
 
 ## 参加者が依頼に添える「いまの選択」。
+## 投げるは、自分の足もとの禁止（FloorBans）も自分の画面で確かめてから伝える（ホストの操り人形は足もとを調べない）。
 static func current_choice(w: GameWorld) -> Dictionary:
-	return {"slot": w.selected_slot, "mode": w.lend_mode, "throw": w.throw_mode}
+	return {"slot": w.selected_slot, "mode": w.lend_mode, "throw": w.throw_mode and w.can_throw()}
