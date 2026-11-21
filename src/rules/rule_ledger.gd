@@ -536,6 +536,11 @@ func pickup(vessel_id: int, player_id: int = PLAYER_ID) -> bool:
 	v.owner_id = player_id
 	v.location = RuleVessel.Location.INVENTORY
 	v.slot = -1
+	# 抜けた人の入れ物を、その中身を持っている人が拾った: 中身は入れ物へ戻る（持ち主の手元の能力は器の中、
+	# の規則に合わせる。docs/adr/0018）
+	var t := token(v.token_id)
+	if t != null and t.carrier_id == player_id:
+		t.carrier_id = -1
 	changed.emit()
 	return true
 

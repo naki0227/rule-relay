@@ -6,6 +6,8 @@ extends Control
 ##   右: 選んだ／指したアイテムの詳しい説明と、貸し出し中の一覧
 ##   下: ホットバー9枠（ここにある能力だけ自分に効く）
 ##   上: 目立ちすぎない検索欄と、小さな絞り込みのチップ
+## 動かし方（2026-11-21 本人）: ドラッグ＆ドロップ、クリックで持ち上げてクリックで置く、指して 1〜9 でホットバーへ。
+## 置き先に器があれば入れ替える（規則は InventoryMoves）。開いても検索欄にはフォーカスしない（番号キーをすぐ使える）。
 ## 同じ器を複数の場所に出すとき（貸し出し中の一覧など）は、複製せず同じ器 ID を参照する。
 ## 何を出すかの判定は InventoryQuery、所有の変更は RuleLedger が受け持つ（企画書 7）。
 
@@ -28,6 +30,8 @@ var player_id: int = RuleLedger.PLAYER_ID
 ## 効果音を鳴らす関数（Hud.play_ui）。無ければ鳴らさない。
 var play_sound: Callable
 var category: InventoryQuery.Category = InventoryQuery.Category.ALL
+## 最後に出した「置けない理由」（テスト用）。
+var last_message: String = ""
 
 var _search: LineEdit
 var _chips: Array[Button] = []
@@ -46,6 +50,12 @@ var _detail_text: Label
 var _lent_list: VBoxContainer
 var _equip_button: Button
 var _book: PanelContainer
+## クリックで持ち上げている器（無ければ -1）。カーソルに小さな絵（_ghost）が付いてくる。
+var _held_id: int = -1
+var _ghost: TextureRect
+## ホットバーの上の操作の説明。置けなかった理由も、ここに少しの間だけ出す（画面を散らかさない）。
+var _how: Label
+var _how_text: String = ""
 
 
 func _ready() -> void:
@@ -62,7 +72,8 @@ func open() -> void:
 	tween.tween_property(self, "modulate:a", 1.0, UiTheme.FAST)
 	tween.parallel().tween_property(_book, "scale", Vector2.ONE, UiTheme.NORMAL)
 	refresh()
-	_search.grab_focus()
+	# 検索欄にはフォーカスしない（番号キー・E・X をすぐ使えるように。検索欄はクリックしたときだけ）
+	_search.release_focus()
 
 
 ## 文字を大きくして画面が狭くなったとき（設定の「文字の大きさ」）も、持ち物の札が収まる縮尺。
@@ -84,9 +95,154 @@ func _fit_to_screen() -> void:
 
 
 func close() -> void:
+	cancel_pick()
 	_search.release_focus()
 	_grid.release_focus()
 	visible = false
+
+
+## Esc: 検索欄に入力中ならそこから出る、持ち上げていればやめる。どちらかをしたら true（画面は閉じない）。
+func handle_escape() -> bool:
+	if is_typing():
+		_search.release_focus()
+		return true
+	return cancel_pick()
+
+
+# --- クリックで持ち上げて置く・番号キー ---------------------------------------
+
+
+func is_holding() -> bool:
+	return _held_id != -1
+
+
+func held_vessel_id() -> int:
+	return _held_id
+
+
+## 器を持ち上げる（クリック・パッドの A）。
+func pick(vessel_id: int) -> bool:
+	var v := ledger.vessel(vessel_id) if ledger != null else null
+	if v == null or v.owner_id != player_id or v.location == RuleVessel.Location.WORLD:
+		return false
+	_held_id = vessel_id
+	_selected_id = vessel_id
+	var t := ledger.token(v.token_id)
+	_ghost.texture = ItemIcons.for_item(t, v.is_equipment())
+	_ghost.modulate.a = 0.85 if t.is_in_vessel() else 0.45
+	_ghost.visible = true
+	_follow_mouse()
+	_sound(&"ui_pick")
+	_update_slots()
+	_grid.select(vessel_id)
+	_show_detail()
+	return true
+
+
+## 持ち上げるのをやめる（同じ枠をもう一度クリック・右クリック・Esc）。やめたら true。
+func cancel_pick() -> bool:
+	if _held_id == -1:
+		return false
+	_held_id = -1
+	if _ghost != null:
+		_ghost.visible = false
+	_sound(&"ui_cancel")
+	return true
+
+
+## ホットバーの slot 番目の枠をクリックした。
+func click_hotbar(slot: int) -> bool:
+	var v := ledger.hotbar_vessel(slot, player_id)
+	return _click(InventoryMoves.Place.HOTBAR, slot, -1 if v == null else v.id)
+
+
+## 装備の枠（頭・体・手・足の順で index）をクリックした。
+func click_equip(index: int) -> bool:
+	var v := ledger.equipped_vessel(EQUIP_PARTS[index], player_id)
+	return _click(InventoryMoves.Place.EQUIP, index, -1 if v == null else v.id)
+
+
+## かばんの器（空いている所なら -1）をクリックした。
+func click_bag(vessel_id: int) -> bool:
+	return _click(InventoryMoves.Place.BAG, 0, vessel_id)
+
+
+## マウスが指している器（無ければ -1）。番号キーで動かす器。
+func hover(vessel_id: int) -> void:
+	_on_hovered(vessel_id)
+
+
+## 1〜9: 指している器（無ければ持ち上げている器、それも無ければ選んでいる器）をホットバーの slot へ。
+## slot に器があれば入れ替える。もう slot にあれば何もしない。
+func number_key(slot: int) -> bool:
+	var id := _hover_id
+	if id == -1:
+		id = _held_id if _held_id != -1 else _selected_id
+	if id == -1:
+		return false
+	if id == _held_id:
+		_held_id = -1
+		_ghost.visible = false
+	return _apply(id, InventoryMoves.Place.HOTBAR, slot, -1)
+
+
+func _click(where: InventoryMoves.Place, index: int, target_id: int) -> bool:
+	if _held_id == -1:
+		return target_id != -1 and pick(target_id)
+	if target_id == _held_id:
+		cancel_pick()
+		return false
+	var held := ledger.vessel(_held_id)
+	var from_bag := held != null and held.location == RuleVessel.Location.INVENTORY
+	if where == InventoryMoves.Place.BAG and target_id != -1 and from_bag:
+		return pick(target_id)  # かばんの中どうしは並びが無いので、持ち替えるだけ
+	var moving := _held_id
+	_held_id = -1
+	_ghost.visible = false
+	return _apply(moving, where, index, target_id)
+
+
+func _apply(vessel_id: int, where: InventoryMoves.Place, index: int, target_id: int) -> bool:
+	var reason := InventoryMoves.place(ledger, _actions(), vessel_id, where, index, target_id)
+	if reason != "":
+		_say(reason)
+		_sound(&"ui_error")
+		return false
+	_selected_id = vessel_id
+	_sound(&"ui_drop")
+	refresh()
+	return true
+
+
+## 置けなかった理由を、ホットバーの上の説明の所に少しの間だけ出す。
+func _say(text: String) -> void:
+	last_message = text
+	_how.text = text
+	_how.add_theme_color_override("font_color", UiTheme.BAN)
+	var shown := text
+	get_tree().create_timer(2.2).timeout.connect(
+		func() -> void:
+			if is_instance_valid(_how) and _how.text == shown:
+				_how.text = _how_text
+				_how.remove_theme_color_override("font_color")
+	)
+
+
+func _process(_delta: float) -> void:
+	if _held_id != -1:
+		_follow_mouse()
+
+
+func _follow_mouse() -> void:
+	if _ghost != null and is_inside_tree():
+		_ghost.global_position = get_global_mouse_position() + Vector2(10, 10)
+
+
+func _input(event: InputEvent) -> void:
+	var button := event as InputEventMouseButton
+	if visible and button != null and button.pressed and button.button_index == MOUSE_BUTTON_RIGHT:
+		if cancel_pick():
+			get_viewport().set_input_as_handled()
 
 
 func is_typing() -> bool:
@@ -144,27 +300,19 @@ func move_selected_to_inventory() -> bool:
 
 
 ## ドラッグ＆ドロップと同じ処理（テストからも呼ぶ）。
+## 置き先に器があれば入れ替える（InventoryMoves。クリックで置く・番号キーと同じ規則）。
 func drop_on_hotbar(vessel_id: int, slot: int) -> bool:
-	_selected_id = vessel_id
-	var ok := _actions().move_to_hotbar(vessel_id, slot)
-	_sound(&"ui_drop" if ok else &"ui_error")
-	return ok
+	return _apply(vessel_id, InventoryMoves.Place.HOTBAR, slot, -1)
 
 
-func drop_into_bag(vessel_id: int) -> bool:
-	_selected_id = vessel_id
-	var ok := _actions().move_to_inventory(vessel_id)
-	_sound(&"ui_drop" if ok else &"ui_error")
-	return ok
+## onto_id はかばんの中で落とした先の器（その器と入れ替える）。空いた所なら -1。
+func drop_into_bag(vessel_id: int, onto_id: int = -1) -> bool:
+	return _apply(vessel_id, InventoryMoves.Place.BAG, 0, onto_id)
 
 
 ## 装備の枠へ落とす（ドラッグ＆ドロップと同じ処理。テストからも呼ぶ）。部位が合う装備品だけ。
 func drop_on_equip(vessel_id: int, part: RuleVessel.Part) -> bool:
-	_selected_id = vessel_id
-	var v := ledger.vessel(vessel_id)
-	var ok := v != null and v.part == part and _actions().equip(vessel_id)
-	_sound(&"ui_confirm" if ok else &"ui_error")
-	return ok
+	return _apply(vessel_id, InventoryMoves.Place.EQUIP, EQUIP_PARTS.find(part), -1)
 
 
 ## 選んでいる装備品をつける／外す（詳しい説明のボタンと同じ）。
@@ -224,8 +372,21 @@ func refresh() -> void:
 		_selected_id = -1 if _matches.is_empty() else _matches[0].vessel_id
 	_grid.select(_selected_id)
 	_update_slots()
+	_sync_hover()
 	_update_lent_list()
 	_show_detail()
+
+
+## 動かした後、マウスの下の枠に入っている器が変わっていたら、指している器をそれに合わせる
+## （入れ替えた直後にもう一度番号キーを押しても、いまカーソルの下にある器が動く）。
+func _sync_hover() -> void:
+	for slot: InventorySlot in _hotbar_slots + _equip_slots:
+		if slot.is_hovered():
+			_hover_id = slot.vessel_id
+			return
+	var in_bag := _grid.hovered_vessel_id()
+	if in_bag != -2:
+		_hover_id = in_bag
 
 
 func _find(vessel_id: int) -> InventoryQuery.Entry:
@@ -244,13 +405,13 @@ func _update_slots() -> void:
 		var id := -1 if v == null else v.id
 		var t: RuleToken = null if v == null else ledger.token(v.token_id)
 		var dim := filtering and t != null and _find(id) == null
-		slot.show_vessel(id, t, id != -1 and id == _selected_id, dim)
+		slot.show_vessel(id, t, id != -1 and id == _selected_id, dim, v)
 	for i in _equip_slots.size():
 		var ev := ledger.equipped_vessel(EQUIP_PARTS[i], player_id)
 		var eid := -1 if ev == null else ev.id
 		var et: RuleToken = null if ev == null else ledger.token(ev.token_id)
 		var edim := filtering and et != null and _find(eid) == null
-		_equip_slots[i].show_vessel(eid, et, eid != -1 and eid == _selected_id, edim)
+		_equip_slots[i].show_vessel(eid, et, eid != -1 and eid == _selected_id, edim, ev)
 
 
 ## 貸し出し中の一覧。器はホットバーかかばんに残ったままで、ここは同じ器への参照。
@@ -268,12 +429,15 @@ func _update_lent_list() -> void:
 		var row := Button.new()
 		row.theme_type_variation = &"Chip"
 		row.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		row.icon = ItemIcons.for_token(entry.token)
+		row.icon = ItemIcons.for_item(entry.token, entry.is_equipment)
 		row.expand_icon = true
 		row.custom_minimum_size = Vector2(0, 44)
 		row.add_theme_constant_override("icon_max_width", 30)
 		var target := "範囲 %d こ" % entry.token.holder_ids.size() if entry.token.is_range else "1つ"
-		row.text = "%s　%s · %s" % [entry.label, target, TriggerMode.label(entry.token.mode)]
+		var mode := entry.token.mode
+		row.text = "%s　%s" % [entry.label, target]
+		if mode != TriggerMode.Kind.NONE:
+			row.text += " · %s" % TriggerMode.label(mode)
 		row.focus_mode = Control.FOCUS_NONE
 		row.pressed.connect(_on_lent_pressed.bind(entry.vessel_id))
 		_lent_list.add_child(row)
@@ -299,13 +463,14 @@ func _show_detail() -> void:
 		_detail_name.text = "見つかりません" if searching else "からっぽ"
 		_detail_text.text = "ことばや絞り込みを変えてみてください。" if searching else ""
 		return
-	_detail_icon.texture = ItemIcons.for_token(entry.token)
+	_detail_icon.texture = ItemIcons.for_item(entry.token, entry.is_equipment)
+	_detail_icon.modulate.a = 1.0 if entry.token.is_in_vessel() else 0.45
 	_detail_name.text = entry.label
 	_detail_state.visible = true
 	_detail_state.text = entry.state_text.replace("通常インベントリ", "かばん")
 	_style_state(entry.state)
 	_detail_where.text = InventoryQuery.location_text(entry).replace("通常インベントリ", "かばん")
-	_detail_text.text = _explain(entry)
+	_detail_text.text = ItemExplain.explain(entry)
 	_equip_button.visible = entry.is_equipment and entry.vessel_id == _selected_id
 	var worn := entry.location == RuleVessel.Location.EQUIPPED
 	_equip_button.text = "はずす" if worn else "そうびする"
@@ -336,66 +501,6 @@ func _style_state(state: InventoryQuery.State) -> void:
 	_detail_state.add_theme_stylebox_override("normal", box)
 
 
-## 器ごとの説明: 行動の意味と、いまの状態で何が起きているか（短く）。
-static func _explain(entry: InventoryQuery.Entry) -> String:
-	var t := entry.token
-	var action := ""
-	match t.action:
-		RuleAction.Kind.FORWARD:
-			action = "前へ進む力。ブロックに渡すと北へ1マス動く。"
-		RuleAction.Kind.LEFT:
-			action = "左へ進む力。ブロックに渡すと西へ1マス動く。"
-		RuleAction.Kind.BACK:
-			action = "後ろへ進む力。ブロックに渡すと南へ1マス動く。"
-		RuleAction.Kind.RIGHT:
-			action = "右へ進む力。ブロックに渡すと東へ1マス動く。"
-		RuleAction.Kind.JUMP:
-			action = "跳ぶ力。ブロックに渡すと、そのブロックが跳ねる。"
-		RuleAction.Kind.THROW:
-			action = (
-				"投げて遠くへ渡す力（%s で切り替え）。手放すと「触る」の距離だけになるが、%s の回収は残る。"
-				% [InputMode.key(&"toggle_reach"), InputMode.key(&"interact")]
-			)
-		RuleAction.Kind.HIGH_JUMP:
-			action = "いつもより高く跳ぶ力（約2ブロック）。装備しているときだけ自分に効く。"
-		RuleAction.Kind.DASH:
-			var moves := PackedStringArray(
-				[
-					InputMode.key(&"move_forward"),
-					InputMode.key(&"move_left"),
-					InputMode.key(&"move_right"),
-				]
-			)
-			action = (
-				"%s を押しながら %s で、その向きへまっすぐ3マス突進する力（後ろへは無し）。途中の穴も抜ける。"
-				% ["/".join(moves), InputMode.key(&"dash")]
-			)
-		RuleAction.Kind.CLIMB:
-			action = "壁を登る力。装備しているときだけ自分に効く。ブロックに渡すと、隣でいちばん高い所の高さまで登ってつかまる。"
-		RuleAction.Kind.HEAVY:
-			action = "重くなる力。ホットバーにある間、風に流されず、水には沈み、重さの板を1人で押し下げる。ブロックや生き物に渡しても同じ。"
-		RuleAction.Kind.FLOAT:
-			action = "浮く力。ホットバーにある間、ゆっくり落ち（2個で2倍ゆっくり）、水に浮かぶ。ブロックに渡すと水に浮いて筏になる。重いと打ち消し合う。"
-		RuleAction.Kind.SWIM:
-			action = "泳ぐ力。ホットバーにある間、水に浮かんで進める（2個で2倍速く、流れに逆らえる）。持っていないと水に沈む。"
-	if t.is_prohibition:
-		var lent_note := "\n\nいまは貸し出し中なので、自分には効いていない。" if not t.is_in_vessel() else ""
-		return (
-			("「%s」を自分から始められなくする禁止。ホットバーでも、かばんでも、持っている限り自分に効く。" % RuleAction.label(t.action))
-			+ lent_note
-		)
-	match entry.state:
-		InventoryQuery.State.ACTIVE:
-			return action + "\n\nホットバーにあるので、自分に効いている。"
-		InventoryQuery.State.STORED:
-			return action + "\n\nかばんの中では自分に効かない。ホットバーに置くと効く。"
-		InventoryQuery.State.LENT:
-			return (
-				action + "\n\n貸し出し中。回収するまで自分は使えない。相手に近づいて %s で回収できる。" % InputMode.key(&"interact")
-			)
-	return action
-
-
 func _on_grid_selected(vessel_id: int) -> void:
 	_sound(&"ui_pick")
 	_selected_id = vessel_id
@@ -411,8 +516,10 @@ func _on_hovered(vessel_id: int) -> void:
 
 
 func _on_slot_clicked(slot: InventorySlot) -> void:
-	if slot.vessel_id != -1:
-		select_vessel(slot.vessel_id)
+	if slot.kind == InventorySlot.Kind.HOTBAR:
+		click_hotbar(slot.slot_index)
+	else:
+		click_equip(slot.slot_index)
 
 
 func _on_slot_hovered(slot: InventorySlot) -> void:
@@ -423,8 +530,16 @@ func _on_slot_dropped(slot: InventorySlot, vessel_id: int) -> void:
 	drop_on_hotbar(vessel_id, slot.slot_index)
 
 
-func _on_dropped_into_bag(vessel_id: int) -> void:
-	drop_into_bag(vessel_id)
+func _on_dropped_into_bag(vessel_id: int, onto_id: int) -> void:
+	drop_into_bag(vessel_id, onto_id)
+
+
+## ドラッグを始めたら、クリックで持ち上げていた分はやめる（2つの持ち方を混ぜない）。
+func _on_drag_started() -> void:
+	if _held_id != -1:
+		_held_id = -1
+		_ghost.visible = false
+	_sound(&"ui_pick")
 
 
 func _on_chip(index: int) -> void:
@@ -433,8 +548,9 @@ func _on_chip(index: int) -> void:
 	refresh()
 
 
+## Enter で検索欄から出る（番号キーなどが持ち物の操作に戻る）。
 func _on_submit(_text: String) -> void:
-	_grid.grab_focus()
+	_search.release_focus()
 
 
 func _build() -> void:
@@ -462,6 +578,14 @@ func _build() -> void:
 	body.add_child(_build_bag_column())
 	body.add_child(_build_detail_column())
 	page.add_child(_build_hotbar_row())
+	_ghost = TextureRect.new()
+	_ghost.name = "HeldGhost"
+	_ghost.top_level = true
+	_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_ghost.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_ghost.size = Vector2(52, 52)
+	_ghost.visible = false
+	add_child(_ghost)
 
 
 func _build_header() -> Control:
@@ -520,6 +644,8 @@ func _build_character_column() -> Control:
 		slot.accepts = _accepts_for_equip.bind(EQUIP_PARTS[i])
 		slot.clicked.connect(_on_slot_clicked)
 		slot.hovered.connect(_on_slot_hovered)
+		slot.mouse_exited.connect(_on_hovered.bind(-1))
+		slot.drag_started.connect(_on_drag_started)
 		slot.dropped.connect(
 			func(_s: InventorySlot, vessel_id: int) -> void:
 				drop_on_equip(vessel_id, EQUIP_PARTS[i])
@@ -555,9 +681,10 @@ func _build_bag_column() -> Control:
 	_grid = ItemGrid.new()
 	_grid.columns = 7
 	_grid.item_selected.connect(_on_grid_selected)
+	_grid.item_clicked.connect(func(id: int) -> void: click_bag(id))
 	_grid.item_hovered.connect(_on_hovered)
 	_grid.dropped_into_bag.connect(_on_dropped_into_bag)
-	_grid.drag_started.connect(func() -> void: _sound(&"ui_pick"))
+	_grid.drag_started.connect(_on_drag_started)
 	scroll.add_child(_grid)
 	return column
 
@@ -625,10 +752,11 @@ func _build_hotbar_row() -> Control:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(spacer)
-	var how := Label.new()
-	how.text = "ドラッグで入れかえ　·　1〜9 でホットバーへ　·　X でかばんへ"
-	how.theme_type_variation = &"Note"
-	head.add_child(how)
+	_how = Label.new()
+	_how_text = ("クリックで持って置く　·　指して 1〜9 でホットバーへ　·　%s でかばんへ" % InputMode.key(&"store_item"))
+	_how.text = _how_text
+	_how.theme_type_variation = &"Note"
+	head.add_child(_how)
 	column.add_child(head)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -641,7 +769,7 @@ func _build_hotbar_row() -> Control:
 		slot.hovered.connect(_on_slot_hovered)
 		slot.mouse_exited.connect(_on_hovered.bind(-1))
 		slot.dropped.connect(_on_slot_dropped)
-		slot.drag_started.connect(func() -> void: _sound(&"ui_pick"))
+		slot.drag_started.connect(_on_drag_started)
 		row.add_child(slot)
 		_hotbar_slots.append(slot)
 	column.add_child(row)

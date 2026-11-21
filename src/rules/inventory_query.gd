@@ -73,6 +73,9 @@ static func describe(ledger: RuleLedger, v: RuleVessel) -> Entry:
 		var target := _away_text(t)
 		var mode := "" if t.mode == TriggerMode.Kind.NONE else "・" + TriggerMode.label(t.mode)
 		entry.state_text = "貸出中（%s%s）" % [target, mode]
+		if v.is_equipment():
+			# 装備は入れ物が残り、中の能力だけが出ている（docs/adr/0018）
+			entry.state_text = "空・中の能力を貸出中（%s%s）" % [target, mode]
 		if v.location == RuleVessel.Location.EQUIPPED:
 			entry.state_text += "・装備しているが効かない"
 	elif t.is_prohibition:

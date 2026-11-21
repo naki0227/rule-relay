@@ -492,9 +492,7 @@ func nearest_world_item() -> RuleVessel:
 func _pick_up(v: RuleVessel) -> void:
 	var at := v.world_position
 	ledger.pickup(v.id, acting_id())
-	var t := ledger.token(v.token_id)
-	var item_label := v.item_name if v.item_name != "" else t.describe()
-	_post("%s を拾いました（通常インベントリ。%s で開いて使う）" % [item_label, InputMode.token(&"inventory")])
+	_post(WorldItem.pickup_text(v, ledger.token(v.token_id)))
 	_sound(&"ui_pick", at)
 
 
