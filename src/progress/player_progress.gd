@@ -29,6 +29,9 @@ var _stages: Dictionary[String, Dictionary] = {}
 ## 集合（キーだけ使う）: "areas" / "hub" / "cosmetics" / "collectibles" / "applied_events" /
 ## "found_secrets"（広場で見つけた寄り道のワールドの入口。ワールドの id。docs/campaign-plan.md）
 var _sets: Dictionary[String, Dictionary] = {}
+## 最後に入ったステージ（広場へ戻ったとき・次に起動したときに、そのポータルの前に立つ。docs/adr/0020）。
+## 空なら出現地点。古い保存には無い（無ければ空として読む）。
+var _last_portal: String = ""
 
 
 ## クリアを反映した結果。
@@ -143,6 +146,18 @@ func found_secrets() -> PackedStringArray:
 	return _sorted("found_secrets")
 
 
+func last_portal() -> String:
+	return _last_portal
+
+
+## 最後に入ったステージを覚える。変わったら true（呼び出し側が保存する）。
+func set_last_portal(stage_id: String) -> bool:
+	if stage_id == _last_portal:
+		return false
+	_last_portal = stage_id
+	return true
+
+
 func has_applied(reward_event_id: String) -> bool:
 	return _sets["applied_events"].has(reward_event_id)
 
@@ -176,6 +191,8 @@ func to_dict() -> Dictionary:
 	var data: Dictionary = {"stages": _stages.duplicate(true)}
 	for key: String in SET_KEYS:
 		data[key] = Array(_sorted(key))
+	if _last_portal != "":
+		data["last_portal"] = _last_portal
 	return data
 
 
@@ -197,6 +214,9 @@ static func from_dict(data: Dictionary) -> PlayerProgress:
 		if not (stage_id is String and entry is Dictionary):
 			return null
 		progress._stages[stage_id as String] = _normalized_stage(entry as Dictionary)
+	var last: Variant = data.get("last_portal", "")
+	if last is String:
+		progress._last_portal = last as String
 	return progress
 
 

@@ -164,6 +164,13 @@ func facing() -> float:
 	return _facing
 
 
+## 体をその向きへすぐ向ける（広場でポータルの前に戻ったとき。PartyDirector）。
+func face(yaw: float) -> void:
+	_facing = yaw
+	if _visual != null:
+		_visual.rotation.y = _facing
+
+
 func feet_position() -> Vector3:
 	return global_position
 

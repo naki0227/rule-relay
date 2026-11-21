@@ -27,6 +27,13 @@ class PortalSpec:
 	var cleared: bool
 	var hard: bool
 	var first: bool = false
+	## ステージから戻ったときに立つ場所（4 人分。ポータルの前、入口の箱の外。PortalSpots）と、そこで向く向き
+	## （ポータルに背を向けて広場の側）。空なら出現地点へ戻す。
+	var returns: Array[Vector3] = []
+	var return_yaw: float = PI
+	## 戻ったときに体と視点を向ける向き（PortalSpots.view_yaw）。視点のカメラがポータルの門に入り込まず、
+	## 門が人の横に見える向き（「いまこの門から出てきた」）。広場の側を向くのは return_yaw と同じ。
+	var return_view_yaw: float = PI
 
 
 class TeaserSpec:

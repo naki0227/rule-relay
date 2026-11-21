@@ -27,9 +27,9 @@ var bells_by_key: Dictionary[String, Bell] = {}
 var activated: PackedStringArray = PackedStringArray()
 ## 見つけた広場の発見（この島にいる間だけ覚える。出入りするとまた見つけられる）。
 var found_secrets: PackedStringArray = PackedStringArray()
-## 「やり直す」操作（メニューの戻る・最初から）を全員リセットの投票にする（PartyDirector が渡す）。
+## メニューの「チェックポイントからやり直す」を全員リセットの投票にする（PartyDirector が渡す）。
 var vote_request: Callable = Callable()
-## メニューの「島のはじめから」（PartyDirector が渡す。ひとりなら本当に最初から）。
+## メニューの「このステージを最初から」（PartyDirector が渡す。ひとり・ホストならすぐ、参加者は投票）。
 var restart_request: Callable = Callable()
 
 
@@ -175,7 +175,8 @@ func is_on_checkpoint() -> bool:
 	return false
 
 
-## メニューの「戻る」「最初から」は、全員リセットの投票になる（1人なら自分の1票で成立）。
+## メニューの「チェックポイントからやり直す」は、全員リセットの投票になる（1人なら自分の1票で成立）。
+## restore_previous_checkpoint はメニューから外した（docs/adr/0020）が、GameWorld と同じ呼び口として残す。
 func restore_checkpoint() -> void:
 	if vote_request.is_valid():
 		vote_request.call()

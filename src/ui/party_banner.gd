@@ -1,6 +1,6 @@
 class_name PartyBanner
 extends Control
-## 画面上部の小さな札: いまの場所・仲間の数・観戦中・全員リセットの投票（残り秒数）・クリア。
+## 画面上部の小さな札: いまの場所・仲間の数・観戦中・チェックポイントからやり直す投票（残り秒数）・クリア。
 ## 協力中にゴールにまだ来ていない人がいれば、2行目に名前を出す（試遊 G5。情報だけ）。
 ## 文字だけで伝え、色だけに頼らない（企画書 8）。
 
@@ -41,14 +41,15 @@ static func describe(d: PartyDirector) -> String:
 		if state == PartyLifecycle.State.DEAD_SPECTATING:
 			parts.append("観戦中（仲間が台座で %s を押すと復活）" % InputMode.key(&"interact"))
 		elif state == PartyLifecycle.State.WAITING_SPECTATOR:
-			parts.append("観戦中（次の全員リセットで合流）")
+			parts.append("観戦中（次にチェックポイントからやり直すと合流）")
 		if d.lifecycle.is_vote_open():
 			(
 				parts
 				. append(
 					(
-						"全員リセットの投票 %d / %d（%s 長押しで賛成・残り %d 秒）"
+						"%s %d / %d（%s 長押しで賛成・残り %d 秒）"
 						% [
+							PartyDirector.RESET_VOTE_TITLE,
 							d.lifecycle.yes_vote_count(),
 							d.lifecycle.required_votes(),
 							InputMode.key(&"vote_reset"),
@@ -58,7 +59,7 @@ static func describe(d: PartyDirector) -> String:
 				)
 			)
 		else:
-			parts.append("%s 長押し: 全員リセットの投票" % InputMode.key(&"vote_reset"))
+			parts.append("%s 長押し: チェックポイントからやり直す（全員の投票）" % InputMode.key(&"vote_reset"))
 	if d.last_clear_text != "" and d.in_stage():
 		parts.append(d.last_clear_text)
 	var text := "　".join(parts)

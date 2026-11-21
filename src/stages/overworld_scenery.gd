@@ -26,6 +26,7 @@ const EDGE := 0.72
 
 static func scatter(layout: OverworldLayout, field: HeightField, def: StageDef) -> void:
 	var keep_out := _keep_out(layout, def)
+	var return_view := _return_view_cells(layout)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED
 	for region: Array in REGIONS:
@@ -43,6 +44,8 @@ static func scatter(layout: OverworldLayout, field: HeightField, def: StageDef) 
 				if h < 0 or roll > chance * 2.0:
 					continue
 				var at := Vector3(x + 0.5, float(h), z + 0.5)
+				if return_view.has(Vector2i(x, z)):
+					continue
 				if _blocked(at, keep_out) or not _flat_around(field, x, z, h):
 					continue
 				var d := (
@@ -76,6 +79,23 @@ static func _island_bases(layout: OverworldLayout) -> void:
 		)
 		base.size = Vector3(radius.x * 1.5, 11.0, radius.y * 1.5)
 		layout.props.append(base)
+
+
+## ステージから戻った人の立ち位置と、そのときのカメラ・視線の上のマス（木を置かない。PortalSpots。docs/adr/0020）。
+## 数が多いので、円ではなくマスの集合にして速く引く。
+static func _return_view_cells(layout: OverworldLayout) -> Dictionary[Vector2i, bool]:
+	var cells: Dictionary[Vector2i, bool] = {}
+	for p in layout.portals:
+		for spot in p.returns:
+			var cam := PortalSpots.camera_point(spot, p.return_view_yaw)
+			for circle: Array in [[spot, 1.0], [cam, 1.8], [spot.lerp(cam, 0.5), 1.4]]:
+				var c := circle[0] as Vector3
+				var r := float(circle[1])
+				for z in range(floori(c.z - r), ceili(c.z + r) + 1):
+					for x in range(floori(c.x - r), ceili(c.x + r) + 1):
+						if Vector2(x + 0.5 - c.x, z + 0.5 - c.z).length() < r:
+							cells[Vector2i(x, z)] = true
+	return cells
 
 
 ## 置かない場所: [中心, 半径]（水平の距離）と、長方形。
