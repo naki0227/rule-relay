@@ -179,7 +179,7 @@ func _on_entrance_chosen(_player_id: int, chosen: String) -> void:
 		return
 	var state := overworld_state()
 	if not state.is_stage_open(chosen):
-		world.message_posted.emit(CampaignPlan.lock_reason(chosen, state.cleared))
+		world.message_posted.emit(CampaignPlan.lock_reason(chosen, state.cleared, state.found))
 		return
 	enter_stage(chosen)
 
@@ -190,7 +190,11 @@ func overworld_state() -> OverworldState:
 	if not is_authority():
 		return OverworldState.from_dict(_remote_overworld)
 	return OverworldState.of(
-		progress.cleared_stages(), all_stages_open, all_regions_open, all_abilities_unlocked
+		progress.cleared_stages(),
+		all_stages_open,
+		all_regions_open,
+		all_abilities_unlocked,
+		progress.found_secrets()
 	)
 
 
@@ -219,6 +223,7 @@ func _physics_process(delta: float) -> void:
 		return
 	if not in_stage():
 		_rescue_in_hub()
+		OptionalSecrets.check(self)  # 寄り道のワールドの秘密の入口（docs/campaign-plan.md）
 		return
 	tracker.seconds += delta
 	# 時間切れを死亡より先に見る（切れた票が、同じコマの死亡で成立しないように）

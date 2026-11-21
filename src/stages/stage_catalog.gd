@@ -91,6 +91,21 @@ static func all_stages() -> Array[StageDef]:
 		World6Stages.peak_bells(),
 		World6Stages.river_run(),
 		World6Stages.long_ridge(),
+		OptionalWorldsO1.cog_crossing(),
+		OptionalWorldsO1.clockwork_corridor(),
+		OptionalWorldsO1.weighing_scale(),
+		OptionalWorldsO1.sign_gears(),
+		OptionalWorldsO1.grand_contraption(),
+		OptionalWorldsO2.vane_steps(),
+		OptionalWorldsO2.cloud_raft(),
+		OptionalWorldsO2.falling_isles(),
+		OptionalWorldsO2.upside_tower(),
+		OptionalWorldsO2.sky_maelstrom(),
+		OptionalWorldsO3.ice_greenhouse(),
+		OptionalWorldsO3.canal_garden(),
+		OptionalWorldsO3.sign_nursery(),
+		OptionalWorldsO3.frozen_pond(),
+		OptionalWorldsO3.grand_greenhouse(),
 	]
 	stages.sort_custom(
 		func(a: StageDef, b: StageDef) -> bool: return a.target_minutes < b.target_minutes

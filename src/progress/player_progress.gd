@@ -20,11 +20,14 @@ const RECORD_AXES: Dictionary[String, String] = {
 	AXIS_FEWEST_ABILITIES: "abilities_used",
 	AXIS_FEWEST_HAND_OFFS: "hand_offs",
 }
-const SET_KEYS: PackedStringArray = ["areas", "hub", "cosmetics", "collectibles", "applied_events"]
+const SET_KEYS: PackedStringArray = [
+	"areas", "hub", "cosmetics", "collectibles", "applied_events", "found_secrets"
+]
 
 ## ステージ ID → {"first_cleared_at", "clear_count", "records", "party_sizes"}
 var _stages: Dictionary[String, Dictionary] = {}
-## 集合（キーだけ使う）: "areas" / "hub" / "cosmetics" / "collectibles" / "applied_events"
+## 集合（キーだけ使う）: "areas" / "hub" / "cosmetics" / "collectibles" / "applied_events" /
+## "found_secrets"（広場で見つけた寄り道のワールドの入口。ワールドの id。docs/campaign-plan.md）
 var _sets: Dictionary[String, Dictionary] = {}
 
 
@@ -126,6 +129,18 @@ func cosmetics() -> PackedStringArray:
 
 func collectibles() -> PackedStringArray:
 	return _sorted("collectibles")
+
+
+## 広場の秘密の入口を見つけたことを記録する（寄り道のワールドの id）。新しく記録したら true。
+func record_secret(world_id: String) -> bool:
+	if world_id.is_empty() or _sets["found_secrets"].has(world_id):
+		return false
+	_sets["found_secrets"][world_id] = true
+	return true
+
+
+func found_secrets() -> PackedStringArray:
+	return _sorted("found_secrets")
 
 
 func has_applied(reward_event_id: String) -> bool:

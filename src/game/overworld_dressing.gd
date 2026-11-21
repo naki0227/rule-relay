@@ -44,6 +44,18 @@ static func build(world: Node3D, layout: OverworldLayout) -> void:
 		)
 
 
+## 進行が変わった（寄り道のワールドの入口を見つけた）ときに、ポータルの開き方を作り直す。
+static func refresh_portals(world: Node3D, state: OverworldState) -> void:
+	var root := world.get_node_or_null("OverworldDressing")
+	if root == null:
+		return
+	for portal: OverworldPortal in root.find_children("Portal_*", "OverworldPortal", false, false):
+		var open := state.is_stage_open(portal.spec.stage_id)
+		if portal.spec.open != open:
+			portal.spec.open = open
+			portal.refresh()
+
+
 ## 広場は広いので、霧を薄くして遠くの地方まで見えるようにする（島の霧は近くの島に合わせた濃さ）。
 ## 空は島より少し青くする（環境は広場の島ごとに作り直すので、ほかの島には影響しない）。
 static func _soften_fog(world: Node) -> void:

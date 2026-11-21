@@ -45,9 +45,34 @@ func test_every_existing_stage_has_a_slot_in_an_early_world() -> void:
 		var s := CampaignPlan.slot(def.stage_id)
 		assert_ne(s, null, "%s is in the campaign" % def.stage_id)
 		if s != null:
-			assert_false(
-				CampaignPlan.world(s.world_id).optional, "%s is on the main path" % s.stage_id
+			# 寄り道のステージ（o1_1 など）だけが寄り道のワールドにあり、ほかは本編
+			var optional := OptionalWorldPlan.IDS.has(s.world_id)
+			assert_eq(
+				CampaignPlan.world(s.world_id).optional,
+				optional,
+				"%s is where it belongs" % s.stage_id
 			)
+
+
+## 寄り道のワールドは、opened_by のクリアに加えて、広場の秘密の入口を見つけると開く（docs/campaign-plan.md）。
+func test_optional_worlds_open_with_the_clear_and_the_secret_entrance() -> void:
+	var o1 := CampaignPlan.world("o1")
+	assert_eq(o1.slots.size(), 5, "five stages")
+	for s in o1.slots:
+		assert_true(s.hard, "%s is hard" % s.stage_id)
+	var cleared := _cleared([CampaignPlan.required_stage(o1)])
+	assert_false(CampaignPlan.is_region_open(o1, cleared), "the clear alone does not open it")
+	var found := PackedStringArray(["o1"])
+	assert_false(
+		CampaignPlan.is_region_open(o1, PackedStringArray(), found), "nor the secret alone"
+	)
+	assert_true(CampaignPlan.is_region_open(o1, cleared, found), "both open it")
+	assert_true(CampaignPlan.is_stage_open("o1_1", cleared, found), "the first stage opens")
+	assert_false(CampaignPlan.is_stage_open("o1_2", cleared, found), "the next waits for o1_1")
+	assert_ne(CampaignPlan.lock_reason("o1_1", cleared), "", "says to look for the entrance")
+	var later := cleared.duplicate()
+	later.append("o1_1")
+	assert_true(CampaignPlan.is_stage_open("o1_2", later, found))
 
 
 func test_ability_schedule_unlocks_the_existing_abilities_in_order() -> void:

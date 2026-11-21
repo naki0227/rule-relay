@@ -166,18 +166,26 @@ static func required_stage(w: World) -> String:
 	return ""
 
 
-static func is_region_open(w: World, cleared: PackedStringArray) -> bool:
+## 寄り道のワールドは、opened_by のクリアに加えて、広場の秘密の入口を見つけている（found にワールドの id が
+## ある。PlayerProgress.found_secrets）ことも要る（docs/campaign-plan.md「寄り道のワールドの開き方」）。
+static func is_region_open(
+	w: World, cleared: PackedStringArray, found: PackedStringArray = PackedStringArray()
+) -> bool:
+	if w.optional and not found.has(w.id):
+		return false
 	var needed := required_stage(w)
 	return needed == "" or cleared.has(needed)
 
 
 ## 製品版の開き方: 地方が開いていて、同じワールドで前に作ってあるステージをクリアしていれば開く。
-static func is_stage_open(stage_id: String, cleared: PackedStringArray) -> bool:
+static func is_stage_open(
+	stage_id: String, cleared: PackedStringArray, found: PackedStringArray = PackedStringArray()
+) -> bool:
 	var s := slot(stage_id)
 	if s == null:
 		return true  # 計画に無いステージ（試作など）は閉じない
 	var w := world(s.world_id)
-	if not is_region_open(w, cleared):
+	if not is_region_open(w, cleared, found):
 		return false
 	var before := previous_built(stage_id)
 	return before == null or cleared.has(before.stage_id)
@@ -194,12 +202,16 @@ static func previous_built(stage_id: String) -> Slot:
 
 
 ## 閉じているときの説明（開いていれば ""）。
-static func lock_reason(stage_id: String, cleared: PackedStringArray) -> String:
-	if is_stage_open(stage_id, cleared):
+static func lock_reason(
+	stage_id: String, cleared: PackedStringArray, found: PackedStringArray = PackedStringArray()
+) -> String:
+	if is_stage_open(stage_id, cleared, found):
 		return ""
 	var s := slot(stage_id)
 	var w := world(s.world_id)
-	if not is_region_open(w, cleared):
+	if w.optional and not found.has(w.id):
+		return "寄り道のワールド「%s」の秘密の入口を、広場で見つけると開きます" % w.display_name
+	if not is_region_open(w, cleared, found):
 		var needed := stage_name(required_stage(w))
 		return "「%s」をクリアすると、%s への道が開きます" % [needed, w.display_name]
 	return "「%s」をクリアすると開きます" % stage_name(previous_built(stage_id).stage_id)
@@ -237,12 +249,9 @@ static func _build() -> Array[World]:
 	result.append(_garden())
 	result.append(_peaks())
 	result.append(_summit())
-	result.append(_optional("o1", "からくり工房", StageCatalog.WINDY_ID, Vector3(19.5, 0.0, -13.5)))
-	result.append(_optional("o2", "さかさ雲", "w3_cloud_corridor", Vector3(61.5, 0.0, -48.5)))
-	result.append(_optional("o3", "ひみつの温室", StageCatalog.FORT_ID, Vector3(-14.5, 0.0, 18.5)))
-	result[7].secret = "はじまりの草原の北東、鐘で開く扉の奥（鐘を鳴らす・扉のブロックに W を渡す）"
-	result[8].secret = "浮島の東の端から、幅 5 の空を越えた小島（跳んでから空中ダッシュ・ブーツ）"
-	result[9].secret = "はじまりの草原の南西、札の門の奥（門の札を回収して手放してから A を渡す）"
+	# 寄り道のワールド（ステージの題・入口・ポータルの並びは OptionalWorldPlan。docs/campaign-plan.md）
+	for id: String in OptionalWorldPlan.IDS:
+		result.append(_optional(id))
 	return result
 
 
@@ -620,20 +629,19 @@ static func _summit() -> World:
 	return w
 
 
-static func _optional(id: String, title: String, opened_by: String, teaser: Vector3) -> World:
-	var w := World.new(id, title, opened_by)
+static func _optional(id: String) -> World:
+	var w := World.new(id, OptionalWorldPlan.title(id), OptionalWorldPlan.opened_by(id))
 	w.optional = true
-	w.teaser = teaser
-	var gimmicks: PackedStringArray = [
-		"これまでの仕掛けを 2 つずつ重ねる", "3 つの仕掛けの組み合わせ", "協力の近道が無い長い道", "禁止と生き物の読み合い", "すべてを使う最難関"
-	]
-	for i in gimmicks.size():
+	w.teaser = OptionalWorldPlan.teaser(id)
+	w.secret = OptionalWorldPlan.secret(id)
+	for entry: Array in OptionalWorldPlan.slots(id):
+		var at := entry[2] as Vector3
 		_slot(
 			w,
-			"%s_%d" % [id, i + 1],
-			"%s その%d" % [title, i + 1],
-			gimmicks[i],
-			Vector2(teaser.x, teaser.z),
-			{"y": int(teaser.y), "hard": true, "species": "wish"}
+			"%s_%d" % [id, w.slots.size() + 1],
+			String(entry[0]),
+			String(entry[1]),
+			Vector2(at.x, at.z),
+			{"y": int(at.y), "hard": true, "species": String(entry[3]), "building": "ow_house"}
 		)
 	return w

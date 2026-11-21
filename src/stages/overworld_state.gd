@@ -5,6 +5,8 @@ extends RefCounted
 
 ## クリアしたステージ（ホストの進行。PlayerProgress.cleared_stages）
 var cleared: PackedStringArray = PackedStringArray()
+## 見つけた寄り道のワールドの入口（ホストの進行。PlayerProgress.found_secrets）
+var found: PackedStringArray = PackedStringArray()
 ## 試遊の版: ポータルを全部開ける（PartyDirector.all_stages_open）
 var all_stages_open: bool = true
 ## 試遊の版・デバッグ: 地方を全部つなぐ（橋・階段を全部出し、岩をどける）
@@ -14,10 +16,15 @@ var all_abilities: bool = false
 
 
 static func of(
-	p_cleared: PackedStringArray, stages_open: bool, regions_open: bool, abilities: bool
+	p_cleared: PackedStringArray,
+	stages_open: bool,
+	regions_open: bool,
+	abilities: bool,
+	p_found: PackedStringArray = PackedStringArray()
 ) -> OverworldState:
 	var state := OverworldState.new()
 	state.cleared = p_cleared.duplicate()
+	state.found = p_found.duplicate()
 	state.all_stages_open = stages_open
 	state.all_regions_open = regions_open
 	state.all_abilities = abilities
@@ -43,11 +50,12 @@ static func everything(clear_all: bool) -> OverworldState:
 
 
 func is_region_open(world_id: String) -> bool:
-	return all_regions_open or CampaignPlan.is_region_open(CampaignPlan.world(world_id), cleared)
+	var w := CampaignPlan.world(world_id)
+	return all_regions_open or CampaignPlan.is_region_open(w, cleared, found)
 
 
 func is_stage_open(stage_id: String) -> bool:
-	return all_stages_open or CampaignPlan.is_stage_open(stage_id, cleared)
+	return all_stages_open or CampaignPlan.is_stage_open(stage_id, cleared, found)
 
 
 func has_cleared(stage_id: String) -> bool:
@@ -67,6 +75,7 @@ func unlocked_actions() -> Array[RuleAction.Kind]:
 func to_dict() -> Dictionary:
 	return {
 		"cleared": cleared.duplicate(),
+		"found": found.duplicate(),
 		"all_stages_open": all_stages_open,
 		"all_regions_open": all_regions_open,
 		"all_abilities": all_abilities,
@@ -78,6 +87,8 @@ static func from_dict(data: Dictionary) -> OverworldState:
 	var state := OverworldState.new()
 	if data.get("cleared") is PackedStringArray:
 		state.cleared = (data["cleared"] as PackedStringArray).duplicate()
+	if data.get("found") is PackedStringArray:
+		state.found = (data["found"] as PackedStringArray).duplicate()
 	state.all_stages_open = bool(data.get("all_stages_open", true))
 	state.all_regions_open = bool(data.get("all_regions_open", true))
 	state.all_abilities = bool(data.get("all_abilities", false))
