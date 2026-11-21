@@ -357,7 +357,7 @@ static func _bell_vale() -> World:
 		w,
 		"w2_timed_bells",
 		"鳴りつづける鐘",
-		"鳴っている間だけ進む石×発射台で鐘を鳴らしつづける（時の鐘を今ある仕組みで）",
+		"時の鐘の初出: 鳴っている間だけ架かる橋と歩く石・走って渡るか鳴らしつづける",
 		Vector2(46.5, -11.5),
 		{"species": "kit", "tint": Color("#e8d4f0"), "building": "ow_house"}
 	)
