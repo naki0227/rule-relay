@@ -4,6 +4,11 @@ extends RefCounted
 ## 自分で道を選ぶ。プレイヤーは命令できず、能力と地形を変えて行動を誘導する。
 ## 物理・ノードに依存しない純粋な判断で、地形は「マスごとの立てる高さ」として受け取る。
 ##
+## 見せ方（2026-11-21、本人の試遊「能力あげても動かん」を受けて）: 移動の能力があっても高い所への道が無いとき、
+## 同じ高さのまま APPROACH_STEPS 歩以内でふもとに着けるなら、いちばん近い高い場所のふもとまで歩いて止まる
+## （Plan.approach。段階は WAIT のまま）。同じ高さしか歩かないので、前より高い所・遠い所へは行かない。
+## 遠くの崖へは歩かない（段の縁で待っている生き物から、下のプレイヤーが能力を取り戻せる状態を崩さない）。
+##
 ## 4段階:
 ## 1. SEEK: 願いへ向かう（いまより高く立てるマスへの道があれば進む）
 ## 2. SEARCH: 別ルートを探す（進めなかった道を除いて探し直す）
@@ -19,6 +24,8 @@ enum Stage { SEEK, SEARCH, WAIT }
 
 ## 探す範囲（マス）。企画書の仮値は 5〜10。
 const SEARCH_RADIUS: int = 8
+## 道が無いとき、高い場所のふもとへ歩いて近づく最大の歩数（同じ高さのマスだけを通る）。
+const APPROACH_STEPS: int = 4
 ## 歩いて上がれる段差（プレイヤーの段差補助と同じ）
 const STEP_HEIGHT: float = 0.45
 ## 自分から降りてよい高さ（それより深い所へは飛び降りない）
@@ -43,6 +50,8 @@ class Plan:
 	var goal_height: float = 0.0
 	## 見えているが、いまの能力では行けない高い場所があるか（「行きたいけど行けない」の表示用）
 	var sees_unreachable_height: bool = false
+	## WAIT のとき、いちばん近い高い場所のふもとへ同じ高さのまま近づく道（無ければ空。いまのマスは含まない）
+	var approach: Array[Vector2i] = []
 
 
 ## 道を選ぶ。
@@ -98,6 +107,8 @@ static func plan(
 	if best == start:
 		result.stage = Stage.WAIT
 		result.goal_height = here
+		if result.sees_unreachable_height and can_walk(abilities):
+			result.approach = approach_path(start, heights, blocked_steps)
 		return result
 	var path: Array[Vector2i] = []
 	var cursor := best
@@ -108,6 +119,65 @@ static func plan(
 	result.goal_height = best_height
 	result.stage = Stage.SEARCH if searching else Stage.SEEK
 	return result
+
+
+## 同じ高さのマスだけを APPROACH_STEPS 歩まで歩いて、いちばん近い高い場所（いまより 0.5 以上高い
+## マス）のとなり（ふもと）へ行く道。ふもとまで届かない・もう着いているなら空。
+## wish_heights を渡すと、行き先の「高い場所」はその中からだけ選ぶ（例: 地形だけ。ブロックや鐘の上は選ばない）。
+static func approach_path(
+	start: Vector2i,
+	heights: Dictionary,
+	blocked_steps: Dictionary = {},
+	wish_heights: Variant = null
+) -> Array[Vector2i]:
+	var here := float(heights[start])
+	var wish := _nearest_higher(start, heights if wish_heights == null else wish_heights, here)
+	var none: Array[Vector2i] = []
+	if wish == start:
+		return none
+	var came_from := {start: start}
+	var steps := {start: 0}
+	var queue: Array[Vector2i] = [start]
+	var best := start
+	var best_distance := Vector2(start - wish).length()
+	while not queue.is_empty():
+		var cell: Vector2i = queue.pop_front()
+		if int(steps[cell]) >= APPROACH_STEPS:
+			continue
+		for dir: Vector2i in DIRECTIONS:
+			var next := cell + dir
+			if came_from.has(next) or not heights.has(next):
+				continue
+			if absf(float(heights[next]) - here) > 0.1 or blocked_steps.has(step_key(cell, next)):
+				continue
+			came_from[next] = cell
+			steps[next] = int(steps[cell]) + 1
+			queue.append(next)
+			var d := Vector2(next - wish).length()
+			if d < best_distance - 0.01:
+				best = next
+				best_distance = d
+	if best_distance > 1.01:
+		return none  # ふもと（高い場所のとなり）まで行けないなら歩かない（遠くの崖へ向かって歩き出さない）
+	var path: Array[Vector2i] = []
+	while best != start:
+		path.push_front(best)
+		best = came_from[best]
+	return path
+
+
+## 探す範囲の中で、いまより 0.5 以上高い、いちばん近いマス（無ければ start）。
+static func _nearest_higher(start: Vector2i, heights: Dictionary, here: float) -> Vector2i:
+	var wish := start
+	var wish_distance := INF
+	for cell: Vector2i in heights:
+		if absi(cell.x - start.x) > SEARCH_RADIUS or absi(cell.y - start.y) > SEARCH_RADIUS:
+			continue
+		var d := Vector2(cell - start).length()
+		if float(heights[cell]) > here + 0.5 and d < wish_distance:
+			wish = cell
+			wish_distance = d
+	return wish
 
 
 ## 段差 rise（上がる高さ。負なら下がる）を、その能力で越えられるか。

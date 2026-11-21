@@ -9,6 +9,8 @@ signal jumped
 signal stage_changed(stage: CreatureMind.Stage)
 ## 持っている物を投げた（GameWorld が玉を飛ばす）。
 signal threw(from: Vector3, velocity: Vector3)
+## 移動の能力をもらったのに上がれない所で止まった（一度だけ。GameWorld が短い知らせにする）。
+signal stuck_noticed(text: String)
 
 const RADIUS: float = 0.3
 const HEIGHT: float = 0.7
@@ -22,6 +24,9 @@ const CHEER_TIME: float = 1.6
 ## 見た目のモデル（art/scripts/build_cast.py）。当たり判定はどちらも同じカプセル。
 const MODEL_WISH := "creature_wish"
 const MODEL_KIT := "creature_kit"
+## 願いの一文の既定（StageDef.CreatureSpec.wish_text が空のとき）。
+const WISH_NEST := "高いところの巣へ行きたい"
+const WISH_HIGHER := "高いところへ行きたい"
 
 var entity_id: int = -1
 ## 見た目のモデルの名前（add_child の前に決める）。
@@ -30,6 +35,8 @@ var ledger: RuleLedger
 ## マスごとの立てる高さを返す関数（GameWorld が地形とブロックを調べる）。
 ## (center: Vector2i, radius: int) -> {Vector2i: 高さ}
 var survey: Callable
+## 地形だけのマスごとの高さ（同じ形の関数）。道が無いときに近づく「高い場所」は地形からだけ選ぶ。
+var ground_survey: Callable
 var stage: CreatureMind.Stage = CreatureMind.Stage.WAIT
 var path: Array[Vector2i] = []
 ## 向いている世界の方角（x = 東、y = 南）。W はこの向き、A はその左、D は右、S は後ろ。
@@ -44,6 +51,8 @@ var remote: bool = false
 var external_velocity: Vector3 = Vector3.ZERO
 var max_fall_speed: float = INF
 var surface_hold: float = NAN
+## 願いの行き先（クリア条件「巣へ運ぶ」の箱。無ければ大きさ 0）。中に入ったら願いがかなった印を出す。
+var wish_box: AABB = AABB()
 var _remote_target: Vector3 = Vector3.ZERO
 
 var _blocked: Dictionary = {}
@@ -51,7 +60,15 @@ var _stuck: float = 0.0
 var _since_plan: float = 0.0
 var _needs_plan: bool = true
 var _searching: bool = false
-var _bubble: Label3D
+## 最後の判断で、行けない高い場所が見えていたか（頭の上の印に使う）。
+var _sees_higher: bool = false
+## プレイヤーから移動の能力を受け取っているか（上がれない知らせは、このときだけ出す）。
+var _lent_move: bool = false
+## 上がれない知らせを出したか（島ごとに一度だけ）。
+var _stuck_told: bool = false
+## 最後の判断で、ジャンプがあれば高い所へ行けたか（足りない能力の印に使う）。
+var _missing_jump: bool = false
+var _view: CreatureWishView
 var _tokens_label: Label3D
 var _outline: MeshInstance3D
 var _aimed: bool = false
@@ -89,6 +106,24 @@ func notify_environment_changed() -> void:
 	_searching = false
 
 
+## 移動の能力（W/A/S/D のどれか）を自分から使えるか。
+func can_walk() -> bool:
+	for move in CreatureMind.MOVES:
+		if can(move):
+			return true
+	return false
+
+
+## 知らせや案内に出す名前。
+func display_name() -> String:
+	return "子どもの生き物" if look == MODEL_KIT else "生き物"
+
+
+## 移動はできるのに、ここからは上がれない（ふもとで止まっている）か。
+func is_stuck() -> bool:
+	return stage == CreatureMind.Stage.WAIT and path.is_empty() and _sees_higher and can_walk()
+
+
 func can(action: RuleAction.Kind) -> bool:
 	return ledger != null and ledger.can_initiate(entity_id, action)
 
@@ -114,8 +149,29 @@ func replan() -> void:
 		cell(), heights, abilities, jump_height(), can(RuleAction.Kind.CLIMB), _blocked, _searching
 	)
 	path = plan.path
+	if plan.stage == CreatureMind.Stage.WAIT and _lent_move:
+		# プレイヤーから移動をもらったのに道が無いときは、同じ高さのまま高い場所のふもとへ近づいて止まる
+		# （動いて見せる）。最初から移動を持っている生き物は、置かれた場所で待つ（ステージの置き方を変えない）
+		path = _approach(heights)
+	_sees_higher = plan.sees_unreachable_height
+	_missing_jump = false
+	if plan.stage == CreatureMind.Stage.WAIT and not abilities[RuleAction.Kind.JUMP]:
+		abilities[RuleAction.Kind.JUMP] = true
+		_missing_jump = not (
+			CreatureMind.plan(cell(), heights, abilities, jump_height(), false).path.is_empty()
+		)
 	_set_stage(plan.stage)
+	_update_bubble()
 	_stuck = 0.0
+
+
+## 道が無いときに、同じ高さのまま近づく道（行き先の高い場所は地形だけから選ぶ）。
+func _approach(heights: Dictionary) -> Array[Vector2i]:
+	var none: Array[Vector2i] = []
+	if not ground_survey.is_valid():
+		return none
+	var ground := ground_survey.call(cell(), CreatureMind.SEARCH_RADIUS) as Dictionary
+	return CreatureMind.approach_path(cell(), heights, _blocked, ground)
 
 
 func _physics_process(delta: float) -> void:
@@ -155,6 +211,7 @@ func _follow(delta: float) -> Vector3:
 		_stuck = 0.0
 		if path.is_empty():
 			_needs_plan = true
+			_update_bubble()
 		return Vector3.ZERO
 	if cell() != next:
 		var abilities := {}
@@ -215,20 +272,72 @@ func _rise_to(next: Vector2i) -> float:
 
 
 func _set_stage(new_stage: CreatureMind.Stage) -> void:
-	if new_stage == stage and _bubble != null and _bubble.text != "":
+	if new_stage == stage and _view != null and _view.key() != "":
 		return
 	stage = new_stage
 	if new_stage != CreatureMind.Stage.SEARCH:
 		_searching = false
-	if _bubble != null:
-		match new_stage:
-			CreatureMind.Stage.SEEK:
-				_bubble.text = "↑"
-			CreatureMind.Stage.SEARCH:
-				_bubble.text = "？"
-			_:
-				_bubble.text = "…"
+	_update_bubble()
 	stage_changed.emit(new_stage)
+
+
+## 頭の上の印。待っているときは「上がれない（道が要る）」「足りない能力」を見分けられるようにする。
+func _update_bubble() -> void:
+	if _view == null or remote:
+		return
+	_view.show_key(bubble_key_now())
+	if _view.key() == CreatureWishView.KEY_STUCK and _lent_move and not _stuck_told:
+		_stuck_told = true
+		stuck_noticed.emit("%s: ここから上がれない…（道が要る）" % display_name())
+
+
+## いまの印の鍵（CreatureWishView.KEY_*）。
+func bubble_key_now() -> String:
+	if is_wish_met():
+		return CreatureWishView.KEY_HAPPY
+	if stage == CreatureMind.Stage.SEARCH:
+		return CreatureWishView.KEY_SEARCH
+	if stage == CreatureMind.Stage.SEEK or not path.is_empty():
+		return CreatureWishView.KEY_SEEK
+	return _waiting_key()
+
+
+## 待っているときの印: 移動が足りない → ジャンプが足りない → 上がれない（道が要る） → 待つ。
+func _waiting_key() -> String:
+	if _sees_higher and not can_walk():
+		return CreatureWishView.KEY_NEED_MOVE
+	if _sees_higher and _missing_jump:
+		return CreatureWishView.KEY_NEED_JUMP
+	return CreatureWishView.KEY_STUCK if is_stuck() else CreatureWishView.KEY_WAIT
+
+
+## 表示している印の鍵（参加者の画面ではホストから届いた鍵）。
+func bubble_key() -> String:
+	return _view.key() if _view != null else ""
+
+
+## 願いがかなったか（行き先の箱の中にいる）。
+func is_wish_met() -> bool:
+	return wish_box.has_volume() and wish_box.has_point(global_position)
+
+
+## 願いの一文（StageWorld がステージの定義から入れる）。
+func set_wish_text(text: String) -> void:
+	_view.set_wish_text(text)
+
+
+func wish_text() -> String:
+	return _view.wish_text() if _view != null else ""
+
+
+## 願いの一文を出す・隠す（プレイヤーが近くに来た・狙ったとき。PlayerInput が決める）。
+func show_wish(on: bool) -> void:
+	if _view != null:
+		_view.show_wish(on)
+
+
+func is_wish_shown() -> bool:
+	return _view != null and _view.is_wish_shown()
 
 
 # --- チェックポイント -------------------------------------------------------
@@ -243,8 +352,10 @@ func capture_state() -> Dictionary:
 	}
 
 
-## 参加者の画面で、ホストから受け取った状態 [位置, 向き, 持ち物] を目指す。
-func set_remote_state(at: Vector3, new_facing: Vector2i, item: String) -> void:
+## 参加者の画面で、ホストから受け取った状態 [位置, 向き, 持ち物, 頭の上の印] を目指す。
+func set_remote_state(at: Vector3, new_facing: Vector2i, item: String, key: String = "") -> void:
+	if _view != null and key != "":
+		_view.show_key(key)
 	if at.distance_to(global_position) > 3.0:
 		global_position = at
 	_remote_target = at
@@ -276,8 +387,11 @@ func set_highlight(on: bool) -> void:
 
 func show_tokens(tokens: Array[RuleToken]) -> void:
 	var lent_by_player := false
+	_lent_move = false
 	for t in tokens:
 		lent_by_player = lent_by_player or t.vessel_id != -1
+		var move := CreatureMind.MOVES.has(t.action) and not t.is_prohibition
+		_lent_move = _lent_move or (move and t.vessel_id != -1)
 	if _tokens_label != null:
 		# ブロックと同じく、持っている能力・禁止を器のアイコンで並べる（禁止は赤い輪と斜線）
 		for child in _tokens_label.get_children():
@@ -317,8 +431,8 @@ func _animate(direction: Vector3) -> void:
 			_rig.play(RigAnimator.HAPPY)
 		else:
 			_rig.move(minf(direction.length() * 1.2, 1.4), true)
-	if _bubble != null:
-		_bubble.position.y = 1.05 + sin(_time * 2.5) * 0.04
+	if _view != null:
+		_view.position.y = 1.05 + sin(_time * 2.5) * 0.04
 
 
 func _build() -> void:
@@ -353,7 +467,10 @@ func _build() -> void:
 	_held_mesh = _sphere(0.11, Vector3(0.0, -0.05, -0.36), Vector3.ONE, Color("#c97b4a"))
 	_body.add_child(_held_mesh)
 	_update_held()
-	_bubble = _label(1.05, 64)
+	_view = CreatureWishView.new()
+	_view.name = "Wish"
+	_view.position.y = 1.05
+	add_child(_view)
 	_tokens_label = _label(1.45, 30)
 	_set_stage(CreatureMind.Stage.WAIT)
 

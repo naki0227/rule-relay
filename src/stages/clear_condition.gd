@@ -125,6 +125,19 @@ func goal_area() -> AABB:
 	return AABB()
 
 
+## 物体 key を運ぶ先の箱（CARRY_OBJECT。ALL_OF の中も探す）。無ければ大きさ 0 の AABB。
+## 願いを持つ生き物の行き先の目印に使う。
+func carry_area(key: String) -> AABB:
+	if kind == Kind.CARRY_OBJECT and target_key == key:
+		return area
+	if kind == Kind.ALL_OF:
+		for c in parts:
+			var found := c.carry_area(key)
+			if found.has_volume():
+				return found
+	return AABB()
+
+
 ## ゴールにまだ来ていない人（試遊 G5、2026-11-20 本人の判断）。HUD に出す情報だけで、誰も止めない・外さない。
 ## 生きている人（active）のうち、ゴールの箱に入っていない人を ID 昇順で返す。
 ## 出すのは「島の条件（ゴール以外の部分）がそろった」か「生きている誰かがゴールにいる」ときだけ。

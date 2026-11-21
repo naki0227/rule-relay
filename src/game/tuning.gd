@@ -41,6 +41,8 @@ const TOUCH_REACH: float = 3.5
 const THROW_REACH: float = 20.0
 ## 落ちている器を F で拾える距離（足もとからの距離）
 const PICKUP_REACH: float = 1.8
+## この距離まで生き物に近づくと、その願いの一文を出す（狙ったときも出す）。
+const WISH_NEAR: float = 4.0
 
 
 ## 同じ能力を n 個持ったときの効果の倍率（2026-11-19 本人確定: 数に比例して強まる）。

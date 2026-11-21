@@ -32,13 +32,10 @@ var _dashing: bool = false
 var _air_step: bool = false
 var _outline: MeshInstance3D
 var _outline_material: StandardMaterial3D
-var _corner_markers: Node3D
 var _label: Label3D
 var _aimed: bool = false
 var _assigned: bool = false
-var _in_range: bool = false
 var _previewed: bool = false
-var _marker_material: StandardMaterial3D
 var _signal_label: Label3D
 ## 登る（クライミンググローブの能力）を持っているとき、底面をこの高さまで上げてつかまる。NAN なら登らない。
 var _climb_bottom: float = NAN
@@ -211,20 +208,22 @@ func show_tokens(tokens: Array[RuleToken]) -> void:
 	if _label == null:
 		return
 	_assigned = false
-	var in_range := false
+	# 範囲で受け取ったものは、ブロックごとには出さない（範囲の円と中心のアイコン1つで示す。RangePreview）。
+	# 地面に範囲で渡すと数十のセルが受け取るので、セルごとの枠・アイコン・文字が重なって読めなかった
+	var own: Array[RuleToken] = []
 	for t in tokens:
+		if t.is_range:
+			continue
+		own.append(t)
 		_assigned = _assigned or (t.vessel_id != -1 and not t.is_prohibition)
-		in_range = in_range or t.is_range
-	_in_range = in_range
-	_update_markers()
 	_update_outline()
 	# 持っている能力・禁止を、ブロックの上に器のアイコンで並べる（文字より重なりにくい）。
 	# 禁止は赤い輪と斜線の形で、能力の下には発動方式を小さく書く
 	for child in _label.get_children():
 		child.queue_free()
-	var count := tokens.size()
+	var count := own.size()
 	for i in count:
-		var t := tokens[i]
+		var t := own[i]
 		var icon := Sprite3D.new()
 		icon.texture = ItemIcons.for_token(t)
 		icon.billboard = BaseMaterial3D.BILLBOARD_ENABLED
@@ -235,7 +234,7 @@ func show_tokens(tokens: Array[RuleToken]) -> void:
 		_label.add_child(icon)
 		if not t.is_prohibition:
 			var note := Label3D.new()
-			note.text = ("範囲・" if t.is_range else "") + TriggerMode.label(t.mode)
+			note.text = TriggerMode.label(t.mode)
 			note.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 			note.pixel_size = 0.0035
 			note.font = UiTheme.font(600)
@@ -343,25 +342,14 @@ func _integrate_horizontal(delta: float) -> void:
 		_finished_step = Vector3i(signi(roundi(moved.x)), 0, signi(roundi(moved.z)))
 
 
-## 範囲プレビューの対象になっているか（右クリックを押している間）。
+## 範囲プレビューの対象になっているか（右クリックを押している間）。見た目はブロックごとには出さず、
+## 範囲の円板（RangePreview）で示す。
 func set_preview(on: bool) -> void:
 	_previewed = on
-	_update_markers()
 
 
 func is_previewed() -> bool:
 	return _previewed
-
-
-## 角マーカー: 付与済みの範囲は濃い赤、プレビュー中は明るい赤で、背を高くして区別する。
-func _update_markers() -> void:
-	if _corner_markers == null:
-		return
-	_corner_markers.visible = _in_range or _previewed
-	_marker_material.albedo_color = (
-		Color(0.94, 0.54, 0.47) if _previewed else Color(0.66, 0.22, 0.18)
-	)
-	_corner_markers.scale = Vector3(1.0, 1.6 if _previewed else 1.0, 1.0)
 
 
 func _update_outline() -> void:
@@ -403,22 +391,6 @@ func _build_visuals() -> void:
 	_outline.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_outline.visible = false
 	add_child(_outline)
-
-	# 範囲付与の対象: 上面の四隅に濃い赤の角マーカー（企画書 8）
-	_corner_markers = Node3D.new()
-	var marker_mesh := BoxMesh.new()
-	marker_mesh.size = Vector3(0.12, 0.3, 0.12)
-	_marker_material = StandardMaterial3D.new()
-	_marker_material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	marker_mesh.material = _marker_material
-	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
-		var post := MeshInstance3D.new()
-		post.mesh = marker_mesh
-		post.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		post.position = Vector3(corner.x * 0.47, SIZE * 0.6, corner.y * 0.47)
-		_corner_markers.add_child(post)
-	_corner_markers.visible = false
-	add_child(_corner_markers)
 
 	_label = Label3D.new()
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED

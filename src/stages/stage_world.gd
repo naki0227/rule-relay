@@ -58,6 +58,13 @@ func _ready() -> void:
 		var creature := add_creature(c.position, c.look)
 		creature.held_item = c.held_item
 		entity_ids[c.key] = creature.entity_id
+		# 願いの行き先（巣）と一文。行き先には薄い光の柱を立てる（WishMarker）
+		creature.wish_box = def.clear_condition.carry_area(c.key)
+		var nest := creature.wish_box.has_volume()
+		var default_wish := Creature.WISH_NEST if nest else Creature.WISH_HIGHER
+		creature.set_wish_text(c.wish_text if c.wish_text != "" else default_wish)
+		if nest:
+			WishMarker.attach(self, creature)
 	for spec in def.bells:
 		var bell := add_bell(spec.position)
 		bells_by_key[spec.key] = bell

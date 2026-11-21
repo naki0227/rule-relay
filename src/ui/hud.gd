@@ -12,6 +12,8 @@ var inventory: InventoryPanel
 var pause_menu: PauseMenu
 var toasts: ToastStack
 var crosshair: Crosshair
+## 願いの行き先が画面の外にあるときの矢印。
+var wish_pointer: WishPointer
 var hints: HintMemory = HintMemory.new()
 ## この島に来てからの秒数（一時停止中は数えない）。目安の時間を過ぎたら、やり直しの案内を出す。
 var stage_seconds: float = 0.0
@@ -28,8 +30,6 @@ var _badge_label: PanelContainer
 var _badge_text: Label
 var _context: PanelContainer
 var _context_row: HBoxContainer
-var _preview: PanelContainer
-var _preview_label: Label
 var _goal: PanelContainer
 var _last_selected: int = -1
 var _last_mode: int = -1
@@ -109,19 +109,16 @@ func hotbar_descriptions() -> PackedStringArray:
 	return out
 
 
-## 右クリックを押している間の範囲プレビューの説明。
-func show_range_preview(active: bool, preview: Dictionary) -> void:
-	if _preview == null:
+## 願いの一文を出している生き物（focus）の行き先が画面の外なら、縁に矢印を出す。
+func update_wish_pointer(focus: Creature) -> void:
+	if wish_pointer == null or world == null or world.camera_rig == null:
 		return
-	_preview.visible = active
-	if not active:
-		return
-	var ids := preview.get("ids", PackedInt32Array()) as PackedInt32Array
-	var reason := String(preview.get("reason", ""))
-	if not reason.is_empty():
-		_preview_label.text = reason
-	else:
-		_preview_label.text = "範囲に渡す　%d こ" % ids.size()
+	if is_inventory_open():
+		focus = null
+	var target: Variant = null
+	if focus != null and focus.wish_box.has_volume() and not focus.is_wish_met():
+		target = focus.wish_box.get_center()
+	wish_pointer.point_to(world.camera_rig.camera(), target)
 
 
 func set_aim(aim: Crosshair.Aim) -> void:
@@ -154,12 +151,22 @@ func update_context(target: Node3D, in_reach: bool, on_checkpoint: bool) -> void
 			prompts.append(["C", "投げるで届く"])
 	_fire_prompts(prompts)
 	_retry_prompts(prompts)
-	var key := str(prompts) + str(InputMode.using_pad) + str(KeyBindings.revision)
+	# 狙っている相手の名前（照準の補助で何が選ばれたかが分かるように。地形のセルには出さない）
+	var target_name := (
+		"" if target == null or world == null else WorldQueries.target_name(world, target)
+	)
+	var key := str(prompts) + target_name + str(InputMode.using_pad) + str(KeyBindings.revision)
 	if _context.get_meta("key", "") == key:
 		return
 	_context.set_meta("key", key)
 	for child in _context_row.get_children():
 		child.queue_free()
+	if target_name != "":
+		var name_label := Label.new()
+		name_label.text = target_name
+		name_label.theme_type_variation = &"Strong"
+		name_label.add_theme_font_size_override("font_size", UiTheme.SIZE_SMALL + 1)
+		_context_row.add_child(name_label)
 	for p in prompts:
 		var literal := p.size() > 2 and bool(p[2])
 		var text := String(p[1])
@@ -170,7 +177,7 @@ func update_context(target: Node3D, in_reach: bool, on_checkpoint: bool) -> void
 				else KeyPrompt.make(String(p[0]), text)
 			)
 		)
-	_context.visible = not prompts.is_empty()
+	_context.visible = not prompts.is_empty() or target_name != ""
 
 
 ## いま照準の下に出ている案内のキーの表記（テスト用）。
@@ -179,10 +186,20 @@ func context_keys() -> PackedStringArray:
 	if not _context.visible:
 		return out
 	for prompt in _context_row.get_children():
-		if not prompt.is_queued_for_deletion():
+		if prompt is KeyPrompt and not prompt.is_queued_for_deletion():
 			var cap := prompt.get_child(0) as PanelContainer
 			out.append((cap.get_child(0) as Label).text)
 	return out
+
+
+## いま照準の下に出ている、狙っている相手の名前（テスト用。無ければ空）。
+func context_target_name() -> String:
+	if not _context.visible:
+		return ""
+	for child in _context_row.get_children():
+		if child is Label and not child.is_queued_for_deletion():
+			return (child as Label).text
+	return ""
 
 
 ## いま照準の下に出ている案内の動作（テスト用）。
@@ -191,7 +208,7 @@ func context_actions() -> PackedStringArray:
 	if not _context.visible:
 		return out
 	for prompt in _context_row.get_children():
-		if not prompt.is_queued_for_deletion():
+		if prompt is KeyPrompt and not prompt.is_queued_for_deletion():
 			out.append((prompt.get_child(1) as Label).text)
 	return out
 
@@ -240,6 +257,9 @@ func _lend_prompts(prompts: Array[Array], target: Node3D) -> void:
 			prompts.append(["1〜9", "えらぶ"])
 	elif hints.should_show("range"):
 		prompts.append(["右クリック", "まとめて"])
+	var creature := target as Creature
+	if creature != null and not creature.can_walk() and hints.should_show("creature_move"):
+		prompts.append(["左クリック", "移動の能力を渡すと歩き出す"])
 	var id := int(target.get("entity_id"))
 	var holds := world != null and not world.ledger.tokens_on(id).is_empty()
 	if holds and hints.should_show("recall"):
@@ -309,6 +329,7 @@ func _set_world_hud_visible(on: bool) -> void:
 		node.visible = on
 	if not on:
 		_context.visible = false
+		wish_pointer.visible = false
 
 
 func _flash_item_name() -> void:
@@ -373,12 +394,9 @@ func _build() -> void:
 
 	_build_hotbar()
 
-	_preview = _bubble(UiTheme.SUN_SOFT, UiTheme.SUN)
-	_preview_label = Label.new()
-	_preview_label.theme_type_variation = &"Strong"
-	_preview.add_child(_preview_label)
-	_preview.visible = false
-	_center_band(_preview, UiTheme.SAFE_MARGIN + HotbarSlot.SIZE.y + 80, true)
+	wish_pointer = WishPointer.new()
+	wish_pointer.name = "WishPointer"
+	_root.add_child(wish_pointer)
 
 	_build_goal_card()
 
