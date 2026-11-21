@@ -172,6 +172,7 @@ func test_goal_area_is_found_inside_all_of() -> void:
 	assert_false(ClearCondition.activate("bell").goal_area().has_volume())
 
 
+## 広場（ハブ）には、どのステージにもポータル（入口）がある。ポータルは地面の上に立つ（docs/adr/0013）。
 func test_hub_has_an_entrance_for_every_stage() -> void:
 	var hub := StageCatalog.hub()
 	assert_true(hub.is_hub())
@@ -179,14 +180,21 @@ func test_hub_has_an_entrance_for_every_stage() -> void:
 	for e in hub.entrances:
 		ids.append(e.stage_id)
 		assert_true(e.area.has_point(e.position + Vector3(0, 0.5, 0)), "entrance inside its area")
-		var ground: Array = hub.terrain_boxes[0]
-		var on_ground := (
-			e.position.x >= float((ground[0] as Vector3i).x)
-			and e.position.x <= float((ground[1] as Vector3i).x + 1)
-		)
-		assert_true(on_ground, "entrance for %s stands on the hub ground" % e.stage_id)
+		var top := _ground_top(hub, floori(e.position.x), floori(e.position.z))
+		assert_eq(top, roundi(e.position.y), "entrance for %s stands on the ground" % e.stage_id)
 	for def in StageCatalog.all_stages():
 		assert_true(ids.has(def.stage_id), "entrance for %s" % def.stage_id)
+
+
+## 地形の箱のうち、マス（x, z）の上面のいちばん高い所（無ければ -100）。
+static func _ground_top(def: StageDef, x: int, z: int) -> int:
+	var top := -100
+	for box: Array in def.terrain_boxes:
+		var lo := box[0] as Vector3i
+		var hi := box[1] as Vector3i
+		if x >= lo.x and x <= hi.x and z >= lo.z and z <= hi.z:
+			top = maxi(top, hi.y + 1)
+	return top
 
 
 func test_problems_reports_broken_definitions() -> void:
@@ -383,7 +391,8 @@ func test_end_stage_clears_every_stage_token() -> void:
 		assert_eq(ledger.ability_count(JUMP, p), 0)
 	_valid()
 	# ハブへ戻って、そのまま次の配置ができる
-	var hub := StageLoadout.new(StageCatalog.hub(), {})
+	var hub_def := StageCatalog.hub()
+	var hub := StageLoadout.new(hub_def, StageLoadout.register_entities(ledger, hub_def))
 	hub.apply(ledger, ledger.players())
 	assert_true(ledger.player_can(JUMP, B))
 	_valid()

@@ -44,9 +44,10 @@ var _air_dash_used: bool = false
 var _walked: float = 0.0
 var _visual: Node3D
 var _model: Node3D
-var _idle_time: float = 0.0
-var _limbs: Dictionary[String, Node3D] = {}
-var _walk_phase: float = 0.0
+## 骨格付きのモデルのアニメーション（idle / walk / jump / happy。art/scripts/build_cast.py）。
+var _rig: RigAnimator
+## 喜ぶ動き（happy）を続ける残り秒数（クリアしたときなど）。
+var _cheer_left: float = 0.0
 var _facing: float = 0.0
 
 
@@ -278,36 +279,27 @@ func _animate(delta: float, direction: Vector3) -> void:
 	_animate_limbs(delta, direction, is_on_floor())
 
 
+## 歩きの見た目は骨格のアニメーションで出す（コードで手足を振らない。2026-11-21 本人の指示）。
+## 進んでいれば walk（速さに合わせて再生を速める）、空中なら jump、止まっていれば idle。
 func _animate_limbs(delta: float, direction: Vector3, grounded: bool) -> void:
-	var speed := minf(direction.length(), 1.0)
-	if grounded and speed > 0.05:
-		_walk_phase = fmod(_walk_phase + delta * 11.0 * speed, TAU)
-	else:
-		_walk_phase = lerpf(_walk_phase, 0.0 if _walk_phase < PI else TAU, minf(1.0, delta * 8.0))
-	var swing := sin(_walk_phase) * 0.7 * speed
-	if not grounded:
-		swing = -0.5  # 空中では足をそろえて腕を少し上げる
-	_set_limb("LegL", swing, 0.0)
-	_set_limb("LegR", -swing, 0.0)
-	_set_limb("ArmL", -swing * 0.8, -0.08)
-	_set_limb("ArmR", swing * 0.8, 0.08)
-	var bob := absf(sin(_walk_phase)) * 0.04 * speed
-	# 立ち止まっているときは、ゆっくり息をするように上下させる
-	_idle_time = fmod(_idle_time + delta, TAU * 4.0)
-	if grounded and speed <= 0.05:
-		bob += sin(_idle_time * 2.2) * 0.012
-	var body := _limbs.get("Body") as Node3D
-	var head := _limbs.get("Head") as Node3D
-	if body != null:
-		body.position.y = 0.42 + bob
-	if head != null:
-		head.position.y = 1.06 + bob
+	if _rig == null:
+		return
+	if _cheer_left > 0.0:
+		_cheer_left = maxf(0.0, _cheer_left - delta)
+		if grounded and direction.length() <= 0.05:
+			_rig.play(RigAnimator.HAPPY)
+			return
+	_rig.move(minf(direction.length(), 1.0) * 1.15, grounded)
 
 
-func _set_limb(limb_name: String, pitch: float, roll: float) -> void:
-	var limb := _limbs.get(limb_name) as Node3D
-	if limb != null:
-		limb.rotation = Vector3(pitch, 0.0, roll)
+## 喜ぶ動きをしばらく見せる（クリアしたとき。歩き出したら歩きに戻る）。
+func celebrate(seconds: float = 2.5) -> void:
+	_cheer_left = seconds
+
+
+## いま再生しているアニメーションの名前（テスト・見た目の確認用）。
+func animation_state() -> StringName:
+	return _rig.current if _rig != null else &""
 
 
 func _build_body() -> void:
@@ -319,17 +311,15 @@ func _build_body() -> void:
 	shape.position = Vector3(0.0, HEIGHT * 0.5, 0.0)
 	add_child(shape)
 
-	# 見た目は Blender のモデル（art/scripts/build_cast.py）。手足は関節に原点がある
+	# 見た目は Blender の骨格付きモデル（art/scripts/build_cast.py）。部品（Body Head ArmL ArmR LegL LegR）を
+	# 骨で動かすアニメーションを RigAnimator が切り替える
 	_visual = Node3D.new()
 	_visual.name = "Visual"
 	add_child(_visual)
 	_model = ModelLibrary.instantiate("traveler")
 	_visual.add_child(_model)
 	ArtPalette.tint_player(_model, player_id)
-	for limb_name: String in ["Body", "Head", "ArmL", "ArmR", "LegL", "LegR"]:
-		var limb := _model.find_child(limb_name, true, false) as Node3D
-		if limb != null:
-			_limbs[limb_name] = limb
+	_rig = RigAnimator.new(_model)
 
 
 func _set_player_id(value: int) -> void:

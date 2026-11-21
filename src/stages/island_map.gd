@@ -76,6 +76,11 @@ func boxes() -> Array:
 	return result
 
 
+## 上面の高さ（窪みは1段下げる。何もなければ -100）。
+func top_at(x: int, z: int) -> int:
+	return _top(x, z)
+
+
 ## 上面の高さ（窪みは1段下げる）。
 func _top(x: int, z: int) -> int:
 	var h := height(x, z)

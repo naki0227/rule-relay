@@ -31,9 +31,6 @@ const INTRO_LIFT_CELL := Vector3i(0, -1, -5)
 const INTRO_GOAL_MIN := Vector3i(-2, 0, -9)
 const INTRO_GOAL_MAX := Vector3i(2, 0, -8)
 
-## ハブの最初の入口（導入）の x。入口は ここから東へ 3.5 ずつ並ぶ。
-const HUB_FIRST_ENTRANCE_X := -10.5
-
 ## 鐘の谷: 発射台（東向き）と、谷の向こうの小島の鐘。
 const BELL_LAUNCHER_CELL := Vector3i(0, 0, 0)
 const BELL_SHORE_MAX_X := 1
@@ -44,7 +41,8 @@ const _MOVES: Array[RuleAction.Kind] = [
 ]
 
 
-## すべてのステージ（目安のクリア時間の短い順）。ハブの入口もこの順に並ぶ。
+## すべてのステージ（目安のクリア時間の短い順）。広場のポータルの場所は CampaignPlan の枠が決める。
+## 新しいステージは、ここに足し、CampaignPlan の同じ stage_id の枠で広場に現れる。
 static func all_stages() -> Array[StageDef]:
 	var stages: Array[StageDef] = [
 		intro_jump_lend(),
@@ -189,29 +187,12 @@ static func bell_valley() -> StageDef:
 	return def
 
 
-## ハブ（のんびり歩ける広場。クリア条件なし）。入口は歩いて見つける（引き継ぎ仕様 2-2）。
-## 出現地点は西の端、最初の入口（導入）の真正面にする。初めての人が最初に目にする入口が導入になり、
-## 次の入口はその右隣に並ぶ（docs/onboarding.md）。
+## ハブ = 広場（オーバーワールド。クリア条件なし）。2026-11-21 に一列の入口の広場から、歩き回れる
+## ひとつながりの広場に変えた（docs/adr/0013）。中身は Overworld が OverworldState から組み立てる。
+## ここで作るのは試遊の版の既定（ポータルと地方は全部開く・何もクリアしていない）。進行に合わせた広場は
+## PartyDirector が Overworld.build(その時の状態) で作る。
 static func hub() -> StageDef:
-	var def := StageDef.new()
-	def.stage_id = HUB_ID
-	def.display_name = "ハブ"
-	def.spawn_points = _spawn_row(Vector3(HUB_FIRST_ENTRANCE_X + 1.5, 0.0, 2.5))
-	def.set_loadout_for_all(_moves_and([RuleAction.Kind.JUMP]))
-	# 入口は目安のクリア時間の短い順に、西から東へ一列（本人が順番に試して比べられるように）
-	# ステージが増えても入口が広場からはみ出さないよう、広場の東端を入口の数に合わせて伸ばす
-	var stages := all_stages()
-	var east := maxi(12, ceili(HUB_FIRST_ENTRANCE_X + 3.5 * (stages.size() - 1)) + 2)
-	def.terrain_boxes = [[Vector3i(-15, -1, -9), Vector3i(east, -1, 9), "grass"]]
-	for i in stages.size():
-		var x := HUB_FIRST_ENTRANCE_X + 3.5 * i
-		def.entrances.append(_entrance(stages[i].stage_id, Vector3(x, 0.0, -6.5)))
-	return def
-
-
-static func _entrance(stage_id: String, at: Vector3) -> StageDef.EntranceSpec:
-	var area := AABB(at - Vector3(1.0, 0.0, 1.0), Vector3(2.0, 2.5, 2.0))
-	return StageDef.EntranceSpec.new(stage_id, at, area)
+	return Overworld.build(OverworldState.new())
 
 
 ## 4人分の出現位置（中心から東西に 1m ずつ）。

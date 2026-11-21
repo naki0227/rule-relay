@@ -17,6 +17,8 @@ const SPEED: float = 2.4
 const STUCK_TIME: float = 1.2
 ## 待っている間も、ときどき見回して判断し直す
 const LOOK_AROUND_PERIOD: float = 1.5
+## 木の実を投げた後に喜ぶ動きを見せる秒数。
+const CHEER_TIME: float = 1.6
 ## 見た目のモデル（art/scripts/build_cast.py）。当たり判定はどちらも同じカプセル。
 const MODEL_WISH := "creature_wish"
 const MODEL_KIT := "creature_kit"
@@ -51,6 +53,10 @@ var _aimed: bool = false
 var _time: float = 0.0
 var _body: Node3D
 var _held_mesh: MeshInstance3D
+## 骨格付きのモデルのアニメーション（idle / walk / happy。art/scripts/build_cast.py）。
+var _rig: RigAnimator
+## 喜ぶ動きを続ける残り秒数（木の実を投げた後など）。
+var _cheer_left: float = 0.0
 
 
 func _ready() -> void:
@@ -178,6 +184,7 @@ func _maybe_throw() -> void:
 		return
 	held_item = ""
 	_update_held()
+	_cheer_left = CHEER_TIME
 	var dir := Vector3(facing.x, 0.0, facing.y)
 	threw.emit(
 		global_position + dir * 0.45 + Vector3(0.0, 0.5, 0.0),
@@ -235,6 +242,8 @@ func set_remote_state(at: Vector3, new_facing: Vector2i, item: String) -> void:
 	_remote_target = at
 	facing = new_facing
 	if item != held_item:
+		if item == "":
+			_cheer_left = CHEER_TIME  # ホストの画面で投げた
 		held_item = item
 		_update_held()
 
@@ -293,10 +302,13 @@ func _animate(direction: Vector3) -> void:
 		return
 	# 体は「向いている向き」を向く（A だけなら横歩き、S だけなら後ろ歩きに見える）
 	_body.rotation.y = lerp_angle(_body.rotation.y, atan2(-float(facing.x), -float(facing.y)), 0.2)
-	var bob := (
-		absf(sin(_time * 9.0)) * 0.05 if direction.length() > 0.05 else sin(_time * 2.0) * 0.015
-	)
-	_body.position.y = HEIGHT * 0.5 + bob
+	# 歩き・立ち止まり・喜ぶは、骨格のアニメーションで見せる（コードで体を揺らさない）
+	if _rig != null:
+		_cheer_left = maxf(0.0, _cheer_left - get_physics_process_delta_time())
+		if _cheer_left > 0.0 and direction.length() <= 0.05:
+			_rig.play(RigAnimator.HAPPY)
+		else:
+			_rig.move(minf(direction.length() * 1.2, 1.4), true)
 	if _bubble != null:
 		_bubble.position.y = 1.05 + sin(_time * 2.5) * 0.04
 
@@ -318,6 +330,7 @@ func _build() -> void:
 	model.name = "Model"
 	model.position.y = -HEIGHT * 0.5
 	_body.add_child(model)
+	_rig = RigAnimator.new(model)
 	_outline = MeshInstance3D.new()
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.42

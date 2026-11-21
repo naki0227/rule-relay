@@ -11,6 +11,8 @@ signal checkpoint_interacted(player_id: int, checkpoint_id: String)
 signal entrance_chosen(player_id: int, stage_id: String)
 ## 帰り道の台座で F を押したとき（広場へ戻す）。
 signal return_chosen(player_id: int)
+## 広場の小さな発見の場所に、自分が入ったとき（知らせを出すだけ）。
+signal secret_found(key: String)
 
 const CHECKPOINT_RADIUS: float = 1.3
 ## 入口・帰り道の門の上に浮かべる文字の高さ（門の吊り札より上）。
@@ -23,6 +25,8 @@ var entity_ids: Dictionary = {}
 var bells_by_key: Dictionary[String, Bell] = {}
 ## 鳴らされた鐘など、作動した仕掛けの key。
 var activated: PackedStringArray = PackedStringArray()
+## 見つけた広場の発見（この島にいる間だけ覚える。出入りするとまた見つけられる）。
+var found_secrets: PackedStringArray = PackedStringArray()
 ## 「やり直す」操作（メニューの戻る・最初から）を全員リセットの投票にする（PartyDirector が渡す）。
 var vote_request: Callable = Callable()
 ## メニューの「島のはじめから」（PartyDirector が渡す。ひとりなら本当に最初から）。
@@ -63,23 +67,43 @@ func _ready() -> void:
 		_add_pad(
 			pad, "広場へ戻る（%s）" % InputMode.token(&"interact"), "entrance_gate", GATE_LABEL_HEIGHT
 		)
-	for i in def.entrances.size():
-		var e := def.entrances[i]
+	# 広場のポータル・住む生き物・建物（OverworldDressing）。計画に無いステージの入口だけ、従来の門
+	if def.overworld != null:
+		OverworldDressing.build(self, def.overworld)
+	for e in def.entrances:
+		if def.overworld != null and def.overworld.portal(e.stage_id) != null:
+			continue
 		var stage := StageCatalog.by_id(e.stage_id)
-		# 最初の入口（いちばん短い導入）にだけ「はじめはここから」を添える。説明はしない
-		var caption := ("はじめはここから\n" if i == 0 else "") + "%s\n目安 %d 分（仮）・%s"
 		_add_pad(
 			e.position,
-			caption % [stage.display_name, stage.target_minutes, InputMode.token(&"interact")],
+			(
+				"%s\n目安 %d 分（仮）・%s"
+				% [stage.display_name, stage.target_minutes, InputMode.token(&"interact")]
+			),
 			"entrance_gate",
 			GATE_LABEL_HEIGHT
 		)
-	if def.stage_id == StageCatalog.HUB_ID:
-		HubDressing.build(self, def)
 	var goal := def.clear_condition.goal_area()
 	if goal.has_volume():
 		_add_goal_marker(goal)
 	spawn_player(def.spawn_point(0))
+
+
+func _physics_process(delta: float) -> void:
+	super._physics_process(delta)
+	if def.overworld != null and player != null:
+		_check_secrets()
+
+
+## 自分が広場の発見の場所に入ったら、一度だけ知らせる（ルールは何も変えない）。
+func _check_secrets() -> void:
+	for secret in def.overworld.secrets:
+		if found_secrets.has(secret.key) or not secret.area.has_point(player.global_position):
+			continue
+		found_secrets.append(secret.key)
+		message_posted.emit(secret.text)
+		sound_requested.emit(&"goal", player.global_position, false)
+		secret_found.emit(secret.key)
 
 
 ## プレイヤーの出現位置（プレイヤー ID の順に 4 か所）。

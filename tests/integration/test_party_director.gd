@@ -105,7 +105,8 @@ func test_lending_jump_to_the_lift_clears_and_saves_rewards() -> void:
 
 
 ## 製品版の入口（all_stages_open = false）: 最初のステージは開いていて、次は前をクリアするまで閉じている。
-func test_locked_entrances_open_in_order_of_target_time() -> void:
+## 順番はキャンペーンのワールドの中の順（CampaignPlan。docs/adr/0013）。
+func test_locked_entrances_open_in_campaign_order() -> void:
 	director.all_stages_open = false
 	var second: StageDef.EntranceSpec = director.world.def.entrances[1]
 	await _put(second.position + Vector3(0.0, 0.1, 0.0))

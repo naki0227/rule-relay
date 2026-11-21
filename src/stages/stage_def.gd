@@ -28,6 +28,9 @@ var bells: Array[BellSpec] = []
 var world_items: Array[PlacementSpec] = []
 ## 参加順ごとのホットバー（配列の i 番目がスロット i）。人数より短ければ最後の要素を使う。
 var loadouts: Array = []
+## 開始時に装備した状態で渡す装備（HIGH_JUMP = ジャンプブーツ・CLIMB = クライミンググローブ）。
+## 広場で、クリアで開いた装備を持たせるのに使う（docs/adr/0013）。
+var start_equipment: Array[RuleAction.Kind] = []
 ## このステージで全員の手元に置く禁止（通常インベントリ。手元のどこにあっても効く）。
 var prohibitions: Array[RuleAction.Kind] = []
 ## 参加人数 → その人数のときに置く補助（PlacementSpec の配列）。無い人数は補助なし。
@@ -39,6 +42,8 @@ var entrances: Array[EntranceSpec] = []
 var checkpoints: Array[Vector3] = []
 ## 帰り道の台座（F で出現地点＝広場へ戻る）。手分けするステージで、枝道の奥から広場へ戻るため。
 var return_pads: Array[Vector3] = []
+## 広場（オーバーワールド）の見た目と小さな発見（広場だけ。Overworld が作る）。
+var overworld: OverworldLayout = null
 ## 目安のクリア時間（分。ひとりで初めて遊ぶ想定。仮の値で、本人の試遊で調整する）。
 ## ハブの入口はこの短い順に並ぶ（2026-11-20 本人の「短い方から順番に試せるように」）。
 var target_minutes: int = 0
