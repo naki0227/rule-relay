@@ -52,7 +52,9 @@ func test_o1_2_clockwork_corridor_by_holding_the_doorway() -> void:
 	_give(cog_a, FORWARD, REPEAT)
 	assert_true(await _wait_block_at("cog_a", Vector3i(0, 0, 1)), "the crate waits at the gate")
 	await _ring("clock_a")
-	assert_true(await _wait_block_at("cog_a", Vector3i(0, 0, 0)), "the crate stepped into the doorway")
+	assert_true(
+		await _wait_block_at("cog_a", Vector3i(0, 0, 0)), "the crate stepped into the doorway"
+	)
 	await wait_physics_frames(240)
 	assert_true(_door("gate_a").is_open(), "the gate cannot close on the crate")
 	await _walk_to(Vector3(-0.5, 0.0, 3.5))
@@ -114,7 +116,9 @@ func test_o1_3_weighing_scale_with_the_weight_and_the_launcher() -> void:
 	var launcher := _block("launcher")
 	_give(launcher, FORWARD, SINGLE)
 	w.press_action(FORWARD)
-	assert_true(await _wait_block_at("launcher", Vector3i(6, 0, -9)), "the launcher reached its spot")
+	assert_true(
+		await _wait_block_at("launcher", Vector3i(6, 0, -9)), "the launcher reached its spot"
+	)
 	assert_true(await _ride_warp(Vector3(-13.5, 0.0, -14.5)), "warped home")
 	await _walk_to(Vector3(4.5, 0.0, -8.5), 0.4)
 	_give(launcher, THROW, TriggerMode.Kind.NONE)
@@ -152,7 +156,9 @@ func test_o1_4_sign_gears_by_parking_the_bans() -> void:
 	await _walk_to(Vector3(0.5, 0.0, 4.5), 0.3)
 	var stopped := await _wait(
 		func() -> bool:
-			return _door("gate_1").heading_open and hopper.is_grounded() and hopper.velocity_y == 0.0,
+			return (
+				_door("gate_1").heading_open and hopper.is_grounded() and hopper.velocity_y == 0.0
+			),
 		900
 	)
 	assert_true(stopped, "caught the hopper on the plate with gate 1 opening")
@@ -218,7 +224,9 @@ func test_o1_5_grand_contraption() -> void:
 	var crate := _block("weight_crate")
 	await _walk_to(Vector3(16.5, 0.0, 2.0), 0.3)
 	_give(crate, FORWARD, REPEAT)
-	assert_true(await _wait_block_at("weight_crate", Vector3i(16, 0, -3)), "the crate is on the plate")
+	assert_true(
+		await _wait_block_at("weight_crate", Vector3i(16, 0, -3)), "the crate is on the plate"
+	)
 	await _walk_to(Vector3(17.5, 0.0, -1.5), 0.3)
 	await _recall_all_from("weight_crate")
 	_give(crate, HEAVY, TriggerMode.Kind.NONE)

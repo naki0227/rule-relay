@@ -54,13 +54,18 @@ func test_o2_2_cloud_raft_heavy_then_float() -> void:
 	_ensure_on_hotbar(HEAVY)
 	assert_true(await _wait_block_at("anchor", Vector3i(8, 0, -6), 900), "the wind took the crate")
 	# 横風の橋（重いので流されない）
-	await _walk_route([Vector3(-5.5, 0.0, -1.5), Vector3(-15.5, 0.0, -1.5), Vector3(-17.5, 0.0, -2.5)])
+	await _walk_route(
+		[Vector3(-5.5, 0.0, -1.5), Vector3(-15.5, 0.0, -1.5), Vector3(-17.5, 0.0, -2.5)]
+	)
 	await _pick_to_bag(Vector3(-19.5, 0.0, -2.5))
 	assert_eq(_slot_of(FLOAT), -1, "the balloon stays in the bag")
 	await _walk_route([Vector3(-15.5, 0.0, -1.5), Vector3(-6.0, 0.0, -1.5)])
 	await _walk_to(Vector3(7.5, 0.0, -4.5), 0.3)
 	_give(anchor, HEAVY, TriggerMode.Kind.NONE)
-	assert_true(await _wait(func() -> bool: return _door("cloud_step").is_closed(), 300), "the cloud step rose")
+	assert_true(
+		await _wait(func() -> bool: return _door("cloud_step").is_closed(), 300),
+		"the cloud step rose"
+	)
 	# 段々を上がって見晴らしへ。生き物を巣へ
 	await _walk_route(
 		[
@@ -96,7 +101,9 @@ func _glide_to(edge: Vector3, target: Vector3, frames: int = 900) -> Vector3:
 	await _walk_to(edge, 0.2)
 	var jumped := false
 	for i in frames:
-		var flat := Vector3(target.x - _me().global_position.x, 0.0, target.z - _me().global_position.z)
+		var flat := Vector3(
+			target.x - _me().global_position.x, 0.0, target.z - _me().global_position.z
+		)
 		_me().move_intent = _steer(target) if flat.length() > 0.3 else Vector2.ZERO
 		if not jumped and _me().is_on_floor():
 			w.press_action(JUMP)
@@ -126,7 +133,9 @@ func test_o2_3_falling_isles_swap_heavy_and_float() -> void:
 	assert_almost(high.y, 6.0, 0.3, "up on the windy high step (%s)" % high)
 	await _walk_to(Vector3(-3.5, 6.0, -24.5), 0.3)
 	_swap(HEAVY, FLOAT)
-	var landed := await _lift_jump_toward(Vector3i(-4, 5, -25), Vector3(-27.5, 8.0, -28.5), 900, true)
+	var landed := await _lift_jump_toward(
+		Vector3i(-4, 5, -25), Vector3(-27.5, 8.0, -28.5), 900, true
+	)
 	assert_almost(landed.y, 8.0, 0.3, "the gale carried me to the west island (%s)" % landed)
 	await _walk_to(Vector3(-24.5, 8.0, -27.0), 0.3)
 	_bag_to_hotbar(RIGHT)

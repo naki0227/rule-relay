@@ -192,8 +192,16 @@ func test_overworld_is_dressed_and_entrances_are_portals() -> void:
 	assert_true(relay.caption().contains("まだ開いていない"))
 	var swirl_color := _override_color(relay, "SwirlDeep")
 	assert_eq(swirl_color, OverworldPortal.DIM_SWIRL, "a locked portal is dim")
-	var teasers := dressing.find_children("Teaser_*", "OverworldPortal", false, false)
-	assert_eq(teasers.size(), 3, "a sealed gate for each optional world")
+	# 寄り道のワールドは、ステージを作ってあればポータル（入口を見つけるまで閉じている）、無ければ準備中の門
+	for w in CampaignPlan.worlds():
+		if not w.optional:
+			continue
+		var built := CampaignPlan.built_slots(w)
+		if built.is_empty():
+			assert_ne(dressing.get_node_or_null("Teaser_%s" % w.display_name), null, w.id)
+			continue
+		var first := dressing.get_node("Portal_%s" % built[0].stage_id) as OverworldPortal
+		assert_false(first.is_open(), "%s is sealed until its secret entrance is found" % w.id)
 
 
 func _override_color(root: Node, material_name: String) -> Color:

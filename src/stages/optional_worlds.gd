@@ -72,7 +72,9 @@ static func lift(def: StageDef, m: IslandMap, at: Vector2i, key: String) -> Stag
 
 
 ## 願いを持つ生き物（「高いところへ行きたい」。能力を渡すと自分で高い所へ向かう）。
-static func creature(def: StageDef, key: String, at: Vector3, look: String) -> StageDef.CreatureSpec:
+static func creature(
+	def: StageDef, key: String, at: Vector3, look: String
+) -> StageDef.CreatureSpec:
 	var c := StageDef.CreatureSpec.new(key, at)
 	c.look = look
 	def.creatures.append(c)

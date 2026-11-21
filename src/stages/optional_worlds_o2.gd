@@ -105,7 +105,11 @@ static func cloud_raft() -> StageDef:
 	anchor.tokens.append(StageDef.TokenSpec.new(HEAVY))
 	OptionalWorlds.plate(def, "cloud_plate", Vector3i(8, 0, -6), 4)
 	var step := OptionalWorlds.door(
-		def, "cloud_step", Vector3i(1, -13, -55), Vector3i(3, 16, 3), PackedStringArray(["cloud_plate"])
+		def,
+		"cloud_step",
+		Vector3i(1, -13, -55),
+		Vector3i(3, 16, 3),
+		PackedStringArray(["cloud_plate"])
 	)
 	step.inverted = true  # 板が押されている間だけ、せり上がって雲の段になる
 	OptionalWorlds.item(def, FLOAT, Vector3(-19.5, 0.0, -2.5))
@@ -232,7 +236,11 @@ static func sky_maelstrom() -> StageDef:
 	anchor.tokens.append(StageDef.TokenSpec.new(HEAVY))
 	OptionalWorlds.plate(def, "sky_plate", Vector3i(6, 0, -3), 4)
 	var step := OptionalWorlds.door(
-		def, "sky_step", Vector3i(11, -13, -26), Vector3i(3, 20, 3), PackedStringArray(["sky_plate"])
+		def,
+		"sky_step",
+		Vector3i(11, -13, -26),
+		Vector3i(3, 20, 3),
+		PackedStringArray(["sky_plate"])
 	)
 	step.inverted = true  # 板が押されている間だけ、せり上がって雲の段になる
 	OptionalWorlds.warp(def, "isle_stone", Vector3i(4, 0, 5), "tower_stone")

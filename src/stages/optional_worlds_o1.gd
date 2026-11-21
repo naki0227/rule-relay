@@ -236,19 +236,19 @@ static func sign_gears() -> StageDef:
 	var def := OptionalWorlds.base("o1_4", "札の歯車", 30)
 	OptionalWorlds.loadout(def, [W, D, J])
 	def.prohibitions = [J]
-	var m := IslandMap.blank(Vector2i(-12, -34), 25, 46)
+	var m := IslandMap.blank(Vector2i(-12, -35), 25, 47)
 	m.fill(-6, 2, 6, 10, 0)  # 南の島（高い地形は置かない。札の捨て場所を作らない）
 	m.fill(-1, -5, 0, 1, 0)  # 土手 1
 	m.fill(-8, -18, 8, -6, 0)  # 真ん中の島
 	m.fill(3, -15, 3, -15, 1)  # 板 2 の北の段
 	m.fill(-1, -23, 0, -19, 0)  # 土手 2
-	m.fill(-7, -33, 7, -24, 0)  # 北の島
-	m.fill(-7, -33, 7, -30, 2)  # 北の台
+	m.fill(-7, -34, 7, -24, 0)  # 北の島
+	m.fill(-7, -34, 7, -30, 2)  # 北の台
 	m.fill(4, -29, 5, -29, 1)
 	m.fill(-3, -26, -3, -26, 1)  # 巣の段々（1・2・巣 3）
 	m.fill(-4, -26, -4, -26, 2)
 	m.fill(-6, -27, -5, -26, 3)
-	var goal := OpenIslands.goal_hollow(m, -2, -32, 2, -31)
+	var goal := OpenIslands.goal_hollow(m, -2, -33, 2, -32)
 	def.terrain_boxes = m.boxes()
 	var hopper := OptionalWorlds.crate(def, "hopper", Vector3i(2, 0, 3), OptionalWorlds.LIFT_COLOR)
 	hopper.tokens.append(StageDef.TokenSpec.new(J, false, TriggerMode.Kind.REPEAT))

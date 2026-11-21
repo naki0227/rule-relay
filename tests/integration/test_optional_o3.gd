@@ -36,7 +36,9 @@ func test_o3_1_ice_greenhouse_by_reading_the_slides() -> void:
 	await _walk_to(Vector3(6.5, 1.0, -10.6), 0.3)
 	_give_creature("bunny", [RIGHT, JUMP])
 	assert_true(await _creature_home("bunny", OptionalWorldsO3.ICE_NEST), "the bunny went home")
-	await _walk_route([Vector3(4.5, 1.0, -10.6), Vector3(4.0, 1.0, -11.5), Vector3(4.0, 1.0, -17.5)])
+	await _walk_route(
+		[Vector3(4.5, 1.0, -10.6), Vector3(4.0, 1.0, -11.5), Vector3(4.0, 1.0, -17.5)]
+	)
 	await _walk_to(Vector3(2.5, 1.0, -17.6), 0.3)
 	await _recall_creature("bunny")
 	await _walk_into_goal(
@@ -215,7 +217,10 @@ func test_o3_4_frozen_pond_swim_then_slide() -> void:
 ## 氷の池のまわりの縁（高さ 1）だけを歩いて target へ（池へ落ちない）。縁の角を順に通る。
 func _rim_walk(target: Vector3) -> void:
 	var corners: Array[Vector3] = [
-		Vector3(-2.6, 1.0, -7.6), Vector3(3.6, 1.0, -7.6), Vector3(3.6, 1.0, -13.6), Vector3(-2.6, 1.0, -13.6)
+		Vector3(-2.6, 1.0, -7.6),
+		Vector3(3.6, 1.0, -7.6),
+		Vector3(3.6, 1.0, -13.6),
+		Vector3(-2.6, 1.0, -13.6)
 	]
 	var here := _me().global_position
 	var near := 0
@@ -272,7 +277,9 @@ func test_o3_5_grand_greenhouse() -> void:
 	# 灯りの箱: 札を生き物に預け、浮くを渡して 6 回押す
 	await _pick(Vector3(-5.5, 1.0, -20.5), FLOAT)
 	var lantern := _block("lantern")
-	await _walk_route([Vector3(-1.6, 1.0, -14.6), Vector3(5.6, 1.0, -14.6), Vector3(5.6, 1.0, -16.5)])
+	await _walk_route(
+		[Vector3(-1.6, 1.0, -14.6), Vector3(5.6, 1.0, -14.6), Vector3(5.6, 1.0, -16.5)]
+	)
 	await _recall_all_from("lantern")
 	await _walk_route([Vector3(5.6, 1.0, -14.6), Vector3(4.5, 1.0, -11.0)])
 	_hand_off_ban(LEFT, _creature("elder"))
@@ -297,12 +304,18 @@ func test_o3_5_grand_greenhouse() -> void:
 		var cell := await _touch_push("lantern", push[0] as RuleAction.Kind)
 		assert_eq(cell, push[2] as Vector3i, "slid to %s" % push[2])
 	assert_true(await _wait_block_at("lantern", Vector3i(6, 0, -9), 1800), "the raft docked")
-	await _walk_route([Vector3(5.6, 1.0, -21.6), Vector3(-1.6, 1.0, -21.6), Vector3(-1.6, 1.0, -14.6)])
+	await _walk_route(
+		[Vector3(5.6, 1.0, -21.6), Vector3(-1.6, 1.0, -21.6), Vector3(-1.6, 1.0, -14.6)]
+	)
 	await _walk_to(Vector3(4.5, 1.0, -11.0), 0.3)
 	_give_creature("elder", [RIGHT, JUMP])
 	assert_true(
 		await _creature_home("elder", OptionalWorldsO3.GREENHOUSE_NEST), "the elder went home"
 	)
+	# 筏の橋を渡って巣の下で回収し、戻って北の台へ
+	await _walk_route([Vector3(4.5, 1.0, -8.5), Vector3(6.5, 1.0, -8.5), Vector3(9.5, 1.0, -8.6)])
+	await _recall_creature("elder")
+	await _walk_route([Vector3(6.5, 1.0, -8.5), Vector3(4.5, 1.0, -8.5)])
 	await _walk_route(
 		[
 			Vector3(5.6, 1.0, -14.6),
@@ -312,7 +325,9 @@ func test_o3_5_grand_greenhouse() -> void:
 			Vector3(-0.5, 1.0, -30.5),
 		]
 	)
-	await _walk_into_goal()
+	await _walk_into_goal(
+		[Vector3(5.5, 1.0, -34.5), Vector3(5.5, 2.0, -35.5), Vector3(5.5, 3.0, -37.5)]
+	)
 	assert_true(await _cleared(), "cleared the grand greenhouse")
 
 
