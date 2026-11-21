@@ -595,13 +595,14 @@ static func _summit() -> World:
 		Vector2(-8.5, -71.5)
 	]
 	var titles: PackedStringArray = ["頂のふもと", "雲の階段", "風と札の塔", "流れの上の鐘", "みんなの橋", "頂の祭り"]
+	# 2026-11-21 ステージを作るときに詰めた（World7Stages / World7Finale。docs/campaign-plan.md の W7）
 	var gimmicks: PackedStringArray = [
-		"これまでの能力の総まとめ（ひとりの道）",
-		"浮く×ダッシュ×往復足場",
-		"風×禁止×繰り返し",
-		"水の流れ×信号×投げる",
-		"4 人で能力を回す長い協力の道",
-		"すべての仕掛けの組み合わせ（最終ステージ）"
+		"浮く×風（追い風に乗って空の谷を渡る）・突風の尾根と重い",
+		"浮く×ダッシュ（空中ダッシュから浮いて降りる）・生き物の重さで開く扉とワープの石",
+		"風で運ぶ木箱と 4 人分の板・突風の棚と重い・札・時の鐘と生き物",
+		"流れる川×浮く／泳ぐ×筏・小島の鐘を生き物の木の実で",
+		"重さの板 2 枚×範囲で渡す×生き物×ワープの石",
+		"すべての組み合わせの長い登り（最終ステージ・頂のお祝い）"
 	]
 	var kinds: PackedStringArray = ["bunny", "lamb", "wish", "kit", "lamb", "wish"]
 	var buildings: PackedStringArray = [
