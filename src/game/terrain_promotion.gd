@@ -47,5 +47,6 @@ static func demote(w: GameWorld, cell: Vector3i) -> void:
 	w._repeat_timers.erase(id)
 	w._signal_cursors.erase(id)
 	w._signal_timers.erase(id)
+	w.move_buffer.forget(id)
 	w.ledger.unregister_entity(id)
 	w.terrain.restore_cell(cell, w._terrain_kinds[cell])

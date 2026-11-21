@@ -84,10 +84,8 @@ static func repeats(w: GameWorld, delta: float) -> void:
 			continue
 		w._repeat_timers[id] -= Tuning.REPEAT_PERIOD
 		var action := w._repeat_cursors[id].next_action(actions) as RuleAction.Kind
-		var block := w.blocks[id]
-		var result := BlockRules.attempt(w.ledger, id, action, block.is_ready_for(action))
-		if result == BlockRules.Attempt.SUCCESS:
-			block.perform(action, w._high(id), PartyQuery.entity_count(w.ledger, id, action))
+		# 空中・移動中の W/A/S/D はこの周期の分を予約する（予約済みなら重ねずに見送る）
+		w.move_buffer.trigger(w, id, action, PartyQuery.entity_count(w.ledger, id, action))
 
 
 ## 信号方式: 音波が届いている間だけ、繰り返しと同じ周期で行動を試みる。途絶えると次の動作は
@@ -107,33 +105,48 @@ static func signals(w: GameWorld, delta: float) -> void:
 			continue
 		w._signal_timers[id] -= Tuning.REPEAT_PERIOD
 		var action := w._signal_cursors[id].next_action(actions) as RuleAction.Kind
-		var block := w.blocks[id]
-		var result := BlockRules.attempt(w.ledger, id, action, block.is_ready_for(action))
-		if result == BlockRules.Attempt.SUCCESS:
-			block.perform(action, w._high(id), PartyQuery.entity_count(w.ledger, id, action))
+		w.move_buffer.trigger(w, id, action, PartyQuery.entity_count(w.ledger, id, action))
 
 
 ## 単発をまとめて起動する。同じブロックに同じ行動の単発が n 個あれば、1回だけ n 倍で試みる
 ## （例: 4人分のジャンプを単発で渡す → 1回の高いジャンプ。2026-11-19 本人確定）。
 ## 起動したトークンは成否によらず、直前に付与した人へ戻る（付与者が退出していれば落ちる）。
+## W/A/S/D は、ブロックが空中・移動中なら予約し、動いた／失敗したと決まってから戻る（BlockMoveBuffer）。
+## 予約の結果待ちのトークンは、もう一度押しても起動しない。
 static func fire_single_shots(w: GameWorld, token_ids: PackedInt32Array) -> void:
+	var fresh := PackedInt32Array()
+	for token_id in token_ids:
+		if not w.move_buffer.is_tracking(token_id):
+			fresh.append(token_id)
+	if fresh.is_empty():
+		return
 	var by_holder := {}
-	for token_id in token_ids:
+	for token_id in fresh:
 		for holder in w.ledger.token(token_id).holder_ids:
-			by_holder[holder] = int(by_holder.get(holder, 0)) + 1
+			var list: PackedInt32Array = by_holder.get(holder, PackedInt32Array())
+			list.append(token_id)
+			by_holder[holder] = list
+	var action := w.ledger.token(fresh[0]).action
 	var outcome := {}
+	var waiting := PackedInt32Array()
 	for holder: int in by_holder:
-		var action := w.ledger.token(token_ids[0]).action
-		var block := w.blocks[holder]
-		var result := BlockRules.attempt(w.ledger, holder, action, block.is_ready_for(action))
-		if result == BlockRules.Attempt.SUCCESS:
-			block.perform(action, w._high(holder), int(by_holder[holder]))
-		outcome[holder] = result
-	for token_id in token_ids:
-		_finish_single_shot(w, token_id, outcome)
+		var tokens := by_holder[holder] as PackedInt32Array
+		var result := w.move_buffer.trigger(w, holder, action, tokens.size(), tokens)
+		if result == BlockMoveBuffer.PENDING:
+			waiting.append_array(tokens)
+		else:
+			outcome[holder] = result
+	for token_id in fresh:
+		if waiting.has(token_id):
+			w.move_buffer.track_shot(token_id, outcome)
+		else:
+			finish_single_shot(w, token_id, outcome)
+	if not waiting.is_empty():
+		w._post("単発の %s を予約しました（動けるようになったら1マス進みます）" % RuleAction.label(action))
 
 
-static func _finish_single_shot(w: GameWorld, token_id: int, outcome: Dictionary) -> void:
+## 単発の結果を台帳へ報告して戻し、成否を知らせる。outcome は {付与先 ID: BlockRules.Attempt}。
+static func finish_single_shot(w: GameWorld, token_id: int, outcome: Dictionary) -> void:
 	var t := w.ledger.token(token_id)
 	var results: Array[BlockRules.Attempt] = []
 	for holder in t.holder_ids:
