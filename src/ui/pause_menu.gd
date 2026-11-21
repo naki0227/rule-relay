@@ -1,17 +1,27 @@
 class_name PauseMenu
 extends Control
 ## Esc のメニュー（企画書 8・9）。景色を軽くぼかし、左寄りに生成りの札を1枚出す。開いている間はゲームを止める。
-## 能力が何も無くても使える復帰操作をここに集める: 最後のチェックポイント、ひとつ前の
-## チェックポイント（最後の保存を取り消す）、島の最初から。
+## ステージの中では、能力が何も無くても使える復帰操作をここに集める（docs/adr/0020）:
+## チェックポイントからやり直す・このステージを最初から（もう一度えらんで確定）・このステージから出る
+## （もう一度えらんで確定。広場の、このステージのポータルの前へ）。
+## 広場では「つづける」「せってい」「ゲームをやめる」だけ。保存を消すような言い方はしない（進行は消えない）。
 ## 項目の説明は、選んでいる項目の下に短く出す（画面の端に長文を常時出さない）。
 
 signal closed
 
 const ITEMS: Array[Array] = [
 	["resume", "つづける", "ゲームにもどります。"],
-	["latest", "チェックポイントへもどる", "最後に保存したときの世界に、まるごともどります。"],
-	["previous", "ひとつ前の保存へもどる", "最後の保存を取り消します。詰んだまま保存してしまったときに。"],
-	["restart", "島のはじめから", "保存をすべて消して、島に来たときにもどります。"],
+	[
+		"latest",
+		"チェックポイントからやり直す",
+		"最後のチェックポイントの世界に、まるごともどります。協力中は全員の投票になります。",
+	],
+	["restart", RESTART_LABEL, "このステージに入ったときの状態から、やり直します。"],
+	[
+		"leave",
+		LEAVE_LABEL,
+		"広場の、このステージのポータルの前にもどります。協力中の参加者がえらぶと、全員の投票になります。",
+	],
 	["settings", "せってい", "キー割り当て・文字の大きさ・視点の速さ・音の大きさを変えます。"],
 	[
 		"quit",
@@ -19,6 +29,13 @@ const ITEMS: Array[Array] = [
 		"ゲームを終了します。協力中は部屋を出たことになり、まだクリアしていない回の報酬は受け取れません。",
 	],
 ]
+
+## ステージの中だけの項目（広場では出さない）。
+const STAGE_ITEMS: PackedStringArray = ["latest", "restart", "leave"]
+const RESTART_LABEL := "このステージを最初から"
+const RESTART_ARMED := "もう一度えらぶと、このステージを最初から"
+const LEAVE_LABEL := "このステージから出る"
+const LEAVE_ARMED := "もう一度えらぶと、このステージから出る"
 
 var world: GameWorld
 ## 設定の画面（「せってい」で開く。この札の上に重ねる）。
@@ -28,12 +45,15 @@ var play_sound: Callable
 ## 「ゲームをやめる」で呼ぶ関数（GameRoot.quit_game: 協力中の参加者は退出を伝えてから終わる。PartyExit）。
 ## 無ければその場で終わる。
 var quit_request: Callable
+## 「このステージから出る」で呼ぶ関数（PartyDirector.request_leave_stage。ステージにいるときだけ GameRoot が渡す）。
+## 無ければ項目を出さない（広場・1人用の試作の島）。
+var leave_request: Callable
 
 var _card: PanelContainer
 var _buttons: Dictionary[String, Button] = {}
 var _description: Label
-var _saves: Label
-var _restart_armed: bool = false
+## もう一度えらぶと確定する項目（"restart" / "leave"。空なら無し）。
+var _armed: String = ""
 var _quitting: bool = false
 
 
@@ -50,7 +70,7 @@ func is_open() -> bool:
 
 
 func open() -> void:
-	_restart_armed = false
+	_armed = ""
 	visible = true
 	modulate.a = 0.0
 	var rest := _card.position
@@ -63,6 +83,27 @@ func open() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	refresh()
 	_buttons["resume"].grab_focus()
+
+
+## ステージの中か（広場ではステージの項目を出さない）。広場でない島（試作の島）もステージとして扱う。
+func in_stage() -> bool:
+	var stage := world as StageWorld
+	return world != null and (stage == null or stage.def == null or not stage.def.is_hub())
+
+
+## いま見えている項目のキー（上から順。テスト用）。
+func visible_items() -> PackedStringArray:
+	var keys := PackedStringArray()
+	for item: Array in ITEMS:
+		var key := String(item[0])
+		if _buttons.has(key) and _buttons[key].visible:
+			keys.append(key)
+	return keys
+
+
+## 項目の名前（テスト用）。
+func item_text(key: String) -> String:
+	return _buttons[key].text if _buttons.has(key) else ""
 
 
 func close() -> void:
@@ -79,38 +120,48 @@ func close() -> void:
 func refresh() -> void:
 	if world == null or _buttons.is_empty():
 		return
-	_buttons["previous"].disabled = not world.can_restore_previous_checkpoint()
-	_buttons["restart"].text = "もう一度えらぶと、はじめから" if _restart_armed else "島のはじめから"
-	_saves.text = "保存 %d / %d" % [world.checkpoint_save_count(), CheckpointHistory.CAPACITY]
+	var stage := in_stage()
+	for key in STAGE_ITEMS:
+		_buttons[key].visible = stage
+	_buttons["leave"].visible = stage and leave_request.is_valid()
+	_buttons["restart"].text = RESTART_ARMED if _armed == "restart" else RESTART_LABEL
+	_buttons["leave"].text = LEAVE_ARMED if _armed == "leave" else LEAVE_LABEL
 
 
 ## 項目を選んだときの処理。テストからも呼ぶ。
 func choose(item: String) -> void:
 	if _quitting:
 		return  # 部屋を出ている途中（ホストの受け付けを待っている）
-	if item != "restart":
-		_restart_armed = false
-	if item == "previous" and not world.can_restore_previous_checkpoint():
-		_sound(&"ui_error")
+	if STAGE_ITEMS.has(item) and not in_stage():
+		return  # 広場にはステージの項目が無い
+	var confirming := item in ["restart", "leave"]
+	var arming := confirming and _armed != item
+	_armed = item if arming else ""
+	_sound(&"ui_select" if arming else &"ui_confirm")
+	if arming:
+		refresh()
+		_describe(
+			(
+				"もう一度えらぶと、このステージに入ったときの状態からやり直します。"
+				if item == "restart"
+				else "もう一度えらぶと、このステージを出て、広場のポータルの前にもどります。"
+			)
+		)
 		return
-	_sound(&"ui_select" if item == "restart" and not _restart_armed else &"ui_confirm")
+	refresh()
 	match item:
 		"resume":
 			close()
 		"latest":
 			world.restore_checkpoint()
 			close()
-		"previous":
-			if world.restore_previous_checkpoint():
-				close()
 		"restart":
-			if _restart_armed:
-				world.restart_island()
-				close()
-			else:
-				_restart_armed = true
-				refresh()
-				_describe("もう一度えらぶと、保存をすべて消して島のはじめにもどります。")
+			world.restart_island()
+			close()
+		"leave":
+			close()
+			if leave_request.is_valid():
+				leave_request.call()
 		"settings":
 			_card.visible = false
 			settings_menu.open()
@@ -142,19 +193,10 @@ func _build() -> void:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 8)
 	_card.add_child(column)
-	var head := HBoxContainer.new()
 	var title := Label.new()
 	title.text = "ひとやすみ"
 	title.theme_type_variation = &"Title"
-	head.add_child(title)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(spacer)
-	_saves = Label.new()
-	_saves.theme_type_variation = &"Note"
-	_saves.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	head.add_child(_saves)
-	column.add_child(head)
+	column.add_child(title)
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 12)
 	column.add_child(gap)

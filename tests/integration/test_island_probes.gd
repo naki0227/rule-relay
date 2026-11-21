@@ -439,7 +439,7 @@ func test_accepted_quarry_floor_without_jump_needs_the_reset_vote() -> void:
 ## 歩く能力（W/A/S/D）を全部、遠くのセルへ「信号」で貸すと、歩けない。以前はそのままダッシュで
 ## チェックポイントに入れて、抜け出せない状態が保存された（F4）。いまはダッシュには W/A/D の
 ## どれかが要る（2026-11-20 本人の判断）ので突っ込めず、チェックポイントも歩けない状態を保存しない。
-## メニューの「島のはじめから」で本当に最初へ戻れる。
+## メニューの「このステージを最初から」で本当に最初へ戻れる。
 func test_gate_no_way_to_walk_cannot_be_saved_and_restart_recovers() -> void:
 	await _enter(StageCatalog.THREE_BELLS_ID)
 	await _pick_dash(Vector3(2.5, 0.0, 4.5))
@@ -465,7 +465,7 @@ func test_gate_no_way_to_walk_cannot_be_saved_and_restart_recovers() -> void:
 	assert_false(
 		CheckpointPolicy.player_can_move(w.ledger, _me().player_id), "still cannot walk here"
 	)
-	# メニューの「島のはじめから」（ひとり）: ステージを作り直すので歩ける
+	# メニューの「このステージを最初から」（ひとり）: ステージを作り直すので歩ける
 	w.restart_island()
 	w = director.world
 	await wait_physics_frames(10)

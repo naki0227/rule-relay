@@ -67,7 +67,7 @@ func test_gate_o1_1_creature_waits_without_the_step() -> void:
 
 
 ## 箱を送ってすぐ（まだ動いている間に）単発の W を押すと、W は動けずに戻り、箱は小島の石の上に残る。
-## 石がふさがっているので自分も小島へ行けない。やり直し（全員リセット・島のはじめから）が要る。
+## 石がふさがっているので自分も小島へ行けない。やり直し（チェックポイントからやり直す・このステージを最初から）が要る。
 func test_finding_o1_1_pressing_too_early_strands_the_crate() -> void:
 	await _enter("o1_1")
 	await _pick(Vector3(-3.5, 0.0, 9.5), RIGHT)
