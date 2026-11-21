@@ -221,16 +221,28 @@ func add_creature(at: Vector3, look: String = Creature.MODEL_WISH) -> Creature:
 	creature.survey = survey_heights
 	creature.ground_survey = func(c: Vector2i, r: int) -> Dictionary:
 		return WorldQueries.ground_heights(terrain, c, r)
+	creature.avoid_survey = func(c: Vector2i, r: int) -> Dictionary:
+		return WorldQueries.creature_avoid(self, c, r)
+	creature.peers = _player_positions
 	add_child(creature)
 	creatures[id] = creature
 	_creature_homes[id] = at
 	ledger.register_entity(id, EntityKind.Kind.CREATURE)
 	creature.jumped.connect(func() -> void: _sound(&"player_jump", creature.global_position))
-	creature.stuck_noticed.connect(_post)
 	creature.threw.connect(
 		func(from: Vector3, velocity: Vector3) -> void: throw_ball(from, velocity, creature)
 	)
 	return creature
+
+
+## プレイヤー（自分と仲間）の位置（生き物が近くのプレイヤーのほうを見るのに使う）。
+func _player_positions() -> Array[Vector3]:
+	var found: Array[Vector3] = []
+	if player != null:
+		found.append(player.global_position)
+	for player_id in avatars:
+		found.append(avatars[player_id].remote_position)
+	return found
 
 
 ## マスごとの立てる高さ（地形とブロックの上面）。生き物の判断とブロックの登るに使う。穴のマスは入れない。

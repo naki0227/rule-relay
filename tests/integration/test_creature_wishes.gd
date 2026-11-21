@@ -85,8 +85,10 @@ func test_pointer_shows_the_nest_only_when_it_is_off_screen() -> void:
 	await tree.process_frame
 
 
-## 移動はあるがジャンプが無く、1 段の階段の前にいるときは「ジャンプが足りない」の印。
-func test_bubble_names_the_missing_jump() -> void:
+## 1-4: 縁を削って 1 段の階段を作り、子どもの生き物のジャンプを借りてから移動（D）だけを渡す。生き物は完全な道が
+## 無くても巣のほうへ歩き、階段のふもとで止まって、吹き出しにジャンプのメダルを出す（2026-11-21 本人
+## 「W で壁の前まで行って、ジャンプもあればな」）。ジャンプを渡すと判断し直し、階段を跳んで段へ上がる。
+func test_kit_heads_for_the_nest_and_asks_for_a_jump_then_climbs() -> void:
 	await _enter(PATH_ID)
 	var kit := _creature("kit")
 	await _walk_to(Vector3(1.5, 0.0, 0.5), 0.3)
@@ -94,12 +96,21 @@ func test_bubble_names_the_missing_jump() -> void:
 	w.press_action(BACK)
 	await wait_physics_frames(60)
 	await _walk_to(kit.global_position + Vector3(1.4, 0.0, 0.0), 0.4)
+	var start := kit.global_position
 	w.interact(kit)  # 生き物のジャンプを借りる
 	await wait_physics_frames(2)
 	assert_false(w.ledger.entity_has_ability(kit.entity_id, JUMP), "the kit has no jump now")
 	_lend(kit, _slot_of(RIGHT), TriggerMode.Kind.NONE)
-	for i in 300:
+	for i in 400:
 		if kit.bubble_key() == CreatureWishView.KEY_NEED_JUMP:
 			break
 		await tree.physics_frame
-	assert_eq(kit.bubble_key(), CreatureWishView.KEY_NEED_JUMP, "it asks for a jump")
+	assert_eq(kit.shown_needs(), [JUMP] as Array[RuleAction.Kind], "a jump medal in the bubble")
+	assert_lt(kit.global_position.z, start.z - 2.0, "walked toward the nest first")
+	assert_lt(kit.global_position.z, 1.0, "at the foot of the carved step")
+	assert_lt(kit.global_position.y, 0.3, "still on the meadow")
+	await _walk_to(kit.global_position + Vector3(1.4, 0.0, 0.6), 0.4)
+	_lend(kit, _slot_of(JUMP), TriggerMode.Kind.NONE)
+	var ledge := AABB(Vector3(-7.0, 1.9, -6.0), Vector3(15.0, 1.0, 6.0))
+	assert_true(await _wait_creature_in("kit", ledge, 900), "hops up the step once it has a jump")
+	assert_ne(kit.bubble_key(), CreatureWishView.KEY_NEED_JUMP, "no longer asks for a jump")
