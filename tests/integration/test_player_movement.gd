@@ -90,16 +90,20 @@ func test_no_step_assist_in_mid_air() -> void:
 	assert_lt(world.player.global_position.y, 1.5, "did not end up on top of the wall")
 
 
-func test_model_limbs_swing_while_walking_and_face_movement() -> void:
-	var model := world.player.find_child("LegL", true, false) as Node3D
-	assert_ne(model, null, "traveler model with joint nodes is loaded")
+## 手足は骨格のアニメーションで動く（2026-11-21 本人の指示。コードで振らない）。
+func test_model_plays_walk_and_idle_animations_and_faces_movement() -> void:
+	var skeleton := world.player.find_children("*", "Skeleton3D", true, false)
+	assert_eq(skeleton.size(), 1, "traveler model with a skeleton is loaded")
+	await wait_physics_frames(3)
+	assert_eq(world.player.animation_state(), RigAnimator.IDLE, "idle while standing")
 	world.player.view_yaw = 0.0
 	world.player.move_intent = Vector2(1.0, 0.0)  # 東へ
-	var max_swing := 0.0
-	for i in 30:
-		await tree.physics_frame
-		max_swing = maxf(max_swing, absf(model.rotation.x))
-	assert_gt(max_swing, 0.3, "legs swing while walking")
+	await wait_physics_frames(30)
+	assert_eq(world.player.animation_state(), RigAnimator.WALK, "walk while walking")
+	var leg := (skeleton[0] as Skeleton3D).find_bone("b_leg_l")
+	assert_ne(leg, -1, "the leg bone")
+	var pose := (skeleton[0] as Skeleton3D).get_bone_pose_rotation(leg)
+	assert_gt(absf(pose.get_angle()), 0.05, "the walk animation moves the leg bone")
 	var visual := world.player.get_node("Visual") as Node3D
 	assert_almost(visual.rotation.y, -PI * 0.5, 0.15, "model turns to face east (-90deg)")
 

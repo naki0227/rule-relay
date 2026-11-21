@@ -19,6 +19,7 @@ func _ready() -> void:
 	_model = ModelLibrary.instantiate("traveler")
 	_model.rotation.y = PI - 0.5  # 顔をこちらへ、少し斜めに
 	stage.add_child(_model)
+	RigAnimator.new(_model)  # 骨格の立ち止まりの動き（息をする）を流す
 	var camera := Camera3D.new()
 	camera.position = Vector3(0.0, 0.95, 3.6)
 	camera.rotation.x = deg_to_rad(-4.0)

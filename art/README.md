@@ -6,7 +6,9 @@
 |---|---|
 | `scripts/palette.py` | 共有の色（パレット）と丸い形の部品（回転体・カプセル・輪・角丸の箱）。色はここだけで決める |
 | `scripts/build_assets.py` | 地形のセル・能力のブロック・木・草花などを生成する（共通の関数もここ） |
-| `scripts/build_cast.py` | プレイヤー（4色）・願いを持つ生き物・その子ども（kit） |
+| `scripts/rig.py` | 動くものの骨格（Armature）とアニメーション（Action）を作って書き出す部品（`armature` / `bind` / `action` / `save_and_export_rigged`） |
+| `scripts/build_cast.py` | プレイヤー（4色）・願いを持つ生き物・その子ども（kit）・広場の生き物 2 種（`critter_bunny`・`critter_lamb`）。どれも部品ごとに作り、骨格とアニメーション付き |
+| `scripts/build_overworld.py` | 広場のワープの門（`portal_arch`、渦が回る）と、クリアで建つ建物 6 種（家・風車・噴水・畑・見晴らし台・屋台） |
 | `scripts/build_markers.py` | ゴールの旗と四隅の灯り・チェックポイントの台・入口の門・器のメダル（能力／禁止）・装備（ジャンプブーツ・クライミンググローブ）・ダッシュの羽根 |
 | `scripts/build_hub_props.py` | 広場の置物（街灯・柵・鉢植え・ベンチ） |
 | `scripts/build_contraptions.py` | 発射台と鐘（テクスチャを焼き込む） |
@@ -22,11 +24,13 @@ blender -b --factory-startup --python art/scripts/build_assets.py -- block     #
 blender -b --factory-startup --python art/scripts/build_cast.py                # プレイヤー・生き物
 blender -b --factory-startup --python art/scripts/build_markers.py             # 目印・器・装備
 blender -b --factory-startup --python art/scripts/build_hub_props.py           # 広場の置物
+blender -b --factory-startup --python art/scripts/build_overworld.py           # ポータル・建物
 blender -b --factory-startup --python art/scripts/build_icons.py               # アイコン
 blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/previews traveler goal_flag
 ```
 
-ゲームの中での見え方は `tools/capture_models.gd`（lavapipe＋xvfb、`lineup` / `hub` / `nest`）で撮って確かめる。
+ゲームの中での見え方は `tools/capture_models.gd`（lavapipe＋xvfb、`lineup` / `hub` / `nest`）と
+`tools/capture_overworld.gd`（広場。`first` / `all` × `spawn` / `aerial` / `meadow` / `portal` / `puzzle`）で撮って確かめる。
 書き出した後は `godot --headless --import` で取り込み、警告が出ないことを確かめる。
 
 - 使った Blender: **4.5.16 LTS**（公式配布、SHA-256 を検証）。LTS のサポート期間が提出期限より長い版を選んだ。
@@ -37,14 +41,20 @@ blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/pre
 
 - 1 Blender 単位 = 1 m = 1 ブロック。Z が上。
 - 地形とブロックは 1x1x1 で、中心が原点。当たり判定はゲーム側の箱で、モデルは見た目だけ。
-- キャラクターの正面は Blender の +Y（Godot の前方 -Z になる）。足元が原点。手足・頭は別オブジェクトで、原点を関節に置く（`Body` `Head` `ArmL` `ArmR` `LegL` `LegR`）。ゲームのコードがこの名前で探して振る。
+- キャラクターの正面は Blender の +Y（Godot の前方 -Z になる）。足元が原点。手足・頭は別オブジェクトで、原点を関節に置く（`Body` `Head` `ArmL` `ArmR` `LegL` `LegR`）。
+- **動くものは骨格で動かす**（2026-11-21 本人の指示「生き物とかは部分ごとに作り Rig とかもいるやつは使いながらで」）。
+  部品ごとのメッシュを 1 本の骨（`b_torso` など、関節から上向き）に重み 1.0 で結び、アクション（`idle` `walk` `happy`、
+  プレイヤーは `jump` も）を NLA に積んで、glTF に「アクションごと」で書き出す（`rig.py`）。Godot では `Skeleton3D` と
+  `AnimationPlayer` になり、`RigAnimator`（`src/game/rig_animator.gd`）が状態で切り替える。ループはゲーム側で付ける。
+  部品の名前は残すので、`find_child("Body")` などはそのまま使える。当たり判定はゲーム側の箱・カプセルのまま。
+- 回る部品（風車の羽根 `Sails` の `spin`、ポータルの渦 `Swirl` の `swirl`）はオブジェクトのアニメーションにする。
 - ブロックの色は、マテリアル名 `Panel` をゲーム側で色違いの複製に置き換えて変える。名前を変えるときは `ModelLibrary.tint_material` の呼び出しも直す。
 - プレイヤーの色違いは、マテリアル名 `Accent`（布）と `AccentDeep`（縁・裏地）を `ArtPalette.tint_player` が差し替える。4色の値は `palette.py` の `PLAYER_COLORS` と `src/game/art_palette.gd` で同じにする。
 - ゴールの旗は、布の `Flag` という子オブジェクトをゲーム側（`GoalMarker`）が竿を軸に揺らす。
 - 器のメダルは正面が ±Y。記号はモデルに刻まず、ゲームが `glyph_*.png` を面に重ねる（記号を増やしてもモデルは1つ）。
 - 色を変える（世界観が決まって塗り直す）ときは `palette.py` を直して全スクリプトを実行し直す。形は変えない。
 
-## 現在のモデル（2026-11-20）
+## 現在のモデル（2026-11-21）
 
 | ファイル | 生成 | 用途・ゲームでの使い道 |
 |---|---|---|
@@ -56,7 +66,10 @@ blender -b --factory-startup --python art/scripts/render_previews.py -- /tmp/pre
 | `entrance_gate` | build_markers | 広場の入口と帰り道。空色の輪の台、木の丸い門、何も書いていない吊り札（文字はゲームが浮かべる） |
 | `vessel_medal` / `ban_medal` | build_markers | 世界に落ちている器。能力＝はちみつ色、禁止＝灰の地に赤い輪と斜線（`WorldItem`） |
 | `jump_boots` / `climbing_gloves` / `dash_feather` | build_markers | 拾える装備とダッシュ（`WorldItem`） |
-| `hub_lamp` / `hub_fence` / `hub_planter` / `hub_bench` | build_hub_props | 広場の飾り（`HubDressing`。当たり判定なし） |
+| `hub_lamp` / `hub_fence` / `hub_planter` / `hub_bench` | build_hub_props | 広場の飾り（`OverworldScenery`。当たり判定なし） |
+| `critter_bunny` / `critter_lamb` | build_cast | 広場に住む生き物（耳の長い生き物・もこもこの生き物）。骨格付き（`OverworldResident`） |
+| `portal_arch` | build_overworld | 広場のワープの門。渦（`Swirl`）が回り、クリアの印（`ClearedMark`）を出し入れする（`OverworldPortal`） |
+| `ow_house` / `ow_windmill` / `ow_fountain` / `ow_garden` / `ow_lookout` / `ow_stall` | build_overworld | クリアで広場に建つ建物（見た目だけ。風車は羽根が回る） |
 | `ability_block` | build_assets | 能力を受け取るブロック。枠＋色を変えるパネル＋四隅の鋲 |
 | `grass_cell` / `rock_cell` / `sandstone_cell` | build_assets | 地形の1セル（草・岩・砂岩） |
 | `island_base` | build_assets | 浮かぶ島の底（ゲーム側で島の大きさに拡大） |

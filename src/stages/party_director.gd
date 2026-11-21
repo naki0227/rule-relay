@@ -45,9 +45,16 @@ var world_parent: Node
 ## ハブの入口を最初から全部開けておく（試遊の版。本人が全部を順に試せるように）。
 ## 製品版では false にして、目安時間の短い順に、前のステージをクリアしたら次が開く（2026-11-20 本人の判断）。
 var all_stages_open: bool = true
+## 広場の地方を最初から全部つなぐ（試遊の版・デバッグ。橋と階段を全部出し、岩をどける。docs/adr/0013）。
+## 製品版では false にして、ワールドの最後のステージをクリアすると次の地方への道が開く。
+var all_regions_open: bool = true
+## デバッグ: 広場で使える能力を全部持たせる（ふだんはクリアで開いた分だけ。コマンドラインの --open-all）。
+var all_abilities_unlocked: bool = false
 ## 部屋のオプション: 禁止をプレイヤーへ直接渡せる（ホストが部屋を作るときに選ぶ。既定は渡せない）。
 var allow_prohibition_to_player: bool = false
 
+## 参加者: ホストから届いた広場の様子（OverworldState.to_dict）。協力中はホストの進行で広場が決まる。
+var _remote_overworld: Dictionary = {}
 ## チェックポイント ID → その時点の記録 {"world": WorldSnapshot, "loadout": StageLoadout の状態}
 var _snapshots: Dictionary = {}
 var _run_serial: int = 0
@@ -117,7 +124,7 @@ func enter_stage(new_stage_id: String) -> void:
 	# 先にステージを組み立てさせてから出現地点へ動かす（逆だと参加者の新しい世界では、
 	# 古い世界へ届いた移動が失われ、全員が1人目の出現地点に重なる）
 	if _online():
-		_enter.rpc(new_stage_id, run_id)
+		_enter.rpc(new_stage_id, run_id, overworld_state().to_dict())
 	for player_id in players:
 		_teleport(player_id, world.spawn_for(player_id))
 	_broadcast_party()
@@ -133,7 +140,7 @@ func _build(new_stage_id: String, run_id: String) -> void:
 	last_clear_text = ""
 	goal_missing = PackedInt32Array()
 	world = StageWorld.new()
-	world.setup(StageCatalog.by_id(new_stage_id))
+	world.setup(_def_for(new_stage_id))
 	world.vote_request = request_vote
 	world.restart_request = request_restart
 	world.ledger.allow_prohibition_to_player = allow_prohibition_to_player
@@ -154,7 +161,7 @@ func _build(new_stage_id: String, run_id: String) -> void:
 		(
 			"%s に来ました" % world.def.display_name
 			if in_stage()
-			else "ハブ: 入口で %s を押すとステージへ" % InputMode.token(&"interact")
+			else "広場: ポータルで %s を押すとステージへ" % InputMode.token(&"interact")
 		)
 	)
 	world_changed.emit(world)
@@ -170,21 +177,28 @@ func _present_players() -> PackedInt32Array:
 func _on_entrance_chosen(_player_id: int, chosen: String) -> void:
 	if in_stage():
 		return
-	var before := previous_stage(chosen)
-	if not all_stages_open and before != null and not progress.has_cleared(before.stage_id):
-		world.message_posted.emit("「%s」をクリアすると開きます" % before.display_name)
+	var state := overworld_state()
+	if not state.is_stage_open(chosen):
+		world.message_posted.emit(CampaignPlan.lock_reason(chosen, state.cleared))
 		return
 	enter_stage(chosen)
 
 
-## 目安時間の順で、このステージの1つ前のステージ（最初なら null）。
-## 協力中は、ホストの記録で開いているかを決める（仮）。
-static func previous_stage(chosen: String) -> StageDef:
-	var stages := StageCatalog.all_stages()
-	for i in stages.size():
-		if stages[i].stage_id == chosen:
-			return stages[i - 1] if i > 0 else null
-	return null
+## 広場の様子を決める入力。権威（1人用・ホスト）は自分の進行と試遊の設定から作り、参加者はホストから
+## 届いたものを使う（協力中の広場はホストの進行で決まる。docs/adr/0013）。
+func overworld_state() -> OverworldState:
+	if not is_authority():
+		return OverworldState.from_dict(_remote_overworld)
+	return OverworldState.of(
+		progress.cleared_stages(), all_stages_open, all_regions_open, all_abilities_unlocked
+	)
+
+
+## ステージの定義。広場だけは、いまの進行から組み立てる。
+func _def_for(new_stage_id: String) -> StageDef:
+	if new_stage_id == StageCatalog.HUB_ID:
+		return Overworld.build(overworld_state())
+	return StageCatalog.by_id(new_stage_id)
 
 
 # --- 毎フレーム（権威） --------------------------------------------------------
@@ -463,6 +477,10 @@ func _reward_status(player_id: int) -> int:
 
 func _show_clear(text: String) -> void:
 	last_clear_text = text
+	if world.player != null:
+		world.player.celebrate()
+	for player_id: int in world.avatars:
+		world.avatars[player_id].celebrate()
 	world.message_posted.emit(text)
 	world.sound_requested.emit(&"goal", Vector3.ZERO, false)
 	world.goal_reached.emit()
@@ -539,6 +557,7 @@ func export_state() -> Dictionary:
 		"tracker": tracker.to_dict(),
 		"allow_prohibition_to_player": allow_prohibition_to_player,
 		"activated": world.activated.duplicate(),
+		"overworld": overworld_state().to_dict(),
 		"runs": runs,
 		"host_id": local_id(),
 	}
@@ -550,6 +569,11 @@ func export_state() -> Dictionary:
 func adopt_state(state: Dictionary) -> void:
 	var here := world.player.global_position if world != null else Vector3.ZERO
 	allow_prohibition_to_player = bool(state.get("allow_prohibition_to_player", false))
+	# 広場の試遊の設定は前のホストのものを引き継ぐ（クリアの記録は、新しいホストの進行を使う）
+	var overworld := OverworldState.from_dict(state.get("overworld", {}) as Dictionary)
+	all_stages_open = overworld.all_stages_open
+	all_regions_open = overworld.all_regions_open
+	all_abilities_unlocked = overworld.all_abilities
 	_build(String(state["stage_id"]), String(state["run_id"]))
 	WorldSnapshot.apply(world, state["world"] as Dictionary)
 	world.player.global_position = here
@@ -602,7 +626,12 @@ func _give_join_items(player_id: int) -> void:
 
 func _on_player_joined(player_id: int) -> void:
 	if _online():
-		_enter.rpc_id(net.session.peer_of_player(player_id), stage_id, stage_run_id)
+		_enter.rpc_id(
+			net.session.peer_of_player(player_id),
+			stage_id,
+			stage_run_id,
+			overworld_state().to_dict()
+		)
 	if in_stage():
 		if (
 			not lifecycle.has_player(player_id)
@@ -684,9 +713,10 @@ func _name(player_id: int) -> String:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _enter(new_stage_id: String, run_id: String) -> void:
+func _enter(new_stage_id: String, run_id: String, overworld: Dictionary) -> void:
 	if StageCatalog.by_id(new_stage_id) == null:
 		return
+	_remote_overworld = overworld
 	if new_stage_id != stage_id or run_id != stage_run_id or world == null:
 		_build(new_stage_id, run_id)
 		lifecycle = PartyLifecycle.new()

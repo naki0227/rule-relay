@@ -19,7 +19,31 @@ const MODELS: Array[String] = [
 	"hub_fence",
 	"hub_planter",
 	"hub_bench",
+	"critter_bunny",
+	"critter_lamb",
+	"portal_arch",
+	"ow_house",
+	"ow_windmill",
+	"ow_fountain",
+	"ow_garden",
+	"ow_lookout",
+	"ow_stall",
 ]
+## 骨格付きのモデル（art/scripts/rig.py）と、ゲームが再生するアニメーション（2026-11-21 本人の指示）。
+const RIGGED: Dictionary[String, Array] = {
+	"traveler": [&"idle", &"walk", &"jump", &"happy"],
+	"creature_wish": [&"idle", &"walk", &"happy"],
+	"creature_kit": [&"idle", &"walk", &"happy"],
+	"critter_bunny": [&"idle", &"walk", &"happy"],
+	"critter_lamb": [&"idle", &"walk", &"happy"],
+}
+## 骨格付きのモデルの部品（別々のメッシュのまま骨で動かす）。
+const PARTS: Dictionary[String, Array] = {
+	"traveler": ["Body", "Head", "ArmL", "ArmR", "LegL", "LegR"],
+	"creature_wish": ["Body", "WingL", "WingR", "FootL", "FootR", "Sprout"],
+	"critter_bunny": ["Body", "Head", "EarL", "EarR", "Tail", "FootL", "FootR"],
+	"critter_lamb": ["Body", "Head", "EarL", "EarR", "Tail", "LegFL", "LegFR", "LegBL", "LegBR"],
+}
 
 var _nodes: Array[Node] = []
 
@@ -53,6 +77,38 @@ func test_every_model_loads_with_a_mesh() -> void:
 		var meshes := model.find_children("*", "MeshInstance3D", true, false)
 		assert_false(meshes.is_empty(), "%s has a mesh" % model_name)
 		model.free()
+
+
+func test_moving_models_have_a_skeleton_and_their_animations() -> void:
+	for model_name: String in RIGGED:
+		var model := ModelLibrary.instantiate(model_name)
+		_keep(model)
+		var skeletons := model.find_children("*", "Skeleton3D", true, false)
+		assert_eq(skeletons.size(), 1, "%s has a skeleton" % model_name)
+		var players := model.find_children("*", "AnimationPlayer", true, false)
+		assert_eq(players.size(), 1, "%s has an animation player" % model_name)
+		if players.is_empty():
+			continue
+		var player := players[0] as AnimationPlayer
+		for clip: StringName in RIGGED[model_name]:
+			assert_true(player.has_animation(clip), "%s has %s" % [model_name, clip])
+		for part: String in PARTS.get(model_name, []):
+			var mesh := model.find_child(part, true, false) as MeshInstance3D
+			assert_ne(mesh, null, "%s part %s" % [model_name, part])
+			if mesh != null:
+				assert_ne(
+					mesh.skin, null, "%s part %s is skinned to the skeleton" % [model_name, part]
+				)
+
+
+func test_windmill_and_portal_move_by_animation() -> void:
+	for pair: Array in [["ow_windmill", &"spin"], ["portal_arch", &"swirl"]]:
+		var model := ModelLibrary.instantiate(String(pair[0]))
+		_keep(model)
+		var players := model.find_children("*", "AnimationPlayer", true, false)
+		assert_false(players.is_empty(), "%s has an animation" % pair[0])
+		if not players.is_empty():
+			assert_true((players[0] as AnimationPlayer).has_animation(pair[1] as StringName))
 
 
 func test_player_model_has_joints_and_takes_each_players_color() -> void:
@@ -117,16 +173,27 @@ func test_kit_uses_its_own_model() -> void:
 	assert_ne(model.find_child("Kit", true, false), null, "child creature mesh")
 
 
-func test_hub_is_dressed_and_entrances_are_gates() -> void:
+## 広場（オーバーワールド）は飾り付けられ、入口はどれもワープの門（ポータル）。閉じた門は渦が灰色。
+func test_overworld_is_dressed_and_entrances_are_portals() -> void:
 	var world := StageWorld.new()
 	_keep(world)
-	world.setup(StageCatalog.hub())
+	world.setup(Overworld.build(OverworldState.first_visit()))
 	tree.root.add_child(world)
-	var dressing := world.get_node_or_null("HubDressing")
+	var dressing := world.get_node_or_null("OverworldDressing")
 	assert_ne(dressing, null)
-	assert_gt(dressing.get_child_count(), 20, "lamps, fences, planters, plants")
-	var gates := world.find_children("EntranceGate", "MeshInstance3D", true, false)
-	assert_eq(gates.size(), world.def.entrances.size(), "one gate per entrance")
+	assert_gt(dressing.get_node("Props").get_child_count(), 40, "trees, flowers, lamps, benches")
+	var portals := dressing.find_children("Portal_*", "OverworldPortal", false, false)
+	assert_eq(portals.size(), world.def.entrances.size(), "one portal per entrance")
+	var intro := dressing.get_node("Portal_%s" % StageCatalog.INTRO_ID) as OverworldPortal
+	var relay := dressing.get_node("Portal_%s" % StageCatalog.RELAY_ID) as OverworldPortal
+	assert_true(intro.is_open())
+	assert_true(intro.caption().contains("はじめはここから"))
+	assert_false(relay.is_open())
+	assert_true(relay.caption().contains("まだ開いていない"))
+	var swirl_color := _override_color(relay, "SwirlDeep")
+	assert_eq(swirl_color, OverworldPortal.DIM_SWIRL, "a locked portal is dim")
+	var teasers := dressing.find_children("Teaser_*", "OverworldPortal", false, false)
+	assert_eq(teasers.size(), 3, "a sealed gate for each optional world")
 
 
 func _override_color(root: Node, material_name: String) -> Color:

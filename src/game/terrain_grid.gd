@@ -36,12 +36,20 @@ func build(boxes: Array) -> void:
 			for y in range(lo.y, hi.y + 1):
 				for z in range(lo.z, hi.z + 1):
 					cells[Vector3i(x, y, z)] = String(box[2])
-	var rows := {}
+	# 行ごとの x を一度にまとめる（行ごとに全セルを調べ直すと、広い広場で組み立てに 1 秒かかった）。
+	# 当たり判定の箱は、物理の世界から外した体に足してから戻す（体が世界にあると、箱を 1 つ足すたびに
+	# 物理エンジンが形を作り直し、箱の数の 2 乗の時間がかかる）
+	remove_child(_body)
+	var rows: Dictionary[Vector2i, Array] = {}
 	for cell in cells:
-		rows[Vector2i(cell.y, cell.z)] = true
+		var row := Vector2i(cell.y, cell.z)
+		if not rows.has(row):
+			rows[row] = []
+		rows[row].append(cell.x)
 	for row: Vector2i in rows:
-		_rebuild_row(row)
+		_build_row(row, rows[row])
 	_add_bedrock()
+	add_child(_body)
 	rebuild()
 
 
@@ -92,12 +100,18 @@ func _mark_dirty() -> void:
 
 ## 行（y, z）の当たり判定を、東西に続くセルごとに1つの箱で作り直す。
 func _rebuild_row(row: Vector2i) -> void:
-	for shape: CollisionShape3D in _rows.get(row, []):
-		shape.free()
-	var xs: Array[int] = []
+	var xs: Array = []
 	for cell in cells:
 		if cell.y == row.x and cell.z == row.y:
 			xs.append(cell.x)
+	_build_row(row, xs)
+
+
+func _build_row(row: Vector2i, found: Array) -> void:
+	for shape: CollisionShape3D in _rows.get(row, []):
+		shape.free()
+	var xs: Array[int] = []
+	xs.assign(found)
 	xs.sort()
 	var shapes: Array[CollisionShape3D] = []
 	var i := 0

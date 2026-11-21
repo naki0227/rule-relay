@@ -6,6 +6,7 @@ extends Node
 ## コマンドラインでタイトルを飛ばせる（試すとき用。`--` の後ろに書く）:
 ##   --solo / --host[=ポート] / --join=IPアドレス[:ポート] / --profile=名前
 ##   --allow-prohibition-give（部屋のオプション: 禁止をプレイヤーへ直接渡せる）
+##   --campaign（広場を製品版の開き方に）/ --open-all（広場の地方・ポータル・能力を全部開ける）
 ## Steam 版（機能タグ "steam" か `--steam`、かつ GodotSteam があるときだけ）は SteamGate が Steam 版の通信を作り、
 ## タイトルに Steam の項目が増える。それ以外（提出版・CI）は Steam に一切触れない（docs/adr/0012）。
 ## テストは PrototypeIsland や PartyDirector だけを木に追加し、HUD と入力なしで操作する。
@@ -150,11 +151,25 @@ func _make_director(profile: String) -> void:
 		_title = null
 	director = PartyDirector.new()
 	director.profile = profile
+	_apply_overworld_options(_arguments())
 	_hints = HintMemory.for_profile(profile)
 	add_child(director)
 	director.world_changed.connect(_on_world_changed)
 	_banner = PartyBanner.new()
 	_banner.director = director
+
+
+## 広場の開き方のオプション（docs/how-to-test.md）。既定は試遊の版（ポータルと地方は全部開く）。
+##   --campaign: 製品版と同じ開き方（クリアで次のポータル・地方が開く）
+##   --open-all: 全部開ける（ポータル・地方に加えて、広場で使える能力も全部）
+func _apply_overworld_options(args: Dictionary) -> void:
+	if args.has("campaign"):
+		director.all_stages_open = false
+		director.all_regions_open = false
+	if args.has("open-all"):
+		director.all_stages_open = true
+		director.all_regions_open = true
+		director.all_abilities_unlocked = true
 
 
 ## ホスト移譲の係（ホストは状態を配り、参加者はホストが落ちたら引き継ぐ）。

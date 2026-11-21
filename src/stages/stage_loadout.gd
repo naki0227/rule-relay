@@ -69,6 +69,30 @@ func give_start(ledger: RuleLedger, player_id: int, index: int) -> void:
 		ledger.give_player_item(actions[slot], false, slot, player_id)
 	for action in stage.prohibitions:
 		ledger.give_player_item(action, true, -1, player_id)
+	for action in stage.start_equipment:
+		var gear := ledger.give_player_item(action, false, -1, player_id)
+		gear.part = equipment_part(action)
+		gear.item_name = equipment_name(action)
+		ledger.equip(gear.id)
+
+
+## 装備の部位（HIGH_JUMP は足、CLIMB は手）。装備でなければ NONE。
+static func equipment_part(action: RuleAction.Kind) -> RuleVessel.Part:
+	match action:
+		RuleAction.Kind.HIGH_JUMP:
+			return RuleVessel.Part.FEET
+		RuleAction.Kind.CLIMB:
+			return RuleVessel.Part.HANDS
+	return RuleVessel.Part.NONE
+
+
+static func equipment_name(action: RuleAction.Kind) -> String:
+	match action:
+		RuleAction.Kind.HIGH_JUMP:
+			return "ジャンプブーツ"
+		RuleAction.Kind.CLIMB:
+			return "クライミンググローブ"
+	return ""
 
 
 ## 全員リセットのときだけ: 前回の補助を消して、new_headcount の補助を置き直す。
