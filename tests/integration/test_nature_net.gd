@@ -13,6 +13,8 @@ const A := RuleLedger.PLAYER_ID
 const B := 2
 const WEST := Vector3i(-1, 0, 0)
 const EAST := Vector3i(1, 0, 0)
+## 川（水のセルの上面 y = 0）で浮いている人の足は y ≈ -0.65。沈み始めた人と分けるための下限。
+const SURFACE_FLOOR := -1.0
 
 var party: NetParty
 var host: PartyDirector
@@ -102,7 +104,17 @@ func test_a_swimming_client_is_carried_and_a_sinking_one_dies() -> void:
 	await wait_physics_frames(45)
 	assert_true(me.afloat, "swimming")
 	assert_gt(me.global_position.x, 201.5, "the current carries the client")
-	await party.settle(1)
+	# 流れに運ばれ続けて止まらないので、party.settle（止まった位置がホストに届くまで待つ）は使えない。
+	# 動き続ける相手との差は 0.1 未満にならず、待つ間に川の東の端（x = 207）から落ちて死んでしまう。
+	# ホストの画面で、流れに運ばれて水面に浮いている姿が見えるまで待ってから確かめる。
+	await party.until(
+		func() -> bool:
+			var seen := host.world.avatar_of(B).global_position
+			var in_water := host.world.nature.water_at(seen) != null
+			return in_water and seen.x > 201.5 and seen.y > SURFACE_FLOOR,
+		"the host sees the client swimming in the current"
+	)
+	assert_true(me.afloat, "still swimming when the host looks")
 	assert_eq(host.lifecycle.state_of(B), PartyLifecycle.State.ACTIVE, "afloat is alive")
 	# 泳ぐを取り上げると沈み、落ちたのと同じく観戦になる
 	var v := host.world.ledger.hotbar_vessel(8, B)
