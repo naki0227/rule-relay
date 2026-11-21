@@ -103,3 +103,21 @@ func test_checkpoint_restores_the_shell_and_the_ability_apart() -> void:
 	assert_false(island.ledger.player_can(BOOTS))
 	island.interact(block)
 	assert_true(island.ledger.token(boots.token_id).is_in_vessel(), "F still finds the shell")
+
+
+func test_range_lend_from_hotbar_boots_moves_only_the_ability() -> void:
+	var boots := await boots_on_hotbar()
+	await place_player(Vector3(4.5, 0.0, -2.5))
+	island.select_slot(BOOTS_SLOT)
+	assert_eq(island.lend_to(island.row[0], true), RuleLedger.LendResult.OK, "range lend")
+	var t := island.ledger.token(boots.token_id)
+	assert_true(t.is_range, "lent as a range")
+	assert_gt(t.holder_ids.size(), 1, "several blocks hold it")
+	for b in island.row:
+		assert_true(island.ledger.entity_has_ability(b.entity_id, BOOTS), "every block in the row")
+	assert_eq(island.ledger.hotbar_vessel(BOOTS_SLOT), boots, "the shell stays in the slot")
+	island.interact(island.row[0])
+	assert_true(t.is_in_vessel(), "F brings the range back into the shell")
+	for b in island.row:
+		assert_false(island.ledger.entity_has_ability(b.entity_id, BOOTS))
+	assert_true(island.ledger.validate().is_empty())

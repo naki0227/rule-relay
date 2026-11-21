@@ -6,6 +6,7 @@ extends SceneTree
 ##     --script res://tools/capture_equipment_ux.gd -- <state> out.png
 ## state: full（ホットバーのブーツと、身につけたグローブ。中身が入っている）
 ##        / empty（ホットバーのブーツから、中の能力をブロックへ渡した後。ブーツは薄く、点線の輪が付く）
+##        / hud-full・hud-empty（同じ状態で、持ち物の画面を開かずに HUD のホットバーを撮る）
 ## 持ち物の画面を開き、ホットバーのブーツを選んだところを撮る（下のホットバー・左の装備欄・右の説明が入る）。
 
 
@@ -41,15 +42,16 @@ func _capture() -> void:
 	if ledger.hotbar_vessel(slot, me) != null:
 		ledger.move_to_inventory(ledger.hotbar_vessel(slot, me).id)
 	ledger.move_to_hotbar(boots.id, slot)
-	if state == "empty":
+	if state.ends_with("empty"):
 		var block: RuleBlock = w.blocks.values()[0]
 		ledger.lend(boots.id, PackedInt32Array([block.entity_id]), TriggerMode.Kind.NONE)
 	w.select_slot(slot)
 	for i in 10:
 		await physics_frame
 	var hud := game.get("_hud") as Hud
-	hud.toggle_inventory()
-	hud.inventory.select_vessel(boots.id)
+	if not state.begins_with("hud"):
+		hud.toggle_inventory()
+		hud.inventory.select_vessel(boots.id)
 	for i in 20:
 		await process_frame
 	root.get_viewport().get_texture().get_image().save_png(out)

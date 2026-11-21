@@ -127,3 +127,8 @@ func _on_enter() -> void:
 func _on_exit() -> void:
 	_hover = false
 	queue_redraw()
+
+
+## マウスがこの枠の上にあるか。
+func is_hovered() -> bool:
+	return _hover

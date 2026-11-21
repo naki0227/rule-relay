@@ -372,8 +372,21 @@ func refresh() -> void:
 		_selected_id = -1 if _matches.is_empty() else _matches[0].vessel_id
 	_grid.select(_selected_id)
 	_update_slots()
+	_sync_hover()
 	_update_lent_list()
 	_show_detail()
+
+
+## 動かした後、マウスの下の枠に入っている器が変わっていたら、指している器をそれに合わせる
+## （入れ替えた直後にもう一度番号キーを押しても、いまカーソルの下にある器が動く）。
+func _sync_hover() -> void:
+	for slot: InventorySlot in _hotbar_slots + _equip_slots:
+		if slot.is_hovered():
+			_hover_id = slot.vessel_id
+			return
+	var in_bag := _grid.hovered_vessel_id()
+	if in_bag != -2:
+		_hover_id = in_bag
 
 
 func _find(vessel_id: int) -> InventoryQuery.Entry:

@@ -78,10 +78,11 @@
 - ステージの形は変えていない。開始時の装備（`start_equipment`）は身につけた状態で配り、島で拾う装備はこれまでも
   テストが身につけてから使っていたので、W1〜W7 と寄り道の島の解き方・関所のテストの入力も変える必要が無かった。
 - `test_gamepad`: 持ち物の画面で A を 2 回（持ち上げて置く）。`test_inventory_panel`: 開いたときに検索欄へフォーカスしない。
-- 足したテスト: `test_equipment_vessels`（台帳）、`test_equipment_vessels_world`（島。触る・投げる・F・チェックポイント）、
+- 足したテスト: `test_equipment_vessels`（台帳）、`test_equipment_vessels_world`（島。触る・範囲・投げる・F・チェックポイント＝WorldSnapshot）、
   `test_equipment_vessels_net`（2 人。参加者の貸し出しと回収・身につけた装備は渡せない・持ち物の移動）、
   `test_inventory_moves`、`test_inventory_keys`。
-- 撮った画面: `docs/images/ux/equipment-full.png`・`equipment-empty.png`（`tools/capture_equipment_ux.gd`）。
+- 撮った画面（`tools/capture_equipment_ux.gd`）: 持ち物の画面 `docs/images/ux/equipment-full.png`・`equipment-empty.png`、
+  HUD のホットバー `equipment-hud-full.png`・`equipment-hud-empty.png`。
 
 ## 採らなかった案
 

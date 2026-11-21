@@ -41,6 +41,14 @@ func set_entries(new_entries: Array[InventoryQuery.Entry]) -> void:
 	queue_redraw()
 
 
+## マウスが指している器（いなければ -1）。並びが変わった後でも、いまその位置にある器を返す。
+## 指していないときは -2。
+func hovered_vessel_id() -> int:
+	if _hover_index < 0:
+		return -2
+	return entries[_hover_index].vessel_id if _hover_index < entries.size() else -1
+
+
 func select(vessel_id: int) -> void:
 	selected_id = vessel_id
 	_scroll_into_view(index_of(vessel_id))
