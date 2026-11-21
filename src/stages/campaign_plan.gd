@@ -292,29 +292,30 @@ static func _meadow() -> World:
 		Vector2(-6.5, 2.5),
 		{"species": "lamb", "building": "ow_house"}
 	)
+	# 2026-11-21: 真ん中（1-3）を難しい新しいステージにし、丘の上の旗を 1-5 へ移した（docs/campaign-plan.md）
 	_slot(
 		w,
-		StageCatalog.HILL_ID,
-		"丘の上の旗",
-		"装備（ブーツ・グローブ）と何通りもの道",
+		"w1_lift_steps",
+		"持ち上げ台の段々",
+		"持ち上げ台×拾ったジャンプ×動物の石の段（ジャンプの数のやりくり）",
 		Vector2(7.5, 2.5),
-		{"hard": true, "grants": "HIGH_JUMP", "species": "wish", "building": "ow_windmill"}
+		{"hard": true, "species": "wish", "building": "ow_fountain"}
 	)
 	_slot(
 		w,
 		"w1_push_path",
 		"押し石の小道",
-		"地形のセルに W/A/S/D を渡して押し、道を作る",
+		"地形のセルに W/A/S/D を渡して押し、生き物の道を作る",
 		Vector2(-9.5, -4.5),
-		{"species": "bunny", "tint": Color("#f3d9b8"), "building": "ow_stall"}
+		{"species": "kit", "tint": Color("#f3d9b8"), "building": "ow_stall"}
 	)
 	_slot(
 		w,
-		"w1_lift_steps",
-		"持ち上げ台の段々",
-		"繰り返しの持ち上げ台を何段もつなぐ",
+		StageCatalog.HILL_ID,
+		"丘の上の旗",
+		"装備（ブーツ・グローブ）と何通りもの道",
 		Vector2(10.5, -4.5),
-		{"species": "lamb", "building": "ow_fountain"}
+		{"grants": "HIGH_JUMP", "species": "wish", "building": "ow_windmill"}
 	)
 	_slot(
 		w,
@@ -341,9 +342,9 @@ static func _bell_vale() -> World:
 		w,
 		"w2_echo_bells",
 		"こだまの鐘",
-		"信号の方式: 鐘が鳴る間だけ動くブロック",
+		"信号の方式: 鐘が鳴る間だけ動く石と持ち上げ台（生き物の段）",
 		Vector2(41.5, 10.5),
-		{"species": "bunny", "building": "ow_garden"}
+		{"species": "kit", "building": "ow_garden"}
 	)
 	_slot(
 		w,
@@ -357,17 +358,17 @@ static func _bell_vale() -> World:
 		w,
 		"w2_rolling_shots",
 		"転がる玉",
-		"発射台そのものを押して向き・位置を変える",
+		"発射台そのものを押して狙いを合わせる・投げる×2 で遠くへ・発射台を生き物の段に",
 		Vector2(53.5, -2.5),
-		{"species": "lamb", "building": "ow_stall"}
+		{"species": "kit", "building": "ow_stall"}
 	)
 	_slot(
 		w,
 		"w2_timed_bells",
-		"時の鐘",
-		"鳴っている間だけ開く道（時の鐘）",
+		"鳴りつづける鐘",
+		"時の鐘の初出: 鳴っている間だけ架かる橋と歩く石・走って渡るか鳴らしつづける",
 		Vector2(46.5, -11.5),
-		{"species": "bunny", "tint": Color("#e8d4f0"), "building": "ow_house"}
+		{"species": "kit", "tint": Color("#e8d4f0"), "building": "ow_house"}
 	)
 	_slot(
 		w,
@@ -603,13 +604,14 @@ static func _summit() -> World:
 		Vector2(-8.5, -71.5)
 	]
 	var titles: PackedStringArray = ["頂のふもと", "雲の階段", "風と札の塔", "流れの上の鐘", "みんなの橋", "頂の祭り"]
+	# 2026-11-21 ステージを作るときに詰めた（World7Stages / World7Finale。docs/campaign-plan.md の W7）
 	var gimmicks: PackedStringArray = [
-		"これまでの能力の総まとめ（ひとりの道）",
-		"浮く×ダッシュ×往復足場",
-		"風×禁止×繰り返し",
-		"水の流れ×信号×投げる",
-		"4 人で能力を回す長い協力の道",
-		"すべての仕掛けの組み合わせ（最終ステージ）"
+		"浮く×風（追い風に乗って空の谷を渡る）・突風の尾根と重い",
+		"浮く×ダッシュ（空中ダッシュから浮いて降りる）・生き物の重さで開く扉とワープの石",
+		"風で運ぶ木箱と 4 人分の板・突風の棚と重い・札・時の鐘と生き物",
+		"流れる川×浮く／泳ぐ×筏・小島の鐘を生き物の木の実で",
+		"重さの板 2 枚×範囲で渡す×生き物×ワープの石",
+		"すべての組み合わせの長い登り（最終ステージ・頂のお祝い）"
 	]
 	var kinds: PackedStringArray = ["bunny", "lamb", "wish", "kit", "lamb", "wish"]
 	var buildings: PackedStringArray = [
