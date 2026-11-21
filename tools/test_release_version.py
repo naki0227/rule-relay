@@ -81,7 +81,7 @@ class ReleaseVersionTest(unittest.TestCase):
     def test_committed_presets_are_consistent(self) -> None:
         problems, version = rv.check_presets(rv.PRESETS.read_text(encoding="utf-8"), None)
         self.assertEqual(problems, [])
-        self.assertEqual(version, "0.2.1")
+        self.assertEqual(version, "0.3.0")
 
 
 if __name__ == "__main__":
