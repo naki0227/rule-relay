@@ -34,6 +34,7 @@ static func capture(w: GameWorld) -> Dictionary:
 		"bells": bell_states,
 		"balls": balls,
 		"nature": w.nature.clock,
+		"mechanisms": MechanismSet.capture_frame(w),
 	}
 
 
@@ -56,6 +57,7 @@ static func apply(w: GameWorld, data: Dictionary, ghosts: Array[MeshInstance3D])
 	_apply_balls(w, data.get("balls", []) as Array, ghosts)
 	if typeof(data.get("nature")) == TYPE_FLOAT:
 		w.nature.clock = float(data["nature"])
+	MechanismSet.apply_frame(w, data.get("mechanisms", {}) as Dictionary)
 
 
 ## ホストで動くブロックになった地形のセルを、参加者の画面でもブロックにする（戻ったセルは地形へ）。

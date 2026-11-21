@@ -62,6 +62,7 @@ func _ready() -> void:
 		var bell := add_bell(spec.position)
 		bells_by_key[spec.key] = bell
 		bell.rang.connect(func() -> void: _mark_activated(spec.key))
+	MechanismSet.build(self, def.mechanisms)  # 重さの板・扉・レバー・時の鐘・ワープの石（docs/adr/0014）
 	for i in def.checkpoints.size():
 		_add_pad(def.checkpoints[i], "チェックポイント", "checkpoint_pad", 1.9)
 	for pad in def.return_pads:
@@ -141,6 +142,8 @@ func entrance_at(at: Vector3) -> String:
 ## 1人用の「F で保存」の代わり: 台座の上の F は全員復活、入口の F はステージに入る。
 ## 足もとに拾える物があるとき・手の届く物を狙っているときは、そちらを優先する（台座より先）。
 func interact(target: Node3D) -> void:
+	if not replica and player != null and MechanismSet.try_interact(self):
+		return  # 手の届くレバーを倒した
 	if replica or player == null or _has_something_to_handle(target):
 		super.interact(target)
 		return

@@ -40,6 +40,10 @@ const _MOVES: Array[RuleAction.Kind] = [
 	RuleAction.Kind.FORWARD, RuleAction.Kind.LEFT, RuleAction.Kind.BACK, RuleAction.Kind.RIGHT
 ]
 
+## テストの見本の配置（stage_id → StageDef を返す Callable）。一覧（all_stages）にも広場にも出さず、
+## by_id だけが見つける。結合テストが仕掛けの見本を PartyDirector で遊ぶために使う（docs/adr/0014）。
+static var test_stages: Dictionary[String, Callable] = {}
+
 
 ## すべてのステージ（目安のクリア時間の短い順）。広場のポータルの場所は CampaignPlan の枠が決める。
 ## 新しいステージは、ここに足し、CampaignPlan の同じ stage_id の枠で広場に現れる。
@@ -68,6 +72,8 @@ static func all_stages() -> Array[StageDef]:
 static func by_id(stage_id: String) -> StageDef:
 	if stage_id == HUB_ID:
 		return hub()
+	if test_stages.has(stage_id):
+		return test_stages[stage_id].call() as StageDef
 	for def in all_stages():
 		if def.stage_id == stage_id:
 			return def

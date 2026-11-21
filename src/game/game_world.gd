@@ -200,7 +200,7 @@ func is_receiving_signal(entity_id: int) -> bool:
 	for bell in bells:
 		if bell.reaches(at):
 			return true
-	return false
+	return MechanismSet.signal_reaches(self, at)  # 押されている重さの板・入ったレバー（docs/adr/0014）
 
 
 ## 願いを持つ生き物を置く（企画書 6）。

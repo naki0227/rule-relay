@@ -52,6 +52,8 @@ var nature: NatureLayout = NatureLayout.new()
 var target_minutes: int = 0
 ## 仮の配置か（プレイテスト前の置き場所）。説明・ADR 用の印。
 var provisional: bool = true
+## スイッチの仕掛け（重さの板・扉・レバー・時の鐘・ワープの石。docs/adr/0014）。
+var mechanisms: MechanismSpecs = MechanismSpecs.new()
 
 
 ## 発動方式つきの能力・禁止（ブロック・生き物に最初から付いているもの）。
@@ -197,6 +199,7 @@ func problems() -> PackedStringArray:
 	if spawn_points.size() < MAX_PLAYERS:
 		errors.append("needs %d spawn points" % MAX_PLAYERS)
 	_check_keys(errors)
+	errors.append_array(mechanisms.problems(_keys(), _bell_keys()))
 	for i in MAX_PLAYERS:
 		if loadout_for(i).size() > RuleLedger.HOTBAR_SIZE:
 			errors.append("loadout %d exceeds the hotbar" % i)
@@ -217,14 +220,24 @@ func problems() -> PackedStringArray:
 
 func _check_keys(errors: PackedStringArray) -> void:
 	var seen := {}
+	for key in _keys():
+		if seen.has(key):
+			errors.append("key %s is used twice" % key)
+		seen[key] = true
+
+
+func _keys() -> PackedStringArray:
 	var keys := PackedStringArray()
 	for b in blocks:
 		keys.append(b.key)
 	for c in creatures:
 		keys.append(c.key)
+	keys.append_array(_bell_keys())
+	return keys
+
+
+func _bell_keys() -> PackedStringArray:
+	var keys := PackedStringArray()
 	for b in bells:
 		keys.append(b.key)
-	for key in keys:
-		if seen.has(key):
-			errors.append("key %s is used twice" % key)
-		seen[key] = true
+	return keys
