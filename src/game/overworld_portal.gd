@@ -34,6 +34,18 @@ func setup_teaser(t: OverworldLayout.TeaserSpec) -> void:
 
 
 func _ready() -> void:
+	_build_look()
+
+
+## 開き方が変わったら、見た目を作り直す（寄り道のワールドの入口を見つけたとき）。
+func refresh() -> void:
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
+	_build_look()
+
+
+func _build_look() -> void:
 	_model = ModelLibrary.instantiate(MODEL)
 	# モデルの正面（Blender の +Y）は -Z。南（+Z）から近づくので半回転させる
 	_model.rotation.y = PI

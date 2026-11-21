@@ -61,6 +61,11 @@ static func all_stages() -> Array[StageDef]:
 		OpenIslandsExtra.creature_nest(),
 		OpenIslandsExtra.ban_garden(),
 		OpenIslandsLong.long_expedition(),
+		OptionalWorldsO1.cog_crossing(),
+		OptionalWorldsO1.clockwork_corridor(),
+		OptionalWorldsO1.weighing_scale(),
+		OptionalWorldsO1.sign_gears(),
+		OptionalWorldsO1.grand_contraption(),
 	]
 	stages.sort_custom(
 		func(a: StageDef, b: StageDef) -> bool: return a.target_minutes < b.target_minutes

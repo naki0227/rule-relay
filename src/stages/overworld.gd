@@ -11,7 +11,8 @@ extends RefCounted
 ## 座標: 1 マス = 1 m、北 = -Z、地面の上面 y = 0。
 
 const ORIGIN := Vector2i(-60, -76)
-const WIDTH := 124
+## 東の端は寄り道 O2 の小島（x 61〜69）まで
+const WIDTH := 132
 const DEPTH := 104
 ## 出現地点（4 人分の真ん中）。1 人目は x = 0.5 で、導入のポータルの真正面。
 const SPAWN_CENTER := Vector3(2.0, 0.0, 11.5)
@@ -19,10 +20,14 @@ const SPAWN_CENTER := Vector3(2.0, 0.0, 11.5)
 const LEDGE_MIN := Vector2i(-18, 6)
 const LEDGE_MAX := Vector2i(-14, 11)
 const LEDGE_LIFT := Vector2i(-13, 8)
-## 札の門の庭（南西）と鐘の扉の庭（北東）。壁は高さ 3、門と扉の上にまぐさ（高さ 2〜3）
-const BAN_YARD := Rect2i(-18, 14, 8, 8)
+## 札の門の庭（南西）と鐘の扉の庭（北東）。壁は高さ 3、門と扉の上にまぐさ（高さ 2〜3）。
+## 庭の中に寄り道のワールド（O3・O1）のポータルが 5 つずつ並ぶ（OptionalWorldPlan）。鐘の扉の庭の東の壁と
+## 鐘の谷（W2）の間は幅 5 以上の谷のまま（先に W2 へ渡れないように）。
+const BAN_YARD := Rect2i(-26, 14, 16, 12)
 const BAN_GATE := Vector3i(-14, 0, 14)
-const BELL_YARD := Rect2i(15, -16, 8, 7)
+const BELL_YARD := Rect2i(15, -22, 9, 13)
+## 寄り道 O2 の小島（浮島の東の端から幅 5 の空の先）。5 つのポータルが立つ
+const SKY_ISLET := Rect2i(61, -55, 9, 14)
 const BELL_DOOR := Vector3i(15, 0, -13)
 const BELL_AT := Vector3(12.5, 0.0, -14.5)
 ## W3 ふわふわ浮島の丸い島の中心と半径
@@ -106,7 +111,7 @@ static func _map(state: OverworldState) -> IslandMap:
 	for i in isles.size():
 		_blob(m, isles[i], Vector2(5.0, 4.5), 0)
 		_path(m, isles[i], isles[(i + 1) % isles.size()], 0)
-	m.fill(61, -50, 63, -46, 0)
+	m.fill(SKY_ISLET.position.x, SKY_ISLET.position.y, SKY_ISLET.end.x - 1, SKY_ISLET.end.y - 1, 0)
 	# W4 けものの森（西）・W5 札の庭（北西）
 	_blob(m, Vector2(-41.0, -6.0), Vector2(15.0, 18.0), 0)
 	_blob(m, Vector2(-41.0, -48.0), Vector2(15.0, 15.0), 0)
@@ -277,8 +282,6 @@ static func _loadout(def: StageDef, state: OverworldState) -> void:
 static func _portals(def: StageDef, layout: OverworldLayout, state: OverworldState) -> void:
 	var first := true
 	for w in CampaignPlan.worlds():
-		if w.optional:
-			continue
 		for s in CampaignPlan.built_slots(w):
 			var p := OverworldLayout.PortalSpec.new()
 			p.stage_id = s.stage_id
@@ -302,7 +305,7 @@ static func _portals(def: StageDef, layout: OverworldLayout, state: OverworldSta
 			extra += 1
 			def.entrances.append(_entrance(stage_id, at))
 	for w in CampaignPlan.worlds():
-		if w.optional:
+		if w.optional and CampaignPlan.built_slots(w).is_empty():
 			var t := OverworldLayout.TeaserSpec.new()
 			t.title = w.display_name
 			t.position = w.teaser
@@ -352,7 +355,7 @@ static func _yard_secrets(layout: OverworldLayout) -> void:
 			continue
 		var area := AABB(w.teaser - Vector3(2.5, 0.1, 2.5), Vector3(5.0, 3.0, 5.0))
 		layout.secrets.append(
-			OverworldLayout.SecretSpec.new(w.id, area, "寄り道のワールド「%s」の門を見つけた！（準備中）" % w.display_name)
+			OverworldLayout.SecretSpec.new(w.id, area, "寄り道のワールド「%s」の入口を見つけた！" % w.display_name)
 		)
 
 
