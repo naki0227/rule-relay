@@ -73,12 +73,12 @@ func test_gate_o2_2_heavy_and_float_cancel_out() -> void:
 	await _walk_to(Vector3(0.5, 0.0, -4.5), 0.3)
 	await _recall_all_from("anchor")
 	_ensure_on_hotbar(HEAVY)
-	await _walk_route([Vector3(-5.5, 0.0, -1.5), Vector3(-15.5, 0.0, -1.5), Vector3(-17.5, 0.0, -2.5)])
+	await _walk_route(
+		[Vector3(-5.5, 0.0, -1.5), Vector3(-15.5, 0.0, -1.5), Vector3(-17.5, 0.0, -2.5)]
+	)
 	await _pick(Vector3(-19.5, 0.0, -2.5), FLOAT)
 	assert_eq(BodyTraits.weight(w.ledger, _me().player_id), 0, "they cancel out")
-	assert_false(
-		await _walk_without_falling(Vector3(-6.0, 0.0, -1.5)), "blown off on the way back"
-	)
+	assert_false(await _walk_without_falling(Vector3(-6.0, 0.0, -1.5)), "blown off on the way back")
 	await _wait_respawn()
 
 
@@ -161,3 +161,18 @@ func test_gate_o2_5_tower_glide_does_not_reach_the_far_island() -> void:
 		Vector3(12.5, 9.0, -13.4), Vector3(0.5, 8.0, -60.0), Vector3(12.5, 0.0, -14.6), false, true
 	)
 	assert_lt(landed.y, 7.5, "the far island is out of reach (%s)" % landed)
+
+
+## 協力の近道: 浮くを 2 つ集めると落ちる速さが半分になり、追い風の段の縁からふつうに跳ぶだけで北の島へ届く。
+func test_accepted_o2_1_two_floats_glide_without_the_lift() -> void:
+	await _enter("o2_1")
+	await _climb_vane_tower()
+	await _pick(Vector3(-4.5, 6.0, 1.5), FLOAT)
+	_gift_from_teammate(FLOAT)
+	await _walk_route([Vector3(-1.5, 5.0, 0.5), Vector3(-1.5, 1.0, 4.5), Vector3(4.5, 0.0, 4.0)])
+	await _walk_route([Vector3(7.5, 1.0, 3.5), Vector3(9.5, 2.0, 3.5)])
+	var landed := await _run_jump_glide(
+		Vector3(10.5, 2.0, 1.5), Vector3(10.5, 2.0, 0.2), Vector3(10.5, 0.0, -45.0)
+	)
+	assert_lt(landed.z, -35.5, "ACCEPTED: float x2 crosses from the ledge (%s)" % landed)
+	assert_almost(landed.y, 0.0, 0.3, "on the north island")

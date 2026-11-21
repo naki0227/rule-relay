@@ -128,7 +128,9 @@ func test_o1_3_weighing_scale_with_the_weight_and_the_launcher() -> void:
 	await _walk_to(Vector3(2.5, 0.0, -9.5), 0.3)
 	_give(crate, FORWARD, REPEAT)
 	assert_true(await _wait_block_at("scale_crate", Vector3i(2, 0, -17)), "the crate is on plate 2")
-	await _walk_route([Vector3(5.5, 0.0, -10.5), Vector3(5.5, 0.0, -14.5), Vector3(3.5, 0.0, -15.5)])
+	await _walk_route(
+		[Vector3(5.5, 0.0, -10.5), Vector3(5.5, 0.0, -14.5), Vector3(3.5, 0.0, -15.5)]
+	)
 	await _recall_all_from("scale_crate")
 	_give(crate, HEAVY, TriggerMode.Kind.NONE)
 	assert_true(await _wait_open("gate_2"), "the heavy crate and the chime opened gate 2")

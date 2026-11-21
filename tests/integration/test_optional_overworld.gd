@@ -65,4 +65,6 @@ func test_the_trial_build_opens_every_optional_portal() -> void:
 	await _enter(StageCatalog.HUB_ID)
 	for id in OptionalWorldPlan.IDS:
 		for s in CampaignPlan.world(id).slots:
-			assert_true(_portal_node(s.stage_id).is_open(), "%s is open in the trial build" % s.stage_id)
+			assert_true(
+				_portal_node(s.stage_id).is_open(), "%s is open in the trial build" % s.stage_id
+			)

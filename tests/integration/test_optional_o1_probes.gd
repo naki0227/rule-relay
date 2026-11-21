@@ -135,7 +135,9 @@ func test_gate_o1_3_gate_two_needs_the_chime_too() -> void:
 	await _walk_to(Vector3(2.5, 0.0, -9.5), 0.3)
 	_give(crate, FORWARD, REPEAT)
 	await _wait_block_at("scale_crate", Vector3i(2, 0, -17))
-	await _walk_route([Vector3(5.5, 0.0, -10.5), Vector3(5.5, 0.0, -14.5), Vector3(3.5, 0.0, -15.5)])
+	await _walk_route(
+		[Vector3(5.5, 0.0, -10.5), Vector3(5.5, 0.0, -14.5), Vector3(3.5, 0.0, -15.5)]
+	)
 	await _recall_all_from("scale_crate")
 	_give(crate, HEAVY, TriggerMode.Kind.NONE)
 	await wait_physics_frames(60)
@@ -183,6 +185,8 @@ func test_gate_o1_5_final_gate_needs_all_three() -> void:
 	await wait_physics_frames(30)
 	assert_false(_door("final_gate").is_open(), "the lever alone does not open the final gate")
 	# 扉 F の前の土手で持ち上げ＋自分のジャンプをしても越えられない
-	await _walk_route([Vector3(-11.0, 0.0, 0.5), Vector3(-0.5, 0.0, -5.5), Vector3(-0.5, 0.0, -9.0)])
+	await _walk_route(
+		[Vector3(-11.0, 0.0, 0.5), Vector3(-0.5, 0.0, -5.5), Vector3(-0.5, 0.0, -9.0)]
+	)
 	await _lift_jump_toward(Vector3i(-1, -1, -9), Vector3(-0.5, 0.0, -14.0))
 	assert_gt(_me().global_position.z, -10.6, "stayed south of the final gate")

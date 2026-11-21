@@ -96,8 +96,6 @@ func test_o2_2_cloud_raft_heavy_then_float() -> void:
 	assert_true(await _cleared(), "cleared the cloud raft")
 
 
-
-
 # --- O2-3 落ちる島々 ----------------------------------------------------------
 
 
