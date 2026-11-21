@@ -269,7 +269,7 @@ func _tick_warps(delta: float, bodies: Array[Dictionary]) -> void:
 		if dest == null:
 			continue
 		for b in bodies:
-			if _may_warp(b, stone) and not _stone_taken(dest, bodies):
+			if _may_warp(b, stone) and not _stone_taken(dest, bodies) and not _dest_blocked(dest):
 				_warp(b, stone, dest)
 	_release_locks(bodies)
 
@@ -294,6 +294,18 @@ static func _stone_taken(dest: WarpStone, bodies: Array[Dictionary]) -> bool:
 		if dest.covers(b["feet"] as Vector3):
 			return true
 	return false
+
+
+## 行き先の石の上に、物理の世界でまだ何かの体が残っているか。ブロックを動かした同じフレームは、ノードの位置は
+## 動いても物理の体は次の計算まで元の場所にある。そこへ移すと押し出されて石の外に着く（1 フレーム待てば空く）。
+func _dest_blocked(dest: WarpStone) -> bool:
+	var query := PhysicsShapeQueryParameters3D.new()
+	var shape := SphereShape3D.new()
+	shape.radius = 0.3
+	query.shape = shape
+	query.transform = Transform3D(Basis(), dest.floor_point() + Vector3(0.0, 0.6, 0.0))
+	query.collision_mask = Tuning.LAYER_BLOCKS
+	return not world.get_world_3d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 func _warp(b: Dictionary, from: WarpStone, dest: WarpStone) -> void:

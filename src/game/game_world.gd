@@ -54,6 +54,8 @@ var nature: NatureField = NatureField.new()
 ## ブロックの W/A/S/D の予約（空中・移動中に起動したら、動けるようになった瞬間に1マス。ホストだけ）。
 var move_buffer: BlockMoveBuffer = BlockMoveBuffer.new()
 
+## 足もとの禁止の知らせを出した行動（一度だけ出す）。
+var _floor_ban_told: Dictionary = {}
 var _next_block_id: int = FIRST_BLOCK_ID
 var _repeat_cursors: Dictionary[int, RepeatCursor] = {}
 var _repeat_timers: Dictionary[int, float] = {}
@@ -106,11 +108,24 @@ func spawn_player(at: Vector3) -> PlayerAvatar:
 	player.footstep.connect(func() -> void: _sound(&"footstep", player.global_position))
 	# 跳躍と同じく自分の世界の音として鳴らす（ホストの音は NetWorld が参加者へ配る）
 	player.dashed.connect(func() -> void: _sound(&"dash", player.global_position))
+	player.floor_ban_refused.connect(_on_floor_ban_refused)
+	player.floor_bans_changed.connect(func() -> void: state_changed.emit())
 	camera_rig = CameraRig.new()
 	camera_rig.name = "CameraRig"
 	camera_rig.target = player
 	add_child(camera_rig)
 	return player
+
+
+## 足もとのブロックの禁止で、押した行動ができなかった。禁止の音を鳴らし、知らせはその行動ごとに最初の
+## 一度だけ（押すたびに文字が重ならないように）。参加者の画面でも自分の画面だけで鳴る。
+func _on_floor_ban_refused(action: RuleAction.Kind) -> void:
+	_ui_sound(&"prohibit")
+	if _floor_ban_told.has(action):
+		return
+	_floor_ban_told[action] = true
+	var word := RuleAction.label(action)
+	_post("足もとのブロックに「%s禁止」が付いています。乗っている間は %s できません" % [word, word])
 
 
 ## プレイヤー ID のアバター（自分なら player、仲間なら操り人形。いなければ null）。
@@ -219,6 +234,7 @@ func add_creature(at: Vector3, look: String = Creature.MODEL_WISH) -> Creature:
 	creature.setup(id, at)
 	creature.ledger = ledger
 	creature.survey = survey_heights
+	creature.floor_ban_survey = func() -> Dictionary: return FloorBans.survey(ledger, blocks)
 	creature.ground_survey = func(c: Vector2i, r: int) -> Dictionary:
 		return WorldQueries.ground_heights(terrain, c, r)
 	creature.avoid_survey = func(c: Vector2i, r: int) -> Dictionary:
@@ -303,6 +319,8 @@ func toggle_reach() -> void:
 
 
 func can_throw() -> bool:
+	if player != null:
+		return player.can(RuleAction.Kind.THROW)  # 足もとのブロックの「投げる禁止」も効く（FloorBans）
 	return ledger.player_can(RuleAction.Kind.THROW, acting_id())
 
 
@@ -750,7 +768,7 @@ func _on_ledger_changed() -> void:
 		creatures[id].show_tokens(ledger.tokens_on(id))
 	WorldItem.sync_all(self, ledger, _world_items)
 	RangePreview.sync_lent(self, ledger, _range_marks)
-	if throw_mode and not can_throw():
+	if throw_mode and not ledger.player_can(RuleAction.Kind.THROW, acting_id()):
 		# 「投げる」を渡した・禁止を拾ったら、その場で「触る」に戻る（最後の1回は投げられる）
 		throw_mode = false
 		_post("「投げる」を手放したので、届き方は「触る」になりました")

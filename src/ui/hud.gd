@@ -84,6 +84,13 @@ func refresh() -> void:
 		_slots[i].show_token(t, i == world.selected_slot, v)
 		# 仲間から集めた同じ能力の数（×n）。2個以上のときだけ出す
 		_slots[i].stack = 0 if t == null else world.ledger.ability_count(t.action, me)
+		# 足もとのブロックの禁止で使えない能力は、枠を薄くして小さな禁止の印を付ける（FloorBans）
+		_slots[i].floor_banned = (
+			t != null
+			and not t.is_prohibition
+			and world.player != null
+			and world.player.floor_blocks(t.action)
+		)
 	_badge.show_state(world.lend_mode, world.throw_mode)
 	if world.selected_slot != _last_selected:
 		if _last_selected != -1 and sounds != null:

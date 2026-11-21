@@ -74,6 +74,7 @@ static func _return_lent(w: GameWorld, entity_id: int) -> int:
 
 ## 繰り返し方式: 周期ごとに行動を試みる（同じ行動の能力が n 個なら n 倍）。
 static func repeats(w: GameWorld, delta: float) -> void:
+	var fired: Array = []
 	for id in w.blocks:
 		var actions := w.ledger.repeat_actions(id)
 		if actions.is_empty():
@@ -85,12 +86,14 @@ static func repeats(w: GameWorld, delta: float) -> void:
 		w._repeat_timers[id] -= Tuning.REPEAT_PERIOD
 		var action := w._repeat_cursors[id].next_action(actions) as RuleAction.Kind
 		# 空中・移動中の W/A/S/D はこの周期の分を予約する（予約済みなら重ねずに見送る）
-		w.move_buffer.trigger(w, id, action, PartyQuery.entity_count(w.ledger, id, action))
+		fired.append([id, action])
+	_fire_together(w, fired, TriggerMode.Kind.REPEAT)
 
 
 ## 信号方式: 音波が届いている間だけ、繰り返しと同じ周期で行動を試みる。途絶えると次の動作は
 ## 休止し（周期の途中で止まる）、再び届くと続きから再開する。トークンは自動では戻らない（企画書 5.2）。
 static func signals(w: GameWorld, delta: float) -> void:
+	var fired: Array = []
 	for id in w.blocks:
 		var actions := w.ledger.signal_actions(id)
 		var receiving := not actions.is_empty() and w.is_receiving_signal(id)
@@ -105,7 +108,64 @@ static func signals(w: GameWorld, delta: float) -> void:
 			continue
 		w._signal_timers[id] -= Tuning.REPEAT_PERIOD
 		var action := w._signal_cursors[id].next_action(actions) as RuleAction.Kind
-		w.move_buffer.trigger(w, id, action, PartyQuery.entity_count(w.ledger, id, action))
+		fired.append([id, action])
+	_fire_together(w, fired, TriggerMode.Kind.SIGNAL)
+
+
+## 同じフレームに周期が来た行動を起動する。同じ付与（トークン）の同じ行動は1つの組にして
+## BlockMoveBuffer.trigger_group へ渡す（接しているブロックはまとめて動く。docs/adr/0003 決定 6）。
+## fired: [[ブロック ID, 行動], ...]（ブロックの並び順）。
+static func _fire_together(w: GameWorld, fired: Array, mode: TriggerMode.Kind) -> void:
+	if fired.is_empty():
+		return
+	var action_of := {}
+	for pair: Array in fired:
+		action_of[int(pair[0])] = int(pair[1])
+	var links := {}  # ブロック ID → 同じ付与で同じ行動を起動した仲間の代表
+	var first_of_token := {}
+	for pair: Array in fired:
+		var id := int(pair[0])
+		links[id] = id
+		for t in w.ledger.tokens_on(id):
+			if t.is_prohibition or t.mode != mode or int(t.action) != int(pair[1]):
+				continue
+			if first_of_token.has(t.id):
+				_link(links, id, int(first_of_token[t.id]))
+			else:
+				first_of_token[t.id] = id
+	for ids in _grouped(links, fired.map(func(p: Array) -> int: return int(p[0]))):
+		var action := int(action_of[ids[0]]) as RuleAction.Kind
+		var stacks := {}
+		for id in ids:
+			stacks[id] = PartyQuery.entity_count(w.ledger, id, action)
+		w.move_buffer.trigger_group(w, ids, action, stacks, {})
+
+
+## つながりの代表をたどる（union-find）。
+static func _root(links: Dictionary, id: int) -> int:
+	while int(links[id]) != id:
+		id = int(links[id])
+	return id
+
+
+static func _link(links: Dictionary, a: int, b: int) -> void:
+	var ra := _root(links, a)
+	var rb := _root(links, b)
+	if ra != rb:
+		links[ra] = rb
+
+
+## つながった ID ごとに分ける（並びは order の順を保つ）。
+static func _grouped(links: Dictionary, order: Array) -> Array[PackedInt32Array]:
+	var by_root := {}
+	var result: Array[PackedInt32Array] = []
+	for id: int in order:
+		var root := _root(links, id)
+		if not by_root.has(root):
+			by_root[root] = result.size()
+			result.append(PackedInt32Array())
+		result[int(by_root[root])].append(id)
+	return result
 
 
 ## 単発をまとめて起動する。同じブロックに同じ行動の単発が n 個あれば、1回だけ n 倍で試みる
@@ -129,13 +189,24 @@ static func fire_single_shots(w: GameWorld, token_ids: PackedInt32Array) -> void
 	var action := w.ledger.token(fresh[0]).action
 	var outcome := {}
 	var waiting := PackedInt32Array()
+	# 同じトークン（範囲の単発）を持つブロックどうしは1つの組（接していればまとめて動く）
+	var links := {}
 	for holder: int in by_holder:
-		var tokens := by_holder[holder] as PackedInt32Array
-		var result := w.move_buffer.trigger(w, holder, action, tokens.size(), tokens)
-		if result == BlockMoveBuffer.PENDING:
-			waiting.append_array(tokens)
-		else:
-			outcome[holder] = result
+		links[holder] = holder
+	for token_id in fresh:
+		var holders := w.ledger.token(token_id).holder_ids
+		for holder in holders:
+			_link(links, holder, holders[0])
+	for ids in _grouped(links, by_holder.keys()):
+		var stacks := {}
+		for holder in ids:
+			stacks[holder] = (by_holder[holder] as PackedInt32Array).size()
+		var results := w.move_buffer.trigger_group(w, ids, action, stacks, by_holder)
+		for holder: int in results:
+			if results[holder] == BlockMoveBuffer.PENDING:
+				waiting.append_array(by_holder[holder] as PackedInt32Array)
+			else:
+				outcome[holder] = results[holder]
 	for token_id in fresh:
 		if waiting.has(token_id):
 			w.move_buffer.track_shot(token_id, outcome)

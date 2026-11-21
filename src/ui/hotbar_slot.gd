@@ -17,6 +17,13 @@ var stack: int = 0:
 			stack = value
 			queue_redraw()
 
+## 足もとのブロックの禁止で、いまは使えない（乗っている間だけ。薄くして小さな禁止の印を付ける）。
+var floor_banned: bool = false:
+	set(value):
+		if value != floor_banned:
+			floor_banned = value
+			queue_redraw()
+
 
 func _ready() -> void:
 	custom_minimum_size = SIZE
@@ -50,6 +57,8 @@ func describe() -> String:
 		state = "・貸出中（%s）" % TriggerMode.label(token.mode)
 	elif token.is_prohibition:
 		state = "・適用中"
+	if floor_banned:
+		state += "・足もとの禁止で使えない"
 	return "%d: %s%s" % [slot_index + 1, item_name(), state]
 
 
@@ -79,6 +88,10 @@ func _draw() -> void:
 	style.compact = true
 	style.equipment = equipment_name != ""
 	ItemPainter.draw_slot(self, Rect2(Vector2.ZERO, SIZE), token, style)
+	if floor_banned:
+		# 控えめに: 枠全体を紙の色で薄く覆い、左下に小さな禁止の印
+		draw_rect(Rect2(Vector2(4, 4), SIZE - Vector2(8, 8)), Color(UiTheme.CREAM, 0.55))
+		UiGlyphs.draw_ban(self, Vector2(17, SIZE.y - 17), 18.0)
 	if stack >= 2:
 		var font := UiTheme.font(800)
 		var at := Vector2(SIZE.x - 34, SIZE.y - 8)
