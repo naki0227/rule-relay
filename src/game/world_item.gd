@@ -150,8 +150,9 @@ static func pickup_text(v: RuleVessel, t: RuleToken) -> String:
 	var item_label := v.item_name if v.item_name != "" else t.describe()
 	var bag := InputMode.token(&"inventory")
 	if v.is_equipment():
-		return "%s を拾いました（つけるまで効きません。%s で開いて「そうびする」）" % [item_label, bag]
-	return "%s を拾いました（通常インベントリ。%s で開いて使う）" % [item_label, bag]
+		return "%sを拾いました（つけるまで効きません。%s で開いて「そうびする」）" % [item_label, bag]
+	# 持ち物の画面の言い方（かばん）にそろえる。前は「通常インベントリ」だった
+	return "%sを拾いました（かばんへ。%s で開いてホットバーへ）" % [item_label, bag]
 
 
 ## 拾える距離にある、いちばん近い器（無ければ null）。

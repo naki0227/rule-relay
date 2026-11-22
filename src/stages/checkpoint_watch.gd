@@ -15,17 +15,26 @@ static func check(d: PartyDirector) -> bool:
 		var cp := "" if avatar == null else world.checkpoint_at(avatar.global_position)
 		if cp == "":
 			d._warned_checkpoint.erase(player_id)
+		elif d.lifecycle.activated_checkpoints().has(cp):
+			# もう有効なチェックポイント。台座の上で能力を貸しても「できません」と言わない（何もしていないのに
+			# 断られたように読めた。2026-11-22 の通し）
+			continue
 		elif not _save_blockers(world, player_id, avatar).is_empty():
 			_warn_unsafe_checkpoint(d, player_id, avatar)
 			continue
 		if cp != "" and d.lifecycle.activate_checkpoint(player_id, cp):
 			d._snapshots[cp] = d._capture()
-			world.message_posted.emit(
-				"チェックポイントがチーム共通になりました（台座で %s: 全員復活）" % InputMode.token(&"interact")
-			)
+			world.message_posted.emit(activated_text(world.ledger.players().size()))
 			world.sound_requested.emit(&"save", Vector3.ZERO, false)
 			changed = true
 	return changed
+
+
+## 台座に乗って有効にしたときの知らせ。ひとりなら「チーム」「全員復活」を言わない。
+static func activated_text(players: int) -> String:
+	if players <= 1:
+		return "チェックポイント: 落ちたらここから"
+	return "チェックポイントがチーム共通になりました（台座で %s: 全員復活）" % InputMode.token(&"interact")
 
 
 static func _save_blockers(

@@ -5,7 +5,8 @@ extends Node3D
 ## - 閉じている門: 渦を灰色にして止める。「まだ開いていない」
 ## - クリアした門: てっぺんに金色の花の印（ClearedMark）
 ## - 上の文字は、カメラが近いと大きくなりすぎないように、LABEL_FULL_AT より近いと画面での大きさを止め
-##   （近づくほど小さく描く）、LABEL_FADE_FROM より近いと薄くして消す（戻った直後・門のそばを通ったとき）
+##   （近づくほど小さく描く）、LABEL_FADE_FROM より近いと薄くして消す（戻った直後・門のそばを通ったとき）。
+##   LABEL_FAR_FADE_FROM より遠い門の文字も薄くして消す（読めない小さな文字を広場に散らかさない）
 ## モデルは art/scripts/build_overworld.py の portal_arch。
 
 const MODEL := "portal_arch"
@@ -17,6 +18,10 @@ const LABEL_FULL_AT: float = 8.0
 ## カメラからこのきょりより近いと文字を薄くし、LABEL_GONE_AT で消す。
 const LABEL_FADE_FROM: float = 3.5
 const LABEL_GONE_AT: float = 2.0
+## カメラからこのきょりより遠いと文字を薄くし、LABEL_FAR_GONE_AT で消す。遠くの門の文字は数ピクセルの
+## 読めない線になり、広場じゅうに散らばって見えた（2026-11-22 の通し）。門そのものは見えている。
+const LABEL_FAR_FADE_FROM: float = 24.0
+const LABEL_FAR_GONE_AT: float = 32.0
 
 var spec: OverworldLayout.PortalSpec
 ## 寄り道のワールドの入口（まだステージが無い）なら、その名前
@@ -71,6 +76,7 @@ func _build_look() -> void:
 		ModelLibrary.tint_material(_model, "PortalGlow", DIM_GLOW)
 		_unlit(_model)
 	label = PrototypeIsland.add_label(self, Vector3(0.0, LABEL_HEIGHT, 0.0), caption())
+	label.fit_to_camera = false  # 遠くでも消す門の決まり（fit_label）で描く
 
 
 func _process(_delta: float) -> void:
@@ -86,6 +92,8 @@ func _process(_delta: float) -> void:
 func fit_label(distance: float) -> void:
 	label.scale = Vector3.ONE * clampf(distance / LABEL_FULL_AT, 0.05, 1.0)
 	var alpha := clampf((distance - LABEL_GONE_AT) / (LABEL_FADE_FROM - LABEL_GONE_AT), 0.0, 1.0)
+	var far := (LABEL_FAR_GONE_AT - distance) / (LABEL_FAR_GONE_AT - LABEL_FAR_FADE_FROM)
+	alpha = minf(alpha, clampf(far, 0.0, 1.0))
 	label.modulate.a = alpha
 	label.outline_modulate.a = 0.95 * alpha
 	label.visible = alpha > 0.0
@@ -106,11 +114,11 @@ func caption() -> String:
 	var head := "%s %s%s" % [spec.label, spec.title, "（むずかしい）" if spec.hard else ""]
 	if not spec.open:
 		return "%s\nまだ開いていない" % head
-	var lines := "%s\n目安 %d 分（仮）・%s" % [head, spec.target_minutes, InputMode.token(&"interact")]
+	var lines := "%s\n目安 %d 分・%s" % [head, spec.target_minutes, InputMode.token(&"interact")]
 	if spec.cleared:
 		lines += "\nクリア済み"
 	if spec.first:
-		lines = "はじめはここから\n" + lines
+		lines = ("はじめはここから" if spec.label == "1-1" else "つぎはここ") + "\n" + lines
 	return lines
 
 

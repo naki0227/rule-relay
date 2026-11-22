@@ -302,8 +302,11 @@ static func _portals(def: StageDef, layout: OverworldLayout, state: OverworldSta
 			p.open = state.is_stage_open(s.stage_id)
 			p.cleared = state.has_cleared(s.stage_id)
 			p.hard = s.hard
-			p.first = first
-			first = false
+			# 次に行くとよいポータル（計画の順で、開いていてまだクリアしていない最初の 1 つ）。
+			# クリアした後も「はじめはここから」が最初の門に残り、次の行き先が分からなかった（2026-11-22 の通し）
+			p.first = first and p.open and not p.cleared
+			if p.first:
+				first = false
 			layout.portals.append(p)
 			def.entrances.append(_entrance(s.stage_id, s.portal))
 	# 計画に無いステージ（試作など）も入れるよう、草原の南に並べる

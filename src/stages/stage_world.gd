@@ -86,7 +86,7 @@ func _ready() -> void:
 		_add_pad(
 			e.position,
 			(
-				"%s\n目安 %d 分（仮）・%s"
+				"%s\n目安 %d 分・%s"
 				% [stage.display_name, stage.target_minutes, InputMode.token(&"interact")]
 			),
 			"entrance_gate",
@@ -242,7 +242,8 @@ func _add_goal_marker(goal: AABB) -> void:
 	marker.setup(goal)
 	add_child(marker)
 	var label_at := marker.position + Vector3(0.0, 3.4, 0.0)
-	PrototypeIsland.add_label(self, label_at, "ゴール（全員で集まる）")
+	# 「全員で」は目的の一覧（協力中は「全員でゴールへ」）が言う。ひとりで遊ぶ人に「全員で」と見せない
+	PrototypeIsland.add_label(self, label_at, "ゴール")
 
 
 func _add_pad(at: Vector3, text: String, model_name: String, label_height: float) -> void:

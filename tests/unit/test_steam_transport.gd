@@ -76,7 +76,9 @@ func test_invite_launch_argument() -> void:
 func test_title_menu_is_unchanged_without_steam() -> void:
 	var title := TitleMenu.new()
 	tree.root.add_child(title)
-	assert_eq(_button_texts(title.menu_box()), ["ひとりで遊ぶ", "部屋を作る（友だちを待つ）", "部屋に入る", "せってい"])
+	assert_eq(
+		_button_texts(title.menu_box()), ["ひとりで遊ぶ", "友だちと遊ぶ", "部屋を作る（友だちを待つ）", "部屋に入る", "せってい"]
+	)
 	assert_false(_any_text_contains(title, "Steam"))
 	title.queue_free()
 
@@ -87,9 +89,9 @@ func test_title_menu_shows_added_entries_above_status() -> void:
 	title.add_entry("Steam で部屋を作る（フレンドを招待）", func() -> void: pass)
 	title.add_note("招待から入れます")
 	var texts := _button_texts(title.menu_box())
-	assert_eq(texts.size(), 5)
-	assert_eq(texts[3], "Steam で部屋を作る（フレンドを招待）")
-	assert_eq(texts[4], "せってい", "せっていは部屋の項目の下")
+	assert_eq(texts.size(), 6)
+	assert_eq(texts[4], "Steam で部屋を作る（フレンドを招待）")
+	assert_eq(texts[5], "せってい", "せっていは部屋の項目の下")
 	title.show_error("テスト")
 	var labels := title.menu_box().find_children("*", "Label", true, false)
 	assert_eq((labels[labels.size() - 1] as Label).text, "テスト", "エラー表示はいちばん下のまま")

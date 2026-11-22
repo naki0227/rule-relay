@@ -86,10 +86,11 @@ func test_blocks_show_token_icons() -> void:
 
 
 func test_goal_banner_appears() -> void:
-	assert_false(_texts(hud).has("高台に到達しました"))
+	assert_false(_texts(hud).has(Hud.GOAL_TITLE))
 	island.goal_reached.emit()
 	await tree.process_frame
-	assert_true(_texts(hud).has("高台に到達しました"))
+	assert_true(_texts(hud).has(Hud.GOAL_TITLE))
+	assert_false(_texts(hud).has("高台に到達しました"), "not the prototype wording")
 
 
 func test_context_prompt_follows_the_target_until_learned() -> void:
