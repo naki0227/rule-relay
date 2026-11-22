@@ -68,11 +68,12 @@ func _make_side(i: int, profile: String) -> void:
 	nets.append(net)
 
 
-## ホストが stage_id に入ってから部屋を作る。
-func open(stage_id: String = StageCatalog.HUB_ID, base_port: int = 41000) -> void:
+## ホストが stage_id に入ってから部屋を作る。ポートは並列の組ごとに分けた空きから選ぶ（TestCase.free_port。
+## _base_port は呼び出し側の目印で、使わない）。
+func open(stage_id: String = StageCatalog.HUB_ID, _base_port: int = 41000) -> void:
 	host().enter_stage(stage_id)
 	nets[0].world = host().world
-	port = base_port + randi() % 3000
+	port = TestCase.free_port()
 	var server := ENetMultiplayerPeer.new()
 	test.assert_eq(server.create_server(port, StageDef.MAX_PLAYERS), OK)
 	nets[0].start_host(server, "key-1")
@@ -92,6 +93,8 @@ func join(i: int) -> void:
 		func() -> bool: return world(i) != null and world(i).player.player_id == pid(i),
 		"side %d gets player id %d" % [i, pid(i)]
 	)
+	TestCase.steady_enet(peer)
+	TestCase.steady_enet(nets[0].multiplayer.multiplayer_peer)
 	await until(
 		func() -> bool: return directors[i].stage_id == host().stage_id, "side %d stage" % i
 	)
