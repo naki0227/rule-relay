@@ -60,6 +60,8 @@ var provisional: bool = true
 var mechanisms: MechanismSpecs = MechanismSpecs.new()
 ## 最終ステージのお祝い（全員がそろってクリアすると、願いをかなえた生き物が集まる。SummitFestival）。
 var festival: bool = false
+## 教える場所: そこに来たとき、まだ慣れていなければ照準の下に出す短い案内（TeachHints。docs/w1-teaching.md）。
+var hint_spots: Array[HintSpot] = []
 
 
 ## 発動方式つきの能力・禁止（ブロック・生き物に最初から付いているもの）。
@@ -148,6 +150,28 @@ class PlacementSpec:
 		spec.block_key = key
 		spec.mode = p_mode
 		return spec
+
+
+## 教える場所（TeachHints が、遊ぶ人がこの円の中にいて、key の操作にまだ慣れていないときだけ出す）。
+## key は HintMemory の記録の名前（その操作をしたら PlayerInput が数える。docs/w1-teaching.md の表）。
+class HintSpot:
+	var key: String
+	var position: Vector3
+	var radius: float
+	## キーボードの初期の表記（"F"・"Q"・"左クリック" など。いまの割り当てとパッドに置きかえて出す）
+	var keyboard: String
+	var text: String
+	## 空でなければ、この key のブロック・生き物に能力（禁止）が付いている間だけ出す（取った後は出さない）
+	var while_holding: String = ""
+
+	func _init(
+		p_key: String, p_position: Vector3, p_radius: float, p_keyboard: String, p_text: String
+	) -> void:
+		key = p_key
+		position = p_position
+		radius = p_radius
+		keyboard = p_keyboard
+		text = p_text
 
 
 ## ハブのステージ入口。area に入るとそのステージへ入れる（入り方の UI は実行時の層が決める）。

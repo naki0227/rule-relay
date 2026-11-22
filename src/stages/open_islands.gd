@@ -17,6 +17,12 @@ extends RefCounted
 ## ゴールは縁より 1 段低い窪み（goal_hollow）にして、窪みの中からは下の段の仲間を狙えない地形にする。
 ## 「ゴールから能力を渡せない」というルールは足さない（本人: 妨害をシステムで止めると自由な発想を妨げる）。
 
+## 丘の上の旗: 東の小島（浜の東の端 x = 9 から幅 14 の空の先）と、そこにいる生き物・巣。
+const HILL_ISLET_X0 := 24
+const HILL_CRITTER_AT := Vector3(25.5, 0.0, 5.5)
+const HILL_NEST := AABB(Vector3(24.0, -0.5, 0.0), Vector3(4.0, 2.0, 2.0))
+const HILL_SPARE_CELL := Vector3i(7, 0, 6)
+
 const LOADOUT: Array[RuleAction.Kind] = [
 	RuleAction.Kind.FORWARD,
 	RuleAction.Kind.LEFT,
@@ -35,11 +41,15 @@ const LOADOUT: Array[RuleAction.Kind] = [
 ## 4. 協力ならジャンプを集めて跳ぶ（×2 で 2.6）
 ## 協力の近道: 東の見張り台（高さ 3）から、幅 4 の空中を越えて頂上へ跳び移る（W×2。空中ダッシュでも届く）。
 ## 落ちても下の段丘に着くだけなので、何度でも試せる。
-## ゴール: 頂上の奥（北）の窪み（高さ 3、3×2）。全員がここに集まればクリア。窪みの縁（高さ 4）が、
+## 2026-11-22（docs/w1-teaching.md）: 1-5 の最初の新しいことは **投げる**。浜の東の幅 14 の空の先の小島に、
+## 移動を持たない生き物がいて、同じ小島の巣へ行きたがっている。浜の東の端の台に予備の「S」が付いているので、
+## F で取って「投げる」の届き方（C）で生き物へ投げ渡す（触る届き方 3.5 m では届かず、幅 14 は走って跳んでも、
+## 重ね跳びとダッシュを足しても越えない）。そのあとが装備（ブーツ・グローブ）と何通りもの道。
+## ゴール: 頂上の奥（北）の窪み（高さ 3、3×2）。生き物が巣に着き、全員がここに集まればクリア。窪みの縁（高さ 4）が、
 ## 下の段丘への光線を遮るので、下の仲間へ能力を渡すには頂上の縁まで出る。
 static func hill_top() -> StageDef:
 	var def := _base("hill_top", "丘の上の旗", 8)
-	var m := IslandMap.blank(Vector2i(-16, -10), 27, 19)
+	var m := IslandMap.blank(Vector2i(-16, -10), 45, 19)
 	m.fill(-9, -9, 9, 7, 0)
 	m.fill(-6, -8, 6, 2, 1)
 	m.fill(-4, -8, 4, -1, 2)
@@ -50,9 +60,20 @@ static func hill_top() -> StageDef:
 	m.fill(7, -6, 8, -3, 3)
 	# 西の小島（谷の幅 4）
 	m.fill(-16, -6, -14, -3, 0)
+	# 東の小島（幅 14 の空の先。投げて渡す生き物と巣）
+	m.fill(HILL_ISLET_X0, 0, HILL_ISLET_X0 + 3, 6, 0)
 	var goal := goal_hollow(m, -1, -7, 1, -6)
 	_lift(def, m, Vector2i(0, -3), "lift")
 	def.terrain_boxes = m.boxes()
+	var islet := StageDef.CreatureSpec.new("islet_critter", HILL_CRITTER_AT)
+	def.creatures.append(islet)
+	# 予備の S は、浜の東の端の台に付いている（F で取るとホットバーに入る。1-2 で覚えたこと）
+	var spare := StageDef.BlockSpec.new("spare_post", HILL_SPARE_CELL)
+	spare.tokens.append(StageDef.TokenSpec.new(RuleAction.Kind.BACK))
+	def.blocks.append(spare)
+	def.hint_spots = [
+		StageDef.HintSpot.new("throw", Vector3(8.5, 0.0, 5.5), 3.0, "C", "投げると遠くへ届く"),
+	]
 	_item(def, RuleAction.Kind.HIGH_JUMP, Vector3(7.5, 3.0, -5.5), RuleVessel.Part.FEET, "ジャンプブーツ")
 	_item(
 		def, RuleAction.Kind.CLIMB, Vector3(-14.5, 0.0, -4.5), RuleVessel.Part.HANDS, "クライミンググローブ"
@@ -60,7 +81,9 @@ static func hill_top() -> StageDef:
 	_item(def, RuleAction.Kind.DASH, Vector3(3.5, 0.0, 5.5))
 	def.spawn_points = _spawns(Vector3(0.0, 0.0, 5.5))
 	def.checkpoints = [Vector3(-3.5, 2.0, -1.5)]
-	def.clear_condition = ClearCondition.all_at_goal(goal)
+	def.clear_condition = ClearCondition.all_of(
+		[ClearCondition.carry_object("islet_critter", HILL_NEST), ClearCondition.all_at_goal(goal)]
+	)
 	return def
 
 
@@ -71,6 +94,7 @@ static func hill_top() -> StageDef:
 ##          東の段のグローブで登る／南のズリ山（高さ 3）の窪みのブロックを使う。ただし、
 ##          このブロックにはジャンプ禁止が付いている。F で回収すると禁止が手元に来て自分も跳べなくなるので、
 ##          ホットバーへ移して別の物（石など）に渡してから、ジャンプを貸して乗る
+## 底の石 2 つにはジャンプ禁止が付いている（禁止は上に立つ人にも効く。石を足場にするなら F で取って手放す）
 ## 協力の近道: 底から段へジャンプ×2 で直接上がり（石を動かさない）、ズリ山から縁へもジャンプ×2 で上がる
 ## ゴール: 北の縁の外側に張り出した見晴らし（高さ 5）の窪み（高さ 4、7×3）。縁のどこへ出ても、
 ## 縁づたいに歩いて集まる。窪みの縁が、すり鉢の中（段・底）への光線を遮る。
@@ -89,9 +113,13 @@ static func quarry() -> StageDef:
 	_lift(def, m, Vector2i(1, 8), "banned_lift")
 	def.blocks[-1].tokens.append(StageDef.TokenSpec.new(RuleAction.Kind.JUMP, true))
 	def.terrain_boxes = m.boxes()
+	# 2026-11-22（docs/w1-teaching.md）: 1-6 の新しいことは **禁止**。底の 2 つの石にはジャンプ禁止が付いていて、
+	# 壁へ寄せて乗っても跳べない（禁止は上に立つ人にも効く）。F で取ると禁止が手元に来て自分も跳べなくなるので、
+	# もう一方の石や地面へ渡して手放す。ズリ山の禁止付きの持ち上げ台が、その少し難しい使い方
 	for spec: Array in [["stone_a", Vector3i(-2, 0, 1)], ["stone_b", Vector3i(2, 0, -2)]]:
 		var block := StageDef.BlockSpec.new(String(spec[0]), spec[1] as Vector3i)
 		block.color = Color(0.82, 0.72, 0.55)
+		block.tokens.append(StageDef.TokenSpec.new(RuleAction.Kind.JUMP, true))
 		def.blocks.append(block)
 	_item(def, RuleAction.Kind.HIGH_JUMP, Vector3(-4.5, 0.0, 4.5), RuleVessel.Part.FEET, "ジャンプブーツ")
 	_item(def, RuleAction.Kind.CLIMB, Vector3(7.0, 2.0, 0.5), RuleVessel.Part.HANDS, "クライミンググローブ")

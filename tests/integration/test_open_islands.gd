@@ -9,6 +9,7 @@ extends "res://tests/integration/island_playthrough.gd"
 
 func test_hill_top_by_the_lift() -> void:
 	await _enter(StageCatalog.HILL_ID)
+	await _throw_a_move_to_the_islet_critter()
 	await _walk_to(Vector3(0.5, 1.0, 1.5))
 	await _walk_to(Vector3(-0.5, 2.0, -1.5))
 	await _lift_up("lift", Vector3(-0.5, 2.0, -1.5), Vector3(0.5, 4.0, -4.5))
@@ -19,6 +20,7 @@ func test_hill_top_by_the_lift() -> void:
 
 func test_hill_top_by_the_boots() -> void:
 	await _enter(StageCatalog.HILL_ID)
+	await _throw_a_move_to_the_islet_critter()
 	await _walk_to(Vector3(8.5, 0.0, 3.5))
 	await _walk_to(Vector3(8.5, 1.0, 1.5))
 	await _walk_to(Vector3(8.5, 2.0, -0.5))
@@ -41,6 +43,7 @@ func test_quarry_by_pushing_a_stone_and_the_ledge_lift() -> void:
 			break
 		await tree.physics_frame
 	assert_eq(stone.cell().x, -5, "the stone slid to the terrace wall")
+	await _free_stone_a_from_its_ban()
 	await _walk_to(Vector3(-4.5, 1.0, 1.5))
 	await _walk_to(Vector3(-6.5, 2.0, 1.5))
 	await _walk_to(Vector3(-4.5, 2.0, -6.5))

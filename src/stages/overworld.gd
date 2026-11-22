@@ -76,6 +76,17 @@ static func build(state: OverworldState) -> StageDef:
 	return def
 
 
+## はじまりの草原（W1）で、開いていてまだクリアしていない最初のポータルに「次はここ」の印を付ける。
+static func _mark_next(layout: OverworldLayout) -> void:
+	var meadow := CampaignPlan.worlds()[0]
+	for p in layout.portals:
+		if CampaignPlan.slot(p.stage_id) == null:
+			continue
+		if CampaignPlan.slot(p.stage_id).world_id == meadow.id and p.open and not p.cleared:
+			p.next = true
+			return
+
+
 ## その地方（ワールド）の地形の高さ（ポータルの y）。
 static func region_height(world_id: String) -> int:
 	match world_id:
@@ -306,6 +317,7 @@ static func _portals(def: StageDef, layout: OverworldLayout, state: OverworldSta
 			first = false
 			layout.portals.append(p)
 			def.entrances.append(_entrance(s.stage_id, s.portal))
+	_mark_next(layout)
 	# 計画に無いステージ（試作など）も入れるよう、草原の南に並べる
 	var extra := 0
 	for stage_id in CampaignPlan.built_ids():

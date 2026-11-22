@@ -17,6 +17,12 @@ const LABEL_FULL_AT: float = 8.0
 ## カメラからこのきょりより近いと文字を薄くし、LABEL_GONE_AT で消す。
 const LABEL_FADE_FROM: float = 3.5
 const LABEL_GONE_AT: float = 2.0
+## 次に遊ぶ門（W1）の光の柱。色は夕日（選択の色）。門の上の文字より上から立て、カメラから 3 m で消え、9 m ではっきり。
+const NEXT_BEAM_HEIGHT: float = 16.0
+const NEXT_BEAM_BASE: float = 4.6
+const NEXT_BEAM_TINT := Color("#f09a45")
+const NEXT_BEAM_FADE_NEAR: float = 3.0
+const NEXT_BEAM_FADE_FAR: float = 9.0
 
 var spec: OverworldLayout.PortalSpec
 ## 寄り道のワールドの入口（まだステージが無い）なら、その名前
@@ -71,6 +77,38 @@ func _build_look() -> void:
 		ModelLibrary.tint_material(_model, "PortalGlow", DIM_GLOW)
 		_unlit(_model)
 	label = PrototypeIsland.add_label(self, Vector3(0.0, LABEL_HEIGHT, 0.0), caption())
+	if spec != null and spec.next:
+		_add_next_beam()
+
+
+## 次に遊ぶ門の光の柱（巣の柱と同じ柔らかい柱。遠くからはっきり、門のそばでは消える。docs/w1-teaching.md）。
+func _add_next_beam() -> void:
+	var beam := MeshInstance3D.new()
+	beam.name = "NextBeam"
+	var cylinder := CylinderMesh.new()
+	cylinder.top_radius = 0.2
+	cylinder.bottom_radius = 0.45
+	cylinder.height = NEXT_BEAM_HEIGHT
+	cylinder.cap_top = false
+	cylinder.cap_bottom = false
+	cylinder.radial_segments = 24
+	beam.mesh = cylinder
+	# 門と門の上の文字を隠さないよう、文字の上から立てる
+	beam.position.y = NEXT_BEAM_BASE + NEXT_BEAM_HEIGHT * 0.5
+	var mat := ShaderMaterial.new()
+	mat.shader = WishMarker.beam_shader()
+	mat.set_shader_parameter("tint", Color(NEXT_BEAM_TINT, 0.45))
+	mat.set_shader_parameter("fade_near", NEXT_BEAM_FADE_NEAR)
+	mat.set_shader_parameter("fade_far", NEXT_BEAM_FADE_FAR)
+	mat.set_shader_parameter("height", NEXT_BEAM_HEIGHT)
+	beam.material_override = mat
+	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(beam)
+
+
+## 次に遊ぶ門の光の柱があるか（テスト用）。
+func has_next_beam() -> bool:
+	return get_node_or_null(^"NextBeam") != null
 
 
 func _process(_delta: float) -> void:
@@ -109,8 +147,8 @@ func caption() -> String:
 	var lines := "%s\n目安 %d 分（仮）・%s" % [head, spec.target_minutes, InputMode.token(&"interact")]
 	if spec.cleared:
 		lines += "\nクリア済み"
-	if spec.first:
-		lines = "はじめはここから\n" + lines
+	if spec.next:
+		lines = ("はじめはここから\n" if spec.first else "つぎはここ\n") + lines
 	return lines
 
 

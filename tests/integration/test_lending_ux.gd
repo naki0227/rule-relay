@@ -111,7 +111,7 @@ func test_aim_at_open_ground_still_targets_the_terrain_cell() -> void:
 # --- 移動をもらった生き物の見せ方（1-4） -------------------------------------------------
 
 
-## 移動が無い生き物は、吹き出しに移動のメダルを出して待ち、狙うと「移動の能力を渡すと歩き出す」を出す（慣れるまで）。
+## 移動が無い生き物は、吹き出しに移動のメダルを出して待ち、狙うと「移動をあげる」を出す（慣れるまで）。
 func test_kit_without_a_move_asks_for_one() -> void:
 	await _enter_path()
 	var kit := _creature("kit")
@@ -122,16 +122,18 @@ func test_kit_without_a_move_asks_for_one() -> void:
 	var hud := Hud.new()
 	hud.world = w
 	tree.root.add_child(hud)
-	for key: String in ["move", "look"]:
+	hud.update_context(kit, true, false)
+	assert_eq(hud.context_actions(), PackedStringArray(["取る"]), "it holds a jump: F takes it")
+	for key: String in ["move", "look", "recall"]:
 		for i in HintMemory.LEARN_AFTER:
 			hud.hints.used(key)
 	hud.update_context(kit, true, false)
-	assert_true(hud.context_actions().has("移動の能力を渡すと歩き出す"))
+	assert_true(hud.context_actions().has("移動をあげる"))
 	assert_eq(hud.context_target_name(), "子どもの生き物", "names the aimed creature")
 	for i in HintMemory.LEARN_AFTER:
 		hud.hints.used("creature_move")
 	hud.update_context(kit, true, false)
-	assert_false(hud.context_actions().has("移動の能力を渡すと歩き出す"), "gone once learned")
+	assert_false(hud.context_actions().has("移動をあげる"), "gone once learned")
 	hud.queue_free()
 
 

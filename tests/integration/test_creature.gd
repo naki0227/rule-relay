@@ -79,7 +79,17 @@ func test_f_recalls_everything_on_the_creature() -> void:
 	island.interact(creature)
 	assert_true(island.ledger.player_can(RuleAction.Kind.JUMP), "the player's own jump came back")
 	assert_eq(island.ledger.tokens_on(creature.entity_id).size(), 0, "one F takes everything")
-	assert_eq(island.ledger.inventory_vessels().size(), 4, "its W/A/S/D went into the bag")
+	# 取った W/A/S/D は、ホットバーの空きへ入る（空きが無い分だけかばん。WorldLending.to_hotbar_if_free）
+	var held := island.ledger.inventory_vessels().size()
+	for slot in RuleLedger.HOTBAR_SIZE:
+		var v := island.ledger.hotbar_vessel(slot)
+		if (
+			v != null
+			and v.token_id != -1
+			and RuleAction.is_horizontal(island.ledger.token(v.token_id).action)
+		):
+			held += 1
+	assert_eq(held, 4 + 4, "its W/A/S/D are in my hands (with my own four)")
 
 
 func test_checkpoint_restores_the_creature() -> void:

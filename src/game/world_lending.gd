@@ -4,6 +4,11 @@ extends RefCounted
 ## 届き方が「投げる」なら、ここではメダルを投げるだけで、付与は当たったときに MedalThrow.land が
 ## lend_token / give_token を呼ぶ（docs/adr/0017）。「触る」ならその場で付与する。
 
+## 持っているだけで効く性質（拾っても自動ではホットバーへ入れない。to_hotbar_if_free）。
+const TRAITS: Array[RuleAction.Kind] = [
+	RuleAction.Kind.HEAVY, RuleAction.Kind.FLOAT, RuleAction.Kind.SWIM
+]
+
 
 ## 選択中のホットバーの器から、target（ブロック・生き物・地形のセル）へ付与する。
 static func lend(w: GameWorld, target: Node3D, use_range: bool) -> RuleLedger.LendResult:
@@ -132,3 +137,23 @@ static func give_token(
 		w._post(WorldQueries.describe(t, result, false))
 		w._ui_sound(&"ui_error")
 	return result
+
+
+## ブロック・生き物・地形に最初から付いていた（だれの器にも入っていなかった）能力・禁止を F で取ったら、
+## ホットバーに空きがあればそこへ入れる（docs/w1-teaching.md）。2026-11-22: 初めての人が F で取ったジャンプを
+## 「かばんを開いて並べる」まで使えず止まっていたため。自分の器の能力は今までどおり器へ戻り、落ちている器を
+## 拾ったときは今までどおり通常インベントリへ（ほかのワールドの拾う遊びを変えない）。持っているだけで効く性質
+## （重い・浮く・泳ぐ。ホットバーに置くと勝手に効く）は、かばんへ。
+static func to_hotbar_if_free(w: GameWorld, tokens: Array[RuleToken]) -> void:
+	var ledger := w.ledger
+	var me := w.acting_id()
+	for t in tokens:
+		var v := ledger.vessel(t.vessel_id) if t != null else null
+		if v == null or v.owner_id != me or v.location != RuleVessel.Location.INVENTORY:
+			continue
+		if v.is_equipment() or t.action in TRAITS:
+			continue
+		for slot in RuleLedger.HOTBAR_SIZE:
+			if ledger.hotbar_vessel(slot, me) == null:
+				ledger.move_to_hotbar(v.id, slot)
+				break

@@ -2,7 +2,7 @@ class_name Hud
 extends CanvasLayer
 ## 画面表示（設計は docs/ui-design.md）。景色とキャラクターを主役にし、UI は生成りの札で静かに添える。
 ## - 普段: 照準、下中央のホットバー（生成りの台）、右に方式と届き方の印、左上に短い知らせ
-## - 操作の案内: 対象を狙ったとき、慣れるまで（同じ操作を3回するまで）照準の下に出す
+## - 操作の案内: いまいちばん要る1つだけを、慣れるまで（同じ操作を3回するまで）照準の下に出す（TeachHints）
 ## - 重ねて出す画面: 円形 UI、持ち物（E）、一時停止（Esc）、到達のカード
 ## 状態は色だけでなく形（帯・印・輪）でも示す（企画書 8）。
 
@@ -34,8 +34,6 @@ var _goal: PanelContainer
 var _last_selected: int = -1
 var _last_mode: int = -1
 var _last_throw: int = -1
-## 入口の stage_id → ステージの名前（毎フレーム定義を作らないように覚えておく）。
-var _stage_names: Dictionary[String, String] = {}
 
 
 func _ready() -> void:
@@ -135,9 +133,9 @@ func set_aim(aim: Crosshair.Aim) -> void:
 		crosshair.set_aim(aim)
 
 
-## 照準の下の案内。狙っているもの・いる場所・いまの状況に応じて、まだ慣れていない操作だけを出す。
-## 初めての人には、必要になった順に1つずつ出す（docs/onboarding.md）: 歩く・見回す → 入口 →
-## 能力を選ぶ・渡す → 貸した単発を使う → 回収 → （目安の時間を過ぎたら）やり直し・メニュー。
+## 照準の下の案内。いまいちばん要る操作を 1 つだけ、キーの絵と数文字で出す（TeachHints。docs/w1-teaching.md）。
+## 初めての人には、必要になった順に1つずつ出る（docs/onboarding.md）: 歩く → 見回す → 入口 →
+## 能力を選ぶ・渡す → 貸した単発を使う → 取り戻す → …（目安の時間を過ぎたら）やり直し・メニュー。
 func update_context(target: Node3D, in_reach: bool, on_checkpoint: bool) -> void:
 	if is_inventory_open():
 		_context.visible = false
@@ -145,21 +143,9 @@ func update_context(target: Node3D, in_reach: bool, on_checkpoint: bool) -> void
 		return
 	# [キーの表記, 動作, 表記をそのまま出すか（省略なら InputMode.label で置きかえる）]
 	var prompts: Array[Array] = []
-	_first_step_prompts(prompts)
-	if on_checkpoint and hints.should_show("save"):
-		prompts.append(["F", "ここで保存"])
-	_place_prompts(prompts)
-	if target is Bell and in_reach:
-		prompts.append(["F", "鳴らす"])
-	elif target != null and in_reach:
-		_lend_prompts(prompts, target)
-	elif target != null and hints.should_show("throw"):
-		if world.throw_mode:
-			prompts.append(["C", "遠すぎる"])
-		elif world.can_throw():
-			prompts.append(["C", "投げるで届く"])
-	_fire_prompts(prompts)
-	_retry_prompts(prompts)
+	var picked := TeachHints.pick(self, target, in_reach, on_checkpoint)
+	if not picked.is_empty():
+		prompts.append(picked)
 	# 狙っている相手の名前（照準の補助で何が選ばれたかが分かるように。地形のセルには出さない）
 	var target_name := (
 		"" if target == null or world == null else WorldQueries.target_name(world, target)
@@ -227,79 +213,6 @@ func play_ui(event: StringName) -> void:
 		sounds.play_ui(event)
 
 
-## 歩く・見回す（初めて遊ぶ人の最初の数秒だけ。少し歩いて見回したら出なくなる）。
-func _first_step_prompts(prompts: Array[Array]) -> void:
-	if hints.should_show("move"):
-		prompts.append([move_keys(), "歩く", true])
-	if hints.should_show("look"):
-		prompts.append([look_keys(), "見回す", true])
-
-
-## 足もとの物・ハブの入口（慣れても出す。そこで何ができるかの案内）。
-func _place_prompts(prompts: Array[Array]) -> void:
-	if world == null or world.player == null:
-		return
-	if world.nearest_world_item() != null:
-		prompts.append(["F", "拾う"])
-	var stage_world := world as StageWorld
-	if stage_world == null:
-		return
-	var entrance := stage_world.entrance_at(world.player.global_position)
-	if entrance != "":
-		prompts.append(["F", "「%s」へ" % _stage_name(entrance)])
-
-
-## 手の届く相手を狙っているとき。選んでいる能力の名前を出す（何を渡すのかが分かるように）。
-## 範囲（まとめて）は、1つずつ渡すのに慣れてから出す（一度にたくさん並べない）。
-func _lend_prompts(prompts: Array[Array], target: Node3D) -> void:
-	var token := _selected_token()
-	# 地形にも渡せるが、初めのうちは足もとの地面に案内を出さない（まずブロックで覚える。
-	# 地面に渡せることは、自分で試して気づく）
-	var ground := target is TerrainCell
-	if token == null:
-		if not ground:
-			prompts.append(["1〜9", "能力をえらぶ"])
-	elif hints.should_show("lend"):
-		if token.holder_ids.is_empty() and not ground:
-			prompts.append(["左クリック", "%sを渡す" % token_label(token)])
-		if hints.should_show("select") and not ground:
-			prompts.append(["1〜9", "えらぶ"])
-	elif hints.should_show("range"):
-		prompts.append(["右クリック", "まとめて"])
-	var creature := target as Creature
-	if creature != null and not creature.can_walk() and hints.should_show("creature_move"):
-		prompts.append(["左クリック", "移動の能力を渡すと歩き出す"])
-	var id := int(target.get("entity_id"))
-	var holds := world != null and not world.ledger.tokens_on(id).is_empty()
-	if holds and hints.should_show("recall"):
-		prompts.append(["F", "回収"])
-
-
-## 単発で貸した能力があるとき: 自分のキーで、貸した先が1回だけ動く（どこを向いていても出す）。
-func _fire_prompts(prompts: Array[Array]) -> void:
-	if world == null or world.player == null or not hints.should_show("fire"):
-		return
-	var me := world.acting_id()
-	for action_name: StringName in PlayerInput.ACTION_KEYS:
-		var kind: RuleAction.Kind = PlayerInput.ACTION_KEYS[action_name]
-		if not world.ledger.pending_single_shots(kind, me).is_empty():
-			var text := "貸した%sを使う" % RuleAction.label(kind)
-			prompts.append([InputMode.key(action_name), text, true])
-
-
-## ステージで目安の時間を過ぎたら、やり直しとメニューの場所をそっと出す（使ったら出なくなる）。
-func _retry_prompts(prompts: Array[Array]) -> void:
-	var stage_world := world as StageWorld
-	if stage_world == null or stage_world.def == null or stage_world.def.is_hub():
-		return
-	if stage_seconds < stage_world.def.target_minutes * 60.0:
-		return
-	if hints.should_show("vote"):
-		prompts.append(["V", "長押しでやり直し"])
-	if hints.should_show("menu"):
-		prompts.append(["Esc", "メニュー"])
-
-
 ## 移動キーの表記（割り当て直したキーとゲームパッドに合わせる）。
 static func move_keys() -> String:
 	var keys := PackedStringArray()
@@ -317,20 +230,6 @@ static func look_keys() -> String:
 ## 案内に出す能力の名前（ホットバーの名前と同じ）。
 static func token_label(token: RuleToken) -> String:
 	return ("%s禁止" if token.is_prohibition else "%s") % RuleAction.label(token.action)
-
-
-func _selected_token() -> RuleToken:
-	if world == null:
-		return null
-	var v := world.selected_vessel()
-	return null if v == null else world.ledger.token(v.token_id)
-
-
-func _stage_name(stage_id: String) -> String:
-	if not _stage_names.has(stage_id):
-		var stage := StageCatalog.by_id(stage_id)
-		_stage_names[stage_id] = stage.display_name if stage != null else stage_id
-	return _stage_names[stage_id]
 
 
 func _set_world_hud_visible(on: bool) -> void:
