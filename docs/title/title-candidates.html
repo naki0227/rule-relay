@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>タイトル候補 上位5案</title>
+<meta name="description" content="rule-relay（作業名）のタイトル候補・上位5案のロゴ見本。ゲームの画面写真の上に、ゲームの色で置いた。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@500;700;800&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/*
+  色はゲームの値だけを使う（勝手な色を足さない）。
+  - プレイヤー1〜4: src/game/art_palette.gd PLAYER_COLORS / PLAYER_COLORS_DEEP
+  - メダルの記号: art_palette.gd GLYPH_ABILITY
+  - メダル・草・土・生成り・こげ茶: art/scripts/palette.py（art_palette.gd と対になる Blender 側の色）と src/ui/ui_theme.gd
+  - 禁止の赤（#e0644f）は禁止にだけ使う決まりなので、ここでは使わない。
+*/
+:root {
+  --p1: #6fa8dc; --p1d: #4f86bd;
+  --p2: #ec8a6a; --p2d: #c96a4d;
+  --p3: #82b866; --p3d: #5f9548;
+  --p4: #b794d9; --p4d: #9172b8;
+  --glyph: #7a4e16;
+  --honey: #e8b13f; --honey-d: #c48a2a;
+  --cream: #fff8ec; --cream-d: #f4e7d1; --edge: #e2cdac;
+  --ink: #4d3a2c; --ink-soft: #8a7462;
+  --grass: #84bd5f; --soil: #b88a5c;
+  --sky: #8cc4e8; --sky-d: #5f9fcf;
+  --page: var(--cream);
+  --card: #ffffff;
+  --text: var(--ink);
+  --muted: var(--ink-soft);
+  --line: var(--edge);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #2b231c; --card: #3a2f26; --text: #fff3df; --muted: #d9c6ae; --line: #5a4a3c;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #2b231c; --card: #3a2f26; --text: #fff3df; --muted: #d9c6ae; --line: #5a4a3c;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--page); color: var(--text);
+  font-family: "Zen Maru Gothic", "M PLUS Rounded 1c", system-ui, sans-serif;
+  line-height: 1.7;
+}
+.wrap { max-width: 1040px; margin: 0 auto; padding: 24px 16px 64px; }
+header h1 { font-family: "M PLUS Rounded 1c", sans-serif; font-weight: 800; font-size: clamp(22px, 5vw, 32px); margin: 0 0 4px; }
+header p { margin: 0 0 4px; color: var(--muted); font-size: 14px; }
+.note { font-size: 13px; color: var(--muted); border-left: 3px solid var(--honey); padding: 4px 10px; margin: 16px 0 28px; }
+nav.jump { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; }
+nav.jump a {
+  text-decoration: none; color: var(--text); background: var(--card); border: 2px solid var(--line);
+  border-radius: 999px; padding: 4px 12px; font-size: 14px; font-weight: 700;
+}
+section.cand { margin: 0 0 40px; }
+.cand h2 { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin: 0 0 10px; font-size: 20px; }
+.cand h2 .rank {
+  display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--honey); color: var(--glyph); font-size: 16px; font-family: "Fredoka", sans-serif; flex: none;
+}
+.cand h2 small { font-weight: 500; color: var(--muted); font-size: 14px; }
+
+/* ロゴ見本: 画面写真の上に置く。container query でカードの幅に合わせて文字も縮む */
+.shot {
+  position: relative; aspect-ratio: 16 / 9; border-radius: 18px; overflow: hidden;
+  background: var(--sky) center / cover no-repeat; container-type: inline-size;
+  box-shadow: 0 6px 18px rgba(74, 51, 31, .18);
+}
+.shot::after { /* 文字を読みやすくする、うすい生成りのもや（黒く濁らせない） */
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 50% 46%, rgba(255,248,236,.72), rgba(255,248,236,.18) 70%, rgba(255,248,236,0));
+}
+.logo { position: absolute; inset: 0; z-index: 1; display: grid; place-content: center; justify-items: center; text-align: center; padding: 4cqw; }
+.sub {
+  margin-top: 1.6cqw; font-family: "Zen Maru Gothic", sans-serif; font-weight: 700; color: var(--ink);
+  font-size: max(11px, 2.4cqw); background: var(--cream); border: 2px solid var(--edge);
+  border-radius: 999px; padding: .2em 1em; box-shadow: 0 2px 0 var(--edge);
+}
+.cap { font-size: 12px; color: var(--muted); margin: 6px 2px 0; }
+dl.meta { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 12px 2px 0; font-size: 14px; }
+dl.meta dt { color: var(--muted); font-weight: 700; }
+dl.meta dd { margin: 0; }
+@media (max-width: 560px) {
+  dl.meta { grid-template-columns: 1fr; gap: 0; }
+  dl.meta dd { margin-bottom: 6px; }
+}
+
+/* 共通: ふちどりした丸い文字 */
+.word { font-family: "Fredoka", "M PLUS Rounded 1c", sans-serif; font-weight: 700; line-height: 1; letter-spacing: .01em; }
+.outline { -webkit-text-stroke: .9cqw var(--cream); paint-order: stroke fill; text-shadow: 0 .7cqw 0 rgba(77,58,44,.28); }
+
+/* メダル（能力の器）: はちみつ色の円に記号 */
+.medal {
+  display: inline-grid; place-items: center; border-radius: 50%; background: var(--honey);
+  box-shadow: inset 0 0 0 .5cqw var(--honey-d), 0 .5cqw 0 rgba(77,58,44,.25);
+  color: var(--glyph); font-family: "Fredoka", sans-serif; font-weight: 700;
+}
+
+/* 1. Hand-Me-Up: 文字が段々に上がっていく（巣へ上がる） */
+.hmu { display: flex; align-items: flex-end; gap: .6cqw; }
+.hmu .step { font-size: 10cqw; }
+.hmu .s1 { color: var(--p1); transform: translateY(2.4cqw); }
+.hmu .s2 { color: var(--p2); transform: translateY(0); font-size: 7cqw; align-self: center; }
+.hmu .s3 { color: var(--p3); transform: translateY(-2.4cqw); }
+.hmu .medal { width: 7.5cqw; height: 7.5cqw; font-size: 4.6cqw; transform: translateY(-6cqw); }
+.hmu .dash { color: var(--p4); font-size: 7cqw; align-self: center; }
+
+/* 2. Lendlings: ブロックのタイル。1枚だけ浮いて「貸出中」 */
+.tiles { display: flex; gap: .9cqw; }
+.tile {
+  width: 7.4cqw; height: 8.4cqw; border-radius: 1.6cqw; display: grid; place-items: center;
+  font-family: "Fredoka", sans-serif; font-weight: 700; font-size: 6cqw; color: var(--cream);
+  box-shadow: inset 0 -1cqw 0 rgba(0,0,0,.14), 0 .6cqw 0 rgba(77,58,44,.25);
+}
+.tile.c1 { background: var(--p1); } .tile.c2 { background: var(--p2); }
+.tile.c3 { background: var(--p3); } .tile.c4 { background: var(--p4); }
+.tile.lent { background: var(--honey); color: var(--glyph); transform: translateY(-3.2cqw) rotate(-6deg); }
+
+/* 3. Wishnest: nest の下に小枝の巣、i の点が願いの星 */
+.wn { position: relative; }
+.wn .word { font-size: 11cqw; }
+.wn .w1 { color: var(--p4); } .wn .w2 { color: var(--p1); }
+.wn .nest {
+  display: block; height: 3cqw; margin: -1.2cqw auto 0; width: 46%;
+  border-radius: 0 0 50% 50% / 0 0 100% 100%;
+  background: repeating-linear-gradient(-20deg, var(--soil) 0 .7cqw, #93653f .7cqw 1.3cqw);
+  box-shadow: 0 .5cqw 0 rgba(77,58,44,.25); margin-left: 52%;
+}
+.wn .star { position: absolute; top: -4.4cqw; left: 25.5%; font-size: 5cqw; color: var(--honey); -webkit-text-stroke: .5cqw var(--cream); paint-order: stroke fill; }
+
+/* 4. Can-Do Isles: ISLES を浮島に乗せる */
+.cdi .word { font-size: 11cqw; }
+.cdi .c { color: var(--p2); } .cdi .d { color: var(--p1); }
+.island { margin-top: 1cqw; display: inline-block; position: relative; isolation: isolate; padding: 1.2cqw 4cqw 3.6cqw; }
+.island::before { /* 草の上面 */
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 62%;
+  background: var(--grass); border-radius: 2.4cqw; box-shadow: inset 0 -.8cqw 0 rgba(0,0,0,.08);
+}
+.island::after { /* 土の下面（逆三角に細くなる） */
+  content: ""; position: absolute; left: 8%; right: 8%; top: 52%; height: 60%;
+  background: var(--soil); clip-path: polygon(0 0, 100% 0, 70% 100%, 30% 100%); z-index: -1;
+}
+.island span { position: relative; z-index: 1; font-family: "Fredoka", sans-serif; font-weight: 700; font-size: 5cqw; letter-spacing: .3em; color: var(--cream); }
+
+/* 5. もってって！: 丸ゴシックがはずむ */
+.mt { display: flex; align-items: flex-end; }
+.mt .ch { font-family: "M PLUS Rounded 1c", sans-serif; font-weight: 800; font-size: 11cqw; line-height: 1; }
+.mt .ch:nth-child(1) { color: var(--p1); }
+.mt .ch:nth-child(2) { color: var(--p2); font-size: 7.5cqw; transform: translateY(-1.6cqw); }
+.mt .ch:nth-child(3) { color: var(--p3); transform: translateY(-2.6cqw); }
+.mt .ch:nth-child(4) { color: var(--p4); font-size: 7.5cqw; transform: translateY(-4cqw); }
+.mt .ch:nth-child(5) { color: var(--p1d); transform: translateY(-5cqw); }
+.mt .medal { width: 7cqw; height: 7cqw; font-size: 4cqw; margin-left: 1cqw; transform: translateY(-8cqw); }
+.en { margin-top: .8cqw; font-family: "Fredoka", sans-serif; font-weight: 600; font-size: max(10px, 2.2cqw); color: var(--ink); letter-spacing: .3em; }
+
+footer { margin-top: 40px; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>タイトル候補 上位5案（ロゴ見本）</h1>
+    <p>状態: 提案（2026-11-22、AI＝Claude Code が作成）。決めるのは本人。</p>
+    <p>全14案・同名作の検索結果・選んだ理由は <a href="README.md">README.md</a>。</p>
+  </header>
+  <p class="note">色はゲームの値だけ（プレイヤー1〜4の色・メダルのはちみつ色・草と土・生成りとこげ茶）。禁止の赤は禁止にだけ使う決まりなので、ロゴには使っていません。背景は <code>docs/images/</code> の今の画面写真です。ロゴは見本で、書体（Fredoka・M PLUS Rounded 1c・Zen Maru Gothic、Google Fonts）も仮です。</p>
+
+  <nav class="jump" aria-label="候補へ移る">
+    <a href="#c1">1 Hand-Me-Up</a><a href="#c2">2 Lendlings</a><a href="#c3">3 Wishnest</a><a href="#c4">4 Can-Do Isles</a><a href="#c5">5 もってって！</a>
+  </nav>
+
+  <section class="cand" id="c1">
+    <h2><span class="rank">1</span>Hand-Me-Up <small>ハンド・ミー・アップ（推奨）</small></h2>
+    <div class="shot" style="background-image:url('../images/overworld/all_meadow.png')" role="img" aria-label="Hand-Me-Up のロゴ見本。広場の空撮の上">
+      <div class="logo">
+        <div class="hmu outline">
+          <span class="word step s1">Hand</span><span class="word dash">-</span><span class="word step s2">Me</span><span class="word dash">-</span><span class="word step s3">Up</span>
+          <span class="medal" aria-hidden="true">↑</span>
+        </div>
+        <div class="sub">ちからを貸して、巣まで届けて</div>
+      </div>
+    </div>
+    <p class="cap">背景: docs/images/overworld/all_meadow.png（広場）</p>
+    <dl class="meta">
+      <dt>意味</dt><dd>「お下がり（hand-me-down）」をひっくり返した造語。能力を手渡して、動物を高い巣へ「上げる」。</dd>
+      <dt>ロゴの考え</dt><dd>文字が1段ずつ上がる＝1段ずつしか跳べない動物の道。最後に上向きのメダル。</dd>
+      <dt>検索</dt><dd>同名のゲーム・アプリは見つからなかった。</dd>
+    </dl>
+  </section>
+
+  <section class="cand" id="c2">
+    <h2><span class="rank">2</span>Lendlings <small>レンドリングス</small></h2>
+    <div class="shot" style="background-image:url('../images/overworld/all_village.png')" role="img" aria-label="Lendlings のロゴ見本。ポータルの並ぶ広場の上">
+      <div class="logo">
+        <div class="tiles" aria-label="Lendlings">
+          <span class="tile c1">L</span><span class="tile c2">e</span><span class="tile c3">n</span><span class="tile lent">d</span><span class="tile c4">l</span><span class="tile c1">i</span><span class="tile c2">n</span><span class="tile c3">g</span><span class="tile c4">s</span>
+        </div>
+        <div class="sub">Lend a hop, lift a wish.</div>
+      </div>
+    </div>
+    <p class="cap">背景: docs/images/overworld/all_village.png（ポータルと家）</p>
+    <dl class="meta">
+      <dt>意味</dt><dd>lend（貸す）＋ -ling（小さなもの）。能力を借りて動き出すブロックや動物たち。</dd>
+      <dt>ロゴの考え</dt><dd>ブロックのタイルの中で「d」だけがメダル色で浮く＝貸出中。</dd>
+      <dt>検索</dt><dd>同名は見つからない。音が古典のパズルゲームの題名に近いので、並べて読まれるおそれ。</dd>
+    </dl>
+  </section>
+
+  <section class="cand" id="c3">
+    <h2><span class="rank">3</span>Wishnest <small>ウィッシュネスト</small></h2>
+    <div class="shot" style="background-image:url('../images/overworld/first_aerial.png')" role="img" aria-label="Wishnest のロゴ見本。浮島の空撮の上">
+      <div class="logo">
+        <div class="wn">
+          <span class="star" aria-hidden="true">★</span>
+          <span class="word outline"><span class="w1">Wish</span><span class="w2">nest</span></span>
+          <span class="nest" aria-hidden="true"></span>
+        </div>
+        <div class="sub">貸して、借りて、願いの巣へ</div>
+      </div>
+    </div>
+    <p class="cap">背景: docs/images/overworld/first_aerial.png（最初の広場の空撮）</p>
+    <dl class="meta">
+      <dt>意味</dt><dd>wish（願い）＋ nest（巣）。願いの動物を巣へ届けると広場が育つ、という進行そのもの。</dd>
+      <dt>ロゴの考え</dt><dd>「nest」の下に小枝の巣、「i」の上に願いの星（メダルの色）。</dd>
+      <dt>検索</dt><dd>ゲームは見つからない。同じつづりの欲しい物リストのアプリ（iPhone）がある。分野は違う。</dd>
+    </dl>
+  </section>
+
+  <section class="cand" id="c4">
+    <h2><span class="rank">4</span>Can-Do Isles <small>キャンドゥ・アイルズ／できるの島</small></h2>
+    <div class="shot" style="background-image:url('../images/overworld/all_aerial.png')" role="img" aria-label="Can-Do Isles のロゴ見本。全部の地方の空撮の上">
+      <div class="logo">
+        <div class="cdi">
+          <span class="word outline"><span class="c">Can</span><span class="c">-</span><span class="d">Do</span></span>
+        </div>
+        <div class="island"><span>ISLES</span></div>
+        <div class="sub">「できる」を貸し借りする浮島</div>
+      </div>
+    </div>
+    <p class="cap">背景: docs/images/overworld/all_aerial.png（広場の全景）</p>
+    <dl class="meta">
+      <dt>意味</dt><dd>能力＝「できること（can-do）」。できることを物として貸す島々。</dd>
+      <dt>ロゴの考え</dt><dd>「ISLES」を草と土の浮島に乗せる。</dd>
+      <dt>検索</dt><dd>同名のゲームは見つからない。ただし日本では「Can Do」が百円均一の店の名前として強く、商標の確認が要る。</dd>
+    </dl>
+  </section>
+
+  <section class="cand" id="c5">
+    <h2><span class="rank">5</span>もってって！ <small>Mottette!</small></h2>
+    <div class="shot" style="background-image:url('../images/p0-art-island.png')" role="img" aria-label="もってって！のロゴ見本。浮島の上">
+      <div class="logo">
+        <div class="mt outline" aria-label="もってって！">
+          <span class="ch">も</span><span class="ch">っ</span><span class="ch">て</span><span class="ch">っ</span><span class="ch">て</span><span class="medal" aria-hidden="true">！</span>
+        </div>
+        <div class="en">MOTTETTE!</div>
+        <div class="sub">ちから、かします。</div>
+      </div>
+    </div>
+    <p class="cap">背景: docs/images/p0-art-island.png（試作の浮島）</p>
+    <dl class="meta">
+      <dt>意味</dt><dd>「持って行って！」のくだけた言い方。能力を渡すときの、その場のひとこと。</dd>
+      <dt>ロゴの考え</dt><dd>丸ゴシックの文字が右へはずみ、「！」がメダルになる。</dd>
+      <dt>検索</dt><dd>同名のゲーム・アプリは見つからない。ローマ字は海外では読みにくい。</dd>
+    </dl>
+  </section>
+
+  <footer>
+    同名作の検索は 2026-11-22 に Web で簡単に行っただけです。商標（J-PlatPat・USPTO など）の正式な調査はしていません。決める前に調べ直してください。
+  </footer>
+</div>
+</body>
+</html>
