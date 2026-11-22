@@ -486,16 +486,21 @@ func _interact(target: Node3D) -> void:
 		_post("鐘を鳴らしました")
 		return
 	if target != null and _within_touch(target):
-		var picked := _recall_all(ledger.tokens_on(_entity_of(target)))
+		var on_target := ledger.tokens_on(_entity_of(target))
+		# 照準の下の案内と同じ言い方（自分が渡した物は「取り戻す」、置かれていた物は「取る」。TeachHints）
+		var me := acting_id()
+		var mine := on_target.any(func(t: RuleToken) -> bool: return t.lender_id == me)
+		var picked := _recall_all(on_target)
 		if not picked.is_empty():
-			_post("%sを回収しました%s" % [_describe_tokens(picked), _bag_note(picked)])
+			var verb := "取り戻しました" if mine else "取りました"
+			_post("%sを%s%s" % [_describe_tokens(picked), verb, _bag_note(picked)])
 			var only_bans := picked.all(func(t: RuleToken) -> bool: return t.is_prohibition)
 			var back := "recall@%d" % RuleAction.motif_semitone(picked[0].action)
 			_sound(&"prohibit" if only_bans else StringName(back), target.global_position)
 			return
 	var zone := _recall_all(ledger.range_tokens_at(player.global_position))
 	if not zone.is_empty():
-		_post("範囲の%sを回収しました" % _describe_tokens(zone))
+		_post("範囲の%sを取り戻しました" % _describe_tokens(zone))
 		_sound(&"recall", player.global_position)
 		return
 	_post("回収できるものがありません")

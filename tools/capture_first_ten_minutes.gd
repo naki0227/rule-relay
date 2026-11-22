@@ -39,6 +39,21 @@ func _run() -> void:
 	await _wait(40)
 	RenderingServer.render_loop_enabled = false
 	await _title()
+	if args.size() > 1 and args[1].begins_with("only="):
+		# 1 つのステージだけ撮り直す（only=w1_lift_steps など。広場を歩かずに進行役で入る）
+		var only := args[1].trim_prefix("only=")
+		shot = int(args[2]) - 1 if args.size() > 2 else 0
+		await _seconds(1.0)
+		game.director.enter_stage(only)
+		await _wait(20)
+		var stages := {
+			StageCatalog.RELAY_ID: _stage_relay,
+			"w1_lift_steps": _stage_lift_steps,
+			"w1_push_path": _stage_push_path,
+		}
+		await (stages[only] as Callable).call()
+		_finish()
+		return
 	if args.size() > 1 and args[1] == "from-1-4":
 		# 1-4 だけ撮り直す（広場からポータルで入る代わりに、進行役でそのステージへ入る）
 		shot = 37
@@ -55,6 +70,10 @@ func _run() -> void:
 		await _back_in_hub_then_walk_to("w1_push_path")
 	await _stage_push_path()
 	await _back_in_hub_and_menus()
+	_finish()
+
+
+func _finish() -> void:
 	_note("done", "total game frames ~%d" % Engine.get_physics_frames())
 	var file := FileAccess.open(out_dir.path_join("moments.txt"), FileAccess.WRITE)
 	file.store_string("\n".join(log_lines) + "\n")
@@ -262,6 +281,12 @@ func _creature(key: String) -> Creature:
 
 ## かばんに入った能力を E で開いてホットバーの空きへ（指して番号キー）。開いた画面を撮る。
 func _bag_to_hotbar(action: RuleAction.Kind, shot_name: String = "") -> void:
+	var in_bag := false
+	for v in _w().ledger.inventory_vessels(_w().acting_id()):
+		var t := _w().ledger.token(v.token_id)
+		in_bag = in_bag or (t.action == action and not t.is_prohibition)
+	if not in_bag:
+		return  # ブロック・生き物から F で取った能力は、すぐホットバーに入る（PR #88）
 	await _tap(&"inventory")
 	await _seconds(0.6)
 	var w := _w()
@@ -449,22 +474,57 @@ func _back_in_hub_then_walk_to(stage_id: String) -> void:
 
 func _stage_relay() -> void:
 	await _read_objectives("1-2")
-	# 落ちているジャンプを拾う
-	await _walk_to(Vector3(-1.5, 0.0, 1.5), 0.5)
+	# 出現地点のすぐ前の「ジャンプの台」から F でジャンプを取る（ホットバーに入る。PR #88）
+	var post := _block("jump_post")
+	await _walk_to(post.global_position + Vector3(0.0, -0.5, 1.6), 0.4)
 	await _seconds(0.3)
-	await _cap("1-2-item", "standing on the dropped jump")
+	await _cap("1-2-post", "standing by the jump post")
+	await _aim(post)
 	await _tap(&"interact")
 	await _seconds(0.5)
-	await _cap("1-2-picked", "picked up with F")
-	await _bag_to_hotbar(JUMP, "1-2-bag")
-	await _cap("1-2-hotbar", "jump moved to the hotbar")
+	await _cap("1-2-took", "took the jump with F")
 	# 段へ（自分のジャンプで 1 段）
-	await _walk_to(Vector3(0.0, 0.0, -2.6), 0.4)
-	await _turn_to(0.0)
-	Input.action_press(&"move_forward")
-	await _wait(4)
-	await _tap(&"jump", 4)
-	await _wait(30)
+	await _walk_to(Vector3(-0.5, 1.0, -3.5), 0.4)
+	# はねる台（繰り返しのジャンプ）に跳び乗り、上がったところで岩棚へ。人と同じく、台が下りたのを見て跳ぶ
+	var bouncer := _block("bouncer")
+	var top := bouncer.global_position + Vector3(0.0, 0.5, 0.0)
+	var tries := 0
+	for attempt in 8:
+		tries += 1
+		await _walk_to(Vector3(top.x, 1.0, top.z + 1.4), 0.3)
+		await _turn_to(_yaw_to(top))
+		for i in 240:
+			if bouncer.is_grounded():
+				break
+			await physics_frame
+		Input.action_press(&"move_forward")
+		await _tap(&"jump", 4)
+		await _wait(14)
+		Input.action_release(&"move_forward")
+		if attempt == 0:
+			await _cap("1-2-bouncer", "jumping onto the bouncing block")
+		await _wait(20)
+		var me := _w().player.global_position
+		var flat := Vector2(me.x - bouncer.global_position.x, me.z - bouncer.global_position.z)
+		if flat.length() < 0.6 and me.y > bouncer.global_position.y + 0.3:
+			break
+	_note("1-2", "bouncer: on it after %d tries" % tries)
+	var onto := Vector3(top.x, 3.0, -6.6)
+	await _turn_to(_yaw_to(onto))
+	var holding := false
+	for i in 600:
+		var me := _w().player
+		var flat := Vector3(onto.x - me.global_position.x, 0.0, onto.z - me.global_position.z)
+		if flat.length() < 0.5 and me.global_position.y > onto.y - 0.2:
+			break
+		var go := me.global_position.y > onto.y - 0.05 or holding and not me.is_on_floor()
+		if go != holding:
+			if go:
+				Input.action_press(&"move_forward")
+			else:
+				Input.action_release(&"move_forward")
+			holding = go
+		await physics_frame
 	Input.action_release(&"move_forward")
 	await _walk_to(_goal_center(), 0.8, 400)
 	await _wait_clear()
@@ -489,8 +549,9 @@ func _stage_lift_steps() -> void:
 	await _cap("1-3-summit", "on the summit")
 	await _walk_to(Vector3(4.5, 4.0, -11.5), 0.5)
 	await _tap(&"interact")
-	await _seconds(0.4)
-	await _bag_to_hotbar(JUMP)
+	await _seconds(0.6)
+	await _cap("1-3-picked", "picked up the summit jump (goes to the bag)")
+	await _bag_to_hotbar(JUMP, "1-3-bag")
 	# 頂の石を南へ 3 回押す（単発の S。押した直後の、石がまだ動いている間にも S を押す）
 	await _walk_to(Vector3(-2.5, 4.0, -10.5), 0.3)
 	var stone := _block("stone_high")

@@ -70,6 +70,10 @@ func test_solo_checkpoint_toast_and_no_refusal_after_lending_on_the_pad() -> voi
 	assert_true(joined.contains("ジャンプを渡しました"), "the same verb as the hint: " + joined)
 	assert_false(joined.contains("付与"), joined)
 	assert_false(joined.contains("能力["), joined)
+	# F で戻すと、案内（「取り戻す」）と同じ言い方
+	_w().interact(_lift())
+	await wait_physics_frames(2)
+	assert_true(" ".join(told).contains("ジャンプを取り戻しました"), " ".join(told))
 
 
 func test_coop_checkpoint_toast_still_names_the_team() -> void:
@@ -164,4 +168,23 @@ func test_two_jumps_show_one_times_two() -> void:
 	var stacks := hud.hotbar_stacks()
 	assert_eq(stacks[4], 2, "the first jump slot says x2")
 	assert_eq(stacks[5], 0, "the second one does not repeat it")
+	hud.queue_free()
+
+
+## クリアした後（広場へ戻るのを待つ間）は、照準の下に案内を出さない（ゴールの窪みで「Space ジャンプ」が出ていた）。
+func test_no_hint_after_the_clear() -> void:
+	var hud := Hud.new()
+	hud.world = _w()
+	tree.root.add_child(hud)
+	var objectives := ObjectivePanel.new()
+	objectives.name = "Objectives"
+	objectives.director = director
+	objectives.hud = hud
+	hud.add_child(objectives)
+	await wait_physics_frames(int((ObjectivePanel.BIG_SECONDS + 0.5) * 60.0))
+	hud.update_context(null, false, false)
+	assert_false(hud.context_actions().is_empty(), "a first-step hint before the clear")
+	director.last_clear_text = "クリア！"
+	hud.update_context(null, false, false)
+	assert_true(hud.context_actions().is_empty(), str(hud.context_actions()))
 	hud.queue_free()

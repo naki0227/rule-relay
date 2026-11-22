@@ -19,7 +19,7 @@ static var _stage_names: Dictionary[String, String] = {}
 
 static func pick(hud: Hud, target: Node3D, in_reach: bool, on_checkpoint: bool) -> Array:
 	var w := hud.world
-	if w == null or w.player == null or _objectives_big(hud):
+	if w == null or w.player == null or _objectives_big(hud) or _cleared(hud):
 		return []
 	_learn_from_state(hud)
 	# 上から順に見て、最初に当てはまった 1 つだけを返す（毎フレーム呼ぶので、残りは調べない）
@@ -51,6 +51,13 @@ static func pick(hud: Hud, target: Node3D, in_reach: bool, on_checkpoint: bool) 
 static func _objectives_big(hud: Hud) -> bool:
 	var panel := hud.get_node_or_null(^"Objectives") as ObjectivePanel
 	return panel != null and panel.is_big()
+
+
+## クリアした後（広場へ戻るのを待つ 4 秒）は案内を出さない。ゴールの窪みの壁を向いているだけで
+## 「Space ジャンプ」が出ていた（2026-11-22 のはじめての 10 分の通し）。
+static func _cleared(hud: Hud) -> bool:
+	var panel := hud.get_node_or_null(^"Objectives") as ObjectivePanel
+	return panel != null and panel.director != null and panel.director.last_clear_text != ""
 
 
 ## 状態から分かる「できた」を記録する（装備を身につけた、など。押したキーでは数えにくいもの）。
@@ -141,8 +148,8 @@ static func _bell(target: Node3D, in_reach: bool) -> Array:
 
 ## 拾った能力がかばんにあって、ホットバーに空きがあるとき（何かを狙って渡す案内とは重ねない）。
 static func _bag(hud: Hud, target: Node3D, in_reach: bool) -> Array:
-	if target != null and in_reach:
-		return []
+	if target != null and in_reach and not target is TerrainCell:
+		return []  # 足もとの地面を見ているだけなら出す
 	if not hud.needs_bag_prompt():
 		return []
 	return [InputMode.key(&"inventory"), "かばんの能力をホットバーへ", true]
