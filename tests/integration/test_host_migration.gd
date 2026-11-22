@@ -18,7 +18,7 @@ func before_each() -> void:
 	directors.clear()
 	nets.clear()
 	migrations.clear()
-	port = 38000 + randi() % 2000
+	port = TestCase.free_port()
 	for i in 3:
 		_make_side(i)
 	var host := directors[0]
@@ -85,6 +85,8 @@ func _join(i: int) -> void:
 	nets[i].start_client(peer, migrations[i].session_key)
 	migrations[i].watch()
 	await _until(func() -> bool: return directors[i].world.player.player_id == i + 1)
+	TestCase.steady_enet(peer)
+	TestCase.steady_enet(nets[0].multiplayer.multiplayer_peer)
 	await _until(func() -> bool: return directors[i].stage_id == StageCatalog.INTRO_ID)
 
 

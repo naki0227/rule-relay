@@ -3,6 +3,15 @@ extends RefCounted
 ## テストの基底クラス。`test_` で始まるメソッドを run_tests.gd が順に呼ぶ。
 ## 外部アドオンに依存しない最小実装（理由は docs/adr/0002-testing-and-ci.md）。
 
+## 並列で流すときの組の数の上限と、組ごとのテスト用ポートの範囲（free_port）。
+## 8 組 × 2000 = 12000〜27999 で、Linux の一時ポート（32768〜）に入らない。
+const MAX_SHARDS := 8
+const PORT_FLOOR := 12000
+const PORT_BLOCK := 2000
+## ENet の既定（ENET_PEER_PACKET_THROTTLE_INTERVAL / ACCELERATION）と同じ。steady_enet で減り幅だけ 0 にする。
+const ENET_THROTTLE_INTERVAL_MS := 5000
+const ENET_THROTTLE_ACCELERATION := 2
+
 ## 結合テスト用。シーンを木に追加したり物理フレームを待ったりするときに使う。
 var tree: SceneTree
 
@@ -77,6 +86,54 @@ func wait_throws(world: GameWorld, frames: int = 300) -> bool:
 			return true
 		await tree.physics_frame
 	return MedalThrow.flying(world).is_empty()
+
+
+## テストの部屋（ENet のサーバー）に使う空いた UDP ポート（結合テスト用）。並列で流すとき
+## （run_tests.gd の --shard=i/n）は組ごとに別の範囲から選ぶので、別のプロセスの部屋とぶつからない。
+## 範囲は Linux の一時ポート（32768〜）より下にして、クライアント側のソケットともぶつからないようにする。
+## 選んだポートを一度 bind して、空いていることも確かめる。
+static func free_port() -> int:
+	var shard := shard_spec()
+	var low := PORT_FLOOR + shard.x * PORT_BLOCK
+	var candidate := low
+	for i in 50:
+		candidate = low + randi() % PORT_BLOCK
+		var probe := PacketPeerUDP.new()
+		var bound := probe.bind(candidate) == OK
+		probe.close()
+		if bound:
+			return candidate
+	return candidate
+
+
+## ENet の送信の間引き（packet throttle）を止める（結合テスト用。ホストと参加者の両方の peer で呼ぶ）。
+## ENet は往復の実時間が揺れると、相手ごとに unreliable の送信を間引く（間引きの値が 0 まで下がると全部落とす）。
+## テストは --fixed-fps でコマ数を数えて待つので、CPU が混んで（並列で流すと）実時間だけ揺れると、
+## ホストの画面の同期（unreliable で、大きいので分割して送る）が何百コマも届かずに時間切れになった
+## （実測: ホスト側の間引きの値が 32 から 0〜22 に下がっていた）。減り幅を 0 にして、どのコマも送る。
+## 今つながっている相手にだけ効くので、相手がつながってから呼ぶ。
+static func steady_enet(peer: MultiplayerPeer) -> void:
+	var enet := peer as ENetMultiplayerPeer
+	if enet == null or enet.host == null:
+		return
+	for remote in enet.host.get_peers():
+		remote.throttle_configure(ENET_THROTTLE_INTERVAL_MS, ENET_THROTTLE_ACCELERATION, 0)
+
+
+## コマンドラインの --shard=i/n（i は 1 始まり）を Vector2i(i - 1, n) で返す。無い・不正なら (0, 1)。
+static func shard_spec() -> Vector2i:
+	for arg in OS.get_cmdline_user_args():
+		if not arg.begins_with("--shard="):
+			continue
+		var parts := arg.trim_prefix("--shard=").split("/")
+		if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+			break
+		var index := parts[0].to_int()
+		var count := parts[1].to_int()
+		if count < 1 or count > MAX_SHARDS or index < 1 or index > count:
+			break
+		return Vector2i(index - 1, count)
+	return Vector2i(0, 1)
 
 
 func _same(a: Variant, b: Variant) -> bool:
