@@ -65,7 +65,7 @@ func test_rebinding_updates_prompts_and_saves() -> void:
 	assert_false(menu.is_capturing())
 	assert_eq(InputMode.label("F"), "G")
 	hud.update_context(island.row[1], true, false)  # ジャンプ禁止が置かれている
-	var prompt := _prompt_for("回収")
+	var prompt := _prompt_for("禁止を取る")
 	assert_ne(prompt, null)
 	assert_eq(((prompt.get_child(0) as Control).get_child(0) as Label).text, "G")
 	var saved := GameSettings.new(PATH)

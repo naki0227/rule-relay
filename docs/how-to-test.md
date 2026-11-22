@@ -203,6 +203,48 @@ Godot 4.6.3 と gdtoolkit が入っていれば、次で全部の検査が走る
 tools/check.sh
 ```
 
+テストは既定で、CPU の数（上限 6）の Godot を並列に立てて流す（CI は 4）。直列のときと同じ「X passed, Y failed」を最後に1行で出し、1つでも失敗・時間切れ・ログのエラーがあれば止まる。
+
+- 組ごとのログ: `build/logs/test_shard_<i>.log`（実時間を測るテストを最後に1つで流す分は `test_shard_alone.log`）。失敗したテストと理由は、最後のまとめにも出る。
+- 組の数を決める（例 2 つ）:
+
+  ```bash
+  tools/check.sh --jobs=2
+  ```
+
+- 並列にする前と同じ、1 つの Godot で順に流す:
+
+  ```bash
+  tools/check.sh --serial
+  ```
+
+- 時間切れ（秒）: 並列の 1 組は `TEST_SHARD_TIMEOUT`（既定 600）、直列のテストは `GODOT_TIMEOUT`（既定 1500）。
+- 1 つの組だけ・一部のテストだけを手で流す（`--shard=<i>/<n>` は 1 始まり。`--filter` は「ファイル名::メソッド名」の部分一致。`--timing` で遅いファイルとテストの上位 20 件も出す）:
+
+  ```bash
+  godot --headless --fixed-fps 60 --script res://tests/run_tests.gd -- --shard=2/4 --timing
+  ```
+
+  ```bash
+  godot --headless --fixed-fps 60 --script res://tests/run_tests.gd -- --filter=test_net_world::
+  ```
+
+- 組の分け方: `tests/test_timings.json` のファイルごとの実測で、重い順にいちばん空いている組へ入れる。実測の無い新しいファイルは、同じフォルダの平均で見積もる。テストを大きく足したら、直列で測り直して更新する:
+
+  ```bash
+  godot --headless --fixed-fps 60 --script res://tests/run_tests.gd -- --timing-out="$PWD/build/timing.json"
+  ```
+
+  ```bash
+  python3 tools/test_shards.py summary --write-timings build/timing.json
+  ```
+
+- 組どうしがぶつからないように:
+  - `user://`（進行・設定・案内の記録）は、組ごとに `XDG_DATA_HOME` を `build/test-shards/<i>/data` に分ける。分かれていないとテストランナーが止まる。
+  - テストの部屋のポートは `TestCase.free_port()` で組ごとに別の範囲（12000 から 2000 ずつ）から選ぶ。
+  - オンライン協力のテストは、つないだ後に `TestCase.steady_enet()` を呼ぶ（CPU が混むと ENet が画面の同期を間引き、コマ数で待つテストが時間切れになるため）。
+  - 実時間（ms）の上限を確かめるテストのファイルは、`tests/run_tests.gd` の `RUN_ALONE_FILES` に入れる（並列の組が終わってから 1 つで流す）。
+
 ## 気づいたことの返し方
 
 - 「どのステージ・何人・何をしたら・どうなった（期待はこうだった）」を書いてもらえれば直せます。

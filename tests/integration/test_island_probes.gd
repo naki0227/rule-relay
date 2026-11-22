@@ -343,6 +343,10 @@ func test_gate_three_bells_north_bell_is_not_rung_from_the_step() -> void:
 ## 単発で貸す。セルが動くブロックになって 2.5 跳び、そのまま頂上（高さ 4）へ移れる。
 func test_accepted_any_ground_cell_is_a_lift_on_the_hill() -> void:
 	await _enter(StageCatalog.HILL_ID)
+	# 東の小島の動物は巣に着いたことにする（投げて渡す道は test_open_islands。ここは段丘から頂上への技を見る）
+	var critter := w.creatures[int(w.entity_ids["islet_critter"])] as Creature
+	var nest := OpenIslands.HILL_NEST.get_center()
+	critter.restore_state({"position": Vector3(nest.x, 0.0, nest.z), "velocity": Vector3.ZERO})
 	await _walk_route([Vector3(0.5, 1.0, 1.5), Vector3(3.5, 2.0, -1.5), Vector3(3.5, 2.0, -4.5)])
 	var lift_cell := Vector3i(3, 1, -5)
 	_lend(w.terrain_target(lift_cell), _slot_of(JUMP), TriggerMode.Kind.SINGLE_SHOT)

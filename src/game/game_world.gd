@@ -695,9 +695,14 @@ func _high(id: int) -> bool:
 ## まとめて回収し、回収できたものを返す。
 func _recall_all(tokens: Array[RuleToken]) -> Array[RuleToken]:
 	var picked: Array[RuleToken] = []
+	var unowned: Array[RuleToken] = []
 	for t in tokens:
+		var had_vessel := t.vessel_id != -1
 		if ledger.recall(t.id, acting_id()):
 			picked.append(t)
+			if not had_vessel:
+				unowned.append(t)
+	WorldLending.to_hotbar_if_free(self, unowned)
 	return picked
 
 

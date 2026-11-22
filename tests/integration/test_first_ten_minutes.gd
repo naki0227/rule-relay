@@ -111,13 +111,14 @@ func test_token_names_match_the_hotbar() -> void:
 	assert_eq(t.describe(), "ジャンプ禁止")
 
 
-## 拾った能力はかばんに入る（企画書 7）。ホットバーへ移すまで、照準の下に「E かばんの能力をホットバーへ」を出す。
+## 落ちている器を拾うとかばんに入る（企画書 7）。ホットバーへ移すまで、何も狙っていなければ照準の下に
+## 「E かばんの能力をホットバーへ」を出す（1-3 の頂のジャンプ）。
 func test_a_picked_up_jump_points_to_the_bag_until_it_is_on_the_hotbar() -> void:
 	var game := GameRoot.new()
 	tree.root.add_child(game)
 	game.start_solo(PROFILE)
 	await wait_physics_frames(5)
-	game.director.enter_stage(StageCatalog.RELAY_ID)
+	game.director.enter_stage("w1_lift_steps")
 	await wait_physics_frames(5)
 	var w := game.director.world
 	var hud := game.current_hud()
@@ -125,19 +126,21 @@ func test_a_picked_up_jump_points_to_the_bag_until_it_is_on_the_hotbar() -> void
 	hud.hints.used("move")
 	hud.hints.used("move")
 	assert_false(hud.needs_bag_prompt(), "nothing in the bag yet")
-	w.player.global_position = Vector3(-1.5, 0.1, 1.5)
+	w.player.global_position = Vector3(4.5, 4.1, -11.5)
 	w.player.velocity = Vector3.ZERO
 	await wait_physics_frames(4)
 	w.interact(null)
 	await wait_physics_frames(3)
 	assert_true(hud.needs_bag_prompt(), "the jump went into the bag")
+	var joined := " ".join(hud.toasts.messages())
+	assert_true(joined.contains("かばん"), joined)
+	assert_false(joined.contains("通常インベントリ"), "the inventory screen says かばん: " + joined)
+	# 入った直後の目的の札が大きい間は案内を出さない（TeachHints）。縮むまで待つ
+	await wait_physics_frames(int((ObjectivePanel.BIG_SECONDS + 0.5) * 60.0))
 	game.current_input().set_process(false)  # 照準の先によらず、何も狙っていないときの案内を見る
 	hud.update_context(null, false, false)
 	assert_true(hud.context_actions().has("かばんの能力をホットバーへ"), str(hud.context_actions()))
 	game.current_input().set_process(true)
-	var joined := " ".join(hud.toasts.messages())
-	assert_true(joined.contains("かばん"), joined)
-	assert_false(joined.contains("通常インベントリ"), "the inventory screen says かばん: " + joined)
 	for v in w.ledger.inventory_vessels(w.acting_id()):
 		w.ledger_actions.move_to_hotbar(v.id, 4)
 	await wait_physics_frames(3)

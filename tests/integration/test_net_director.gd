@@ -135,6 +135,10 @@ func test_hill_top_clears_only_when_both_players_gather_at_the_goal() -> void:
 		func() -> bool: return client.world.ledger.ability_count(RuleAction.Kind.JUMP, B) == 1
 	)
 	await wait_physics_frames(10)
+	# 東の小島の動物は巣に着いたことにする（投げて渡す道は test_open_islands。ここは「2 人がそろう」を見る）
+	var critter := host.world.creatures[int(host.world.entity_ids["islet_critter"])] as Creature
+	var nest := OpenIslands.HILL_NEST.get_center()
+	critter.restore_state({"position": Vector3(nest.x, 0.0, nest.z), "velocity": Vector3.ZERO})
 	var goal := host.world.def.clear_condition.goal_area()
 	var center := goal.get_center()
 	# 頂上の南の縁（ゴールの外）に2人を置く

@@ -36,10 +36,15 @@ func _me() -> PlayerAvatar:
 	return w.player
 
 
+## action の能力（禁止ではない）が入っているホットバーの枠（無ければ -1）。取った禁止もホットバーに入るので、
+## 禁止の枠は数えない（WorldLending.to_hotbar_if_free）。
 func _slot_of(action: RuleAction.Kind) -> int:
 	for slot in RuleLedger.HOTBAR_SIZE:
 		var v := w.ledger.hotbar_vessel(slot, _me().player_id)
-		if v != null and w.ledger.token(v.token_id).action == action:
+		if v == null:
+			continue
+		var t := w.ledger.token(v.token_id)
+		if t.action == action and not t.is_prohibition:
 			return slot
 	return -1
 
@@ -216,19 +221,39 @@ func _creature(key: String) -> Creature:
 
 
 ## 落ちている器を拾い、装備せずにホットバーの空き（無ければ失敗）へ置く。置いたスロットを返す。
+## 拾った能力は、ホットバーに空きがあれば自動でそこへ入る（WorldLending.to_hotbar_if_free）。
 func _pick_to_hotbar(at: Vector3, action: RuleAction.Kind) -> int:
 	await _walk_to(at, 0.6)
+	var before := _slots_holding(action)
 	w.interact(null)
 	await wait_physics_frames(2)
-	var slot := _free_slot()
-	for v in w.ledger.inventory_vessels(_me().player_id):
-		if (
-			w.ledger.token(v.token_id).action == action
-			and not w.ledger.token(v.token_id).is_prohibition
-		):
-			assert_true(w.ledger_actions.move_to_hotbar(v.id, slot), "%s on the hotbar" % action)
-	assert_eq(_slot_of(action), slot, "picked up %s" % action)
+	var slot := -1
+	for s in _slots_holding(action):
+		if not before.has(s):
+			slot = s
+	if slot == -1:
+		slot = _free_slot()
+		for v in w.ledger.inventory_vessels(_me().player_id):
+			var t := w.ledger.token(v.token_id)
+			if t.action == action and not t.is_prohibition:
+				assert_true(
+					w.ledger_actions.move_to_hotbar(v.id, slot), "%s to the hotbar" % action
+				)
+	assert_true(_slots_holding(action).has(slot), "picked up %s" % action)
 	return slot
+
+
+## action の能力（禁止ではない）が入っているホットバーの枠。
+func _slots_holding(action: RuleAction.Kind) -> Array[int]:
+	var result: Array[int] = []
+	for slot in RuleLedger.HOTBAR_SIZE:
+		var v := w.ledger.hotbar_vessel(slot, _me().player_id)
+		if v == null:
+			continue
+		var t := w.ledger.token(v.token_id)
+		if t != null and t.action == action and not t.is_prohibition:
+			result.append(slot)
+	return result
 
 
 func _free_slot() -> int:
@@ -239,14 +264,25 @@ func _free_slot() -> int:
 
 
 ## 手元の禁止（action）をホットバーへ移して、target へ触って渡す（禁止を手放す）。
+## 取った禁止は、ホットバーに空きがあれば自動でそこへ入っている（WorldLending.to_hotbar_if_free）。
 func _hand_off_ban(action: RuleAction.Kind, target: Node3D) -> void:
-	var slot := _free_slot()
+	_lend(target, _ban_slot(action), TriggerMode.Kind.NONE)
+	assert_false(w.ledger.player_prohibited(action, _me().player_id), "got rid of the ban")
+
+
+## 手元の禁止（action）が入っているホットバーの枠（かばんにあれば空きへ移す）。
+func _ban_slot(action: RuleAction.Kind) -> int:
+	for slot in RuleLedger.HOTBAR_SIZE:
+		var v := w.ledger.hotbar_vessel(slot, _me().player_id)
+		var t := w.ledger.token(v.token_id) if v != null else null
+		if t != null and t.is_prohibition and t.action == action and t.holder_ids.is_empty():
+			return slot
+	var free := _free_slot()
 	for v in w.ledger.inventory_vessels(_me().player_id):
 		var t := w.ledger.token(v.token_id)
 		if t.is_prohibition and t.action == action:
-			assert_true(w.ledger_actions.move_to_hotbar(v.id, slot), "ban to the hotbar")
-	_lend(target, slot, TriggerMode.Kind.NONE)
-	assert_false(w.ledger.player_prohibited(action, _me().player_id), "got rid of the ban")
+			assert_true(w.ledger_actions.move_to_hotbar(v.id, free), "ban to the hotbar")
+	return free
 
 
 ## 台に付いているものを F で全部回収する（届かない間は、届くまで待つ）。
@@ -273,6 +309,47 @@ func _slide_stone(key: String, stand: Vector3, action: RuleAction.Kind, stop: Ve
 	assert_eq(stone.cell(), stop, "%s slid to %s" % [key, stop])
 	await _walk_to(stone.global_position + Vector3(0.0, -0.5, 1.6), 0.4)
 	await _recall_all_from(key)
+
+
+## 丘の上の旗（1-5）の最初の新しいこと「投げる」: 浜の東の端の台の予備の S を F で取り、幅 14 の空の先の
+## 小島の生き物へ投げ渡して、巣へ歩かせる（docs/w1-teaching.md）。
+func _throw_a_move_to_the_islet_critter() -> void:
+	var slot := await _take_the_spare_s()
+	await _walk_to(Vector3(9.2, 0.0, 5.5), 0.3)
+	var critter := _creature("islet_critter")
+	assert_false(w.is_within_reach(critter), "out of touch reach")
+	_face(critter.global_position)
+	await _lend_by_throwing(critter, slot)
+	assert_true(critter.can_walk(), "the critter caught the thrown S")
+	assert_true(
+		await _wait_creature_in("islet_critter", OpenIslands.HILL_NEST, 900),
+		"the islet critter walked to its nest"
+	)
+
+
+## 丘の上の旗の、浜の東の端の台に付いた予備の S を F で取る。入ったホットバーの枠を返す。
+func _take_the_spare_s() -> int:
+	var spare := _block("spare_post")
+	await _walk_to(spare.global_position + Vector3(1.4, -0.5, 0.0), 0.4)
+	var before := _slots_holding(RuleAction.Kind.BACK)
+	await _recall_all_from("spare_post")
+	for slot in _slots_holding(RuleAction.Kind.BACK):
+		if not before.has(slot):
+			return slot
+	fail("the spare S went to the hotbar")
+	return -1
+
+
+## 採石場（1-6）の最初の新しいこと「禁止」: 底の石のジャンプ禁止を F で取り、もう一方の石へ渡して手放す。
+func _free_stone_a_from_its_ban() -> void:
+	var stone := _block("stone_a")
+	await _walk_to(stone.global_position + Vector3(1.4, -0.5, 0.0), 0.4)
+	await _recall_all_from("stone_a")
+	assert_false(w.ledger.player_can(JUMP, _me().player_id), "the ban is on me now")
+	var other := _block("stone_b")
+	await _walk_to(other.global_position + Vector3(-1.4, -0.5, 0.0), 0.4)
+	_hand_off_ban(JUMP, other)
+	assert_true(w.ledger.player_can(JUMP, _me().player_id), "can jump again")
 
 
 ## 生き物がある箱の中に入るまで待つ（生き物は自分の願いで進む）。

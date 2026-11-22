@@ -184,21 +184,17 @@ func test_state_survives_the_network_round_trip() -> void:
 	assert_true(broken.cleared.is_empty(), "a broken value becomes the default")
 
 
-## 「はじめはここから」はクリアした門に残らず、次の門が「つぎはここ」になる（広場で次の行き先が分かる）。
-func test_the_next_portal_moves_on_after_a_clear() -> void:
+## クリアした後の看板: 次の門が「つぎはここ」、どの看板にも開発の注記「（仮）」は出ない。
+func test_the_next_portal_sign_after_a_clear_has_no_developer_notes() -> void:
 	var state := OverworldState.new()  # 試遊の版（全部開いている）
 	state.cleared = PackedStringArray([StageCatalog.INTRO_ID])
 	var def := Overworld.build(state)
-	var intro := def.overworld.portal(StageCatalog.INTRO_ID)
 	var relay := def.overworld.portal(StageCatalog.RELAY_ID)
-	assert_false(intro.first, "the cleared intro is no longer the one to go to")
-	assert_true(relay.first, "the next stage in the plan is")
-	var firsts := 0
-	for p in def.overworld.portals:
-		firsts += 1 if p.first else 0
-	assert_eq(firsts, 1, "only one portal says where to go next")
+	assert_true(relay.next, "the next stage in the plan")
 	var portal := OverworldPortal.new()
+	for p in def.overworld.portals:
+		portal.spec = p
+		assert_false(portal.caption().contains("（仮）"), portal.caption())
 	portal.spec = relay
 	assert_true(portal.caption().begins_with("つぎはここ"), portal.caption())
-	assert_false(portal.caption().contains("（仮）"), "no developer notes on the sign")
 	portal.free()

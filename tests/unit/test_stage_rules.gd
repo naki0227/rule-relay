@@ -245,16 +245,22 @@ func test_bell_valley_prohibits_jump_for_everyone() -> void:
 	_valid()
 
 
-func test_relay_helpers_depend_on_headcount() -> void:
-	var expected := {1: 1, 2: 1, 3: 1, 4: 2}
+## みんなで回す（1-2）: ジャンプは地面に落ちておらず、ブロックに付いている（F で取る。docs/w1-teaching.md）。
+## 人数によらず 2 つ（止まっている台の 1 つと、繰り返しで跳ね続ける台の 1 つ）。
+func test_relay_jumps_sit_on_blocks_for_every_headcount() -> void:
 	var everyone: Array[int] = [A, B, C, D]
-	for n: int in expected:
+	for n in range(1, 5):
 		ledger = RuleLedger.new()
 		var ids: Array[int] = everyone.slice(0, n)
 		var loadout := _start(StageCatalog.relay_carry(), ids)
-		assert_eq(loadout.helper_token_ids().size(), expected[n], "%d players" % n)
-		assert_eq(ledger.world_vessels().size(), expected[n])
-		assert_eq(_count(JUMP), expected[n], "jump exists only as helpers")
+		assert_eq(loadout.helper_token_ids().size(), 0, "%d players: no helpers" % n)
+		assert_eq(ledger.world_vessels().size(), 0, "nothing lies on the ground")
+		assert_eq(_count(JUMP), 2, "two jumps on the blocks")
+		var post := ledger.tokens_on(loadout.entity_ids["jump_post"])
+		var bouncer := ledger.tokens_on(loadout.entity_ids["bouncer"])
+		assert_eq(post.size(), 1)
+		assert_eq(bouncer.size(), 1)
+		assert_eq(bouncer[0].mode, REPEAT, "the bouncer keeps jumping on its own")
 		for p in ids:
 			assert_false(ledger.player_can(JUMP, p), "nobody starts with jump")
 		_valid()
@@ -354,11 +360,11 @@ func test_rebuild_helpers_three_to_four_removes_scattered_helpers() -> void:
 
 
 func test_rebuild_to_the_same_headcount_does_not_duplicate() -> void:
-	var loadout := _start(StageCatalog.relay_carry(), [A, B])
+	var loadout := _start(_helper_test_stage(), [A, B, C])
 	for i in 3:
-		loadout.rebuild_helpers(ledger, 2)
-	assert_eq(_count(JUMP), 1)
-	assert_eq(loadout.helper_token_ids().size(), 1)
+		loadout.rebuild_helpers(ledger, 3)
+	assert_eq(_count(JUMP), 3 + 4, "three hotbars and the four 3-player helpers")
+	assert_eq(loadout.helper_token_ids().size(), 4)
 	_valid()
 
 
@@ -402,10 +408,11 @@ func test_end_stage_clears_every_stage_token() -> void:
 
 
 func test_new_stage_after_end_stage_has_fresh_ids() -> void:
-	var first := _start(StageCatalog.relay_carry(), [A, B])
+	var first := _start(_helper_test_stage(), [A, B, C])
 	var old_ids := first.helper_token_ids()
+	assert_gt(old_ids.size(), 0)
 	StageLoadout.end_stage(ledger)
-	var def := StageCatalog.relay_carry()
+	var def := _helper_test_stage()
 	var second := StageLoadout.new(def, StageLoadout.register_entities(ledger, def))
 	second.apply(ledger, ledger.players())
 	for id in second.helper_token_ids():
@@ -479,13 +486,17 @@ func test_intro_geometry_teaches_lending_jump() -> void:
 	assert_eq(_top_at(def, floori(spawn.x), floori(spawn.z)), ground)
 
 
-func test_relay_goal_is_one_jump_high_and_jump_is_shared() -> void:
+## みんなで回す: 段（高さ 1）は自分のジャンプで、岩棚（段から 2）は自分のジャンプ 1 つでは届かない。
+func test_relay_shelf_is_one_jump_and_the_ledge_needs_more() -> void:
 	var def := StageCatalog.relay_carry()
-	var rise := _top_at(def, 0, -5) - _top_at(def, 0, 0)
-	assert_eq(rise, 1.0)
-	assert_lt(rise, Tuning.PLAYER_JUMP_HEIGHT)
-	for n in range(1, 5):
-		assert_gt(def.helpers_for(n).size(), 0, "%d players get at least one jump" % n)
+	var ground := _top_at(def, 0, 0)
+	var shelf := _top_at(def, 0, -3)
+	var ledge := _top_at(def, 4, -7)
+	assert_eq(shelf - ground, 1.0)
+	assert_lt(shelf - ground, Tuning.PLAYER_JUMP_HEIGHT)
+	assert_eq(ledge - shelf, 2.0)
+	assert_gt(ledge - shelf, Tuning.PLAYER_JUMP_HEIGHT, "one jump is not enough")
+	assert_lt(ledge - shelf, Tuning.PLAYER_JUMP_HEIGHT * 2.0, "two jumps reach it")
 	assert_false(def.loadout_for(0).has(JUMP))
 
 

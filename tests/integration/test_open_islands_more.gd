@@ -189,14 +189,15 @@ func test_windy_ridge_by_the_ban_and_the_wind_bell() -> void:
 	await _ride_onto(Vector3(-6.5, 4.0, -15.0), "wind_lift_a")
 	await _walk_to(Vector3(-6.5, 4.0, -14.3), 0.25)
 	await _recall_all_from("wind_lift_a")
-	# 肩: 札をホットバーに移し、地形のセルに押し付けてから、肩の台に単発で頂へ
-	var ban: RuleVessel = null
-	for v in w.ledger.inventory_vessels(me):
-		if w.ledger.token(v.token_id).is_prohibition:
-			ban = v
-	assert_ne(ban, null, "carrying the ban")
-	assert_true(w.ledger_actions.move_to_hotbar(ban.id, 6), "ban on the hotbar")
-	_lend(w.terrain_target(Vector3i(-5, 3, -15)), 6, TriggerMode.Kind.NONE)
+	# 肩: 札（取った禁止はホットバーに入っている）を、地形のセルに押し付けてから、肩の台に単発で頂へ
+	assert_true(w.ledger.player_prohibited(JUMP, me), "carrying the ban")
+	var ban_slot := -1
+	for slot in RuleLedger.HOTBAR_SIZE:
+		var v := w.ledger.hotbar_vessel(slot, me)
+		if v != null and w.ledger.token(v.token_id).is_prohibition:
+			ban_slot = slot
+	assert_ne(ban_slot, -1, "the taken ban went to the hotbar")
+	_lend(w.terrain_target(Vector3i(-5, 3, -15)), ban_slot, TriggerMode.Kind.NONE)
 	assert_false(w.ledger.player_prohibited(JUMP, me), "got rid of the ban")
 	await _lift_up("summit_lift", Vector3(-1.5, 4.0, -18.5), Vector3(-1.5, 6.0, -22.5))
 	assert_eq(director.last_clear_text, "", "the summit's edge is not the goal")

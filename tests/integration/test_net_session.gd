@@ -24,7 +24,7 @@ func before_each() -> void:
 	host_ledger = RuleLedger.new()
 	host_ledger.register_entity(BLOCK, EntityKind.Kind.BLOCK)
 	host_ledger.give_player_item(JUMP, false, 0, A)
-	port = 27000 + randi() % 3000
+	port = TestCase.free_port()
 	var server := ENetMultiplayerPeer.new()
 	assert_eq(server.create_server(port, 4), OK, "server on port %d" % port)
 	host.host(server, host_ledger, "host-key")
@@ -64,6 +64,8 @@ func _connect_client(session: NetSession, key: String) -> void:
 	assert_eq(peer.create_client("127.0.0.1", port), OK)
 	session.join(peer, key)
 	await _until(func() -> bool: return session.player_id != -1 and session.generation > 0)
+	TestCase.steady_enet(peer)
+	TestCase.steady_enet(host.multiplayer.multiplayer_peer)
 
 
 ## 条件が真になるまで待つ（最大 5 秒）。

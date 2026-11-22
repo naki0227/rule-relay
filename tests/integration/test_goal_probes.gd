@@ -514,7 +514,7 @@ func _open_net(join: bool = true) -> void:
 	host.enter_stage(StageCatalog.HUB_ID)
 	host_net.world = host.world
 	var server := ENetMultiplayerPeer.new()
-	_port = 36000 + randi() % 3000
+	_port = TestCase.free_port()
 	assert_eq(server.create_server(_port, 4), OK)
 	host_net.start_host(server, "host-key")
 	host.attach_net(host_net)
@@ -551,6 +551,8 @@ func _join() -> void:
 	assert_eq(peer.create_client("127.0.0.1", _port), OK)
 	client_net.start_client(peer, "bob-key")
 	await _until(func() -> bool: return client.world != null and client.world.player.player_id == B)
+	TestCase.steady_enet(peer)
+	TestCase.steady_enet(host_net.multiplayer.multiplayer_peer)
 	await wait_physics_frames(10)
 
 

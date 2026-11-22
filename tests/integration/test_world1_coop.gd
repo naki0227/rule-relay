@@ -7,6 +7,34 @@ const FORWARD := RuleAction.Kind.FORWARD
 const RIGHT := RuleAction.Kind.RIGHT
 
 
+## みんなで回す（1-2）: ジャンプはブロックに付いた 2 つだけ。ホストが台のジャンプを F で取って段へ跳び、
+## 縁から下の参加者へ渡す（受け渡し）。参加者は段の上のはねる台のジャンプも F で取り、ジャンプ ×2 で岩棚へ。
+## 岩棚の縁から 2 つとも段のホストへ渡し、ホストもジャンプ ×2 で上がる。
+func test_relay_two_players_pass_the_taken_jumps() -> void:
+	await _start(StageCatalog.RELAY_ID, 52300)
+	var post := _block(0, "jump_post")
+	await _walk(0, post.global_position + Vector3(0.0, -0.5, 1.4), 0.4)
+	await _interact_and_hold(0, post, JUMP)
+	await _walk(0, Vector3(-1.5, 1.0, -2.6), 0.3)
+	await _walk(1, Vector3(-1.5, 0.0, -0.4), 0.3)
+	await _give(0, 1, JUMP)
+	await _walk(1, Vector3(-0.5, 1.0, -3.5))
+	var bouncer := _block(1, "bouncer")
+	var beside := Vector3(StageCatalog.RELAY_BOUNCER_CELL) + Vector3(-0.9, 0.0, 0.5)
+	await _walk(1, beside, 0.4)
+	await party.until(bouncer.is_grounded, "the bouncer comes down")
+	await _interact_and_hold(1, bouncer, JUMP)
+	assert_eq(_w(1).ledger.ability_count(JUMP, party.pid(1)), 2, "the guest has jump x2")
+	await _walk(1, Vector3(-1.5, 3.0, -6.4), 0.3)
+	await _walk(0, Vector3(-1.5, 1.0, -4.6), 0.3)
+	await _give(1, 0, JUMP)
+	await _give(1, 0, JUMP)
+	await _walk(0, Vector3(-0.5, 3.0, -6.6))
+	await _walk(1, Vector3(-0.5, 2.0, -8.5))
+	await _walk(0, Vector3(1.0, 2.0, -8.5))
+	await _assert_cleared_by_everyone(StageCatalog.RELAY_ID)
+
+
 ## 押し石の小道: ホストが段の縁を削って溝を埋め、参加者が生き物に移動を渡す（手分け）。
 func test_push_path_two_players_split_the_pushing_and_the_kit() -> void:
 	await _start("w1_push_path", 52000)

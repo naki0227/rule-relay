@@ -274,13 +274,14 @@ static func _slot(
 	w.slots.append(s)
 
 
+## はじまりの草原（W1）。どのステージも新しいことを 1 つずつ教える（順番と教え方は docs/w1-teaching.md）。
 static func _meadow() -> World:
 	var w := World.new("w1", "はじまりの草原", "")
 	_slot(
 		w,
 		StageCatalog.INTRO_ID,
 		"跳ぶ力を貸す",
-		"ブロックにジャンプを貸す（単発・繰り返し）",
+		"跳ぶ・ブロックにジャンプを貸して Space で跳ばす（単発）",
 		Vector2(0.5, 5.5),
 		{"species": "bunny", "building": "ow_garden"}
 	)
@@ -288,7 +289,7 @@ static func _meadow() -> World:
 		w,
 		StageCatalog.RELAY_ID,
 		"みんなで回す",
-		"拾った能力を仲間へ回す（受け渡し）",
+		"F でブロックの能力を取る・繰り返しのはねる台・仲間へ回す（受け渡し）",
 		Vector2(-6.5, 2.5),
 		{"species": "lamb", "building": "ow_house"}
 	)
@@ -297,7 +298,7 @@ static func _meadow() -> World:
 		w,
 		"w1_lift_steps",
 		"持ち上げ台の段々",
-		"持ち上げ台×拾ったジャンプ×動物の石の段（ジャンプの数のやりくり）",
+		"ブロックの W/A/S/D（石を単発で押す）→ 動物に移動とジャンプをあげて巣へ（ジャンプの数のやりくり）",
 		Vector2(7.5, 2.5),
 		{"hard": true, "species": "wish", "building": "ow_fountain"}
 	)
@@ -305,7 +306,7 @@ static func _meadow() -> World:
 		w,
 		"w1_push_path",
 		"押し石の小道",
-		"地形のセルに W/A/S/D を渡して押し、生き物の道を作る",
+		"地面にも渡せる（段のふちのセルを押す）・まとめて渡す・生き物の道を作る",
 		Vector2(-9.5, -4.5),
 		{"species": "kit", "tint": Color("#f3d9b8"), "building": "ow_stall"}
 	)
@@ -313,7 +314,7 @@ static func _meadow() -> World:
 		w,
 		StageCatalog.HILL_ID,
 		"丘の上の旗",
-		"装備（ブーツ・グローブ）と何通りもの道",
+		"投げる（小島の動物へ S を投げ渡す）→ 装備（ブーツ・グローブ）と何通りもの道",
 		Vector2(10.5, -4.5),
 		{"grants": "HIGH_JUMP", "species": "wish", "building": "ow_windmill"}
 	)
@@ -321,7 +322,7 @@ static func _meadow() -> World:
 		w,
 		StageCatalog.QUARRY_ID,
 		"採石場",
-		"石を押して段を作る・禁止付きの持ち上げ台",
+		"禁止（石のジャンプ禁止は上に立つ人にも効く・F で取って手放す）・禁止付きの持ち上げ台",
 		Vector2(0.5, -9.5),
 		{"hard": true, "grants": "CLIMB", "species": "kit", "building": "ow_lookout"}
 	)
