@@ -103,11 +103,7 @@ func _handle_gameplay(event: InputEvent) -> void:
 	for action_name: StringName in ACTION_KEYS:
 		if event.is_action_pressed(action_name):
 			var kind := ACTION_KEYS[action_name]
-			if (
-				hud != null
-				and not world.ledger.pending_single_shots(kind, world.acting_id()).is_empty()
-			):
-				hud.hints.used("fire")
+			_note_press(kind)
 			world.press_action(kind)
 	for i in RuleLedger.HOTBAR_SIZE:
 		if event.is_action_pressed(StringName("slot_%d" % (i + 1))):
@@ -121,13 +117,18 @@ func _handle_gameplay(event: InputEvent) -> void:
 			hud.hints.used("lend")
 			if target is Creature and (target as Creature).can_walk():
 				hud.hints.used("creature_move")
+			if target is TerrainCell:
+				_note(&"ground")
 	elif event.is_action_pressed(&"lend_range"):
 		world.begin_range_preview()
 	elif event.is_action_released(&"lend_range"):
 		if world.is_range_preview_active():
-			var result := world.commit_range_preview(world.aimed_block())
+			var aimed := world.aimed_block()
+			var result := world.commit_range_preview(aimed)
 			if result == RuleLedger.LendResult.OK and hud != null:
 				hud.hints.used("range")
+				if aimed is TerrainCell:
+					_note(&"ground")
 	elif event.is_action_pressed(&"radial_menu"):
 		world.cancel_range_preview()
 		if hud != null:
@@ -136,6 +137,7 @@ func _handle_gameplay(event: InputEvent) -> void:
 	elif event.is_action_pressed(&"cycle_mode"):
 		world.cycle_mode()
 		hud.play_ui(&"ui_select")
+		_note_mode()
 	elif event.is_action_pressed(&"toggle_reach"):
 		world.toggle_reach()
 		hud.play_ui(&"ui_select")
@@ -173,6 +175,7 @@ func _handle_radial(event: InputEvent) -> void:
 		if index >= 0:
 			var ok := world.set_lend_mode(RadialSelector.MODES[index])
 			hud.play_ui(&"ui_confirm" if ok else &"ui_error")
+			_note_mode()
 		else:
 			hud.play_ui(&"ui_cancel")
 	elif event.is_action_pressed(&"restore_checkpoint"):
@@ -288,8 +291,38 @@ func _note_interact(target: Node3D) -> void:
 	if world.is_on_checkpoint():
 		_note(&"save")
 	elif target != null and world.is_within_reach(target) and not target is Bell:
-		if not world.ledger.tokens_on(int(target.get("entity_id"))).is_empty():
+		var tokens := world.ledger.tokens_on(int(target.get("entity_id")))
+		if not tokens.is_empty():
 			_note(&"recall")
+		if tokens.any(func(t: RuleToken) -> bool: return t.is_prohibition):
+			_note(&"ban")
+
+
+## W/A/S/D/Space を押したとき: 案内の「貸した単発を使う」「ジャンプ」「跳んでから進む」「押す」を数える。
+func _note_press(kind: RuleAction.Kind) -> void:
+	if hud == null:
+		return
+	var pending := world.ledger.pending_single_shots(kind, world.acting_id())
+	if pending.is_empty():
+		if kind == RuleAction.Kind.JUMP and world.player.can(kind) and world.player.is_on_floor():
+			_note(&"jump")
+		return
+	hud.hints.used("fire")
+	if not RuleAction.is_horizontal(kind):
+		return
+	_note(&"push")
+	for t in pending:
+		for id in t.holder_ids:
+			var block := world.blocks.get(id) as RuleBlock
+			if block != null and not block.is_grounded():
+				_note(&"jump_then_move")
+				return
+
+
+## 方式を「繰り返し」に切りかえたら、その案内に慣れたことにする。
+func _note_mode() -> void:
+	if world.lend_mode == TriggerMode.Kind.REPEAT:
+		_note(&"mode")
 
 
 ## 歩いた時間と、カメラを回した角度を数える（「歩く」「見回す」の案内を慣れたら消すため）。

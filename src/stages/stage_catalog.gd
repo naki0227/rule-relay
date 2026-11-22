@@ -31,6 +31,10 @@ const INTRO_LIFT_CELL := Vector3i(0, -1, -5)
 const INTRO_GOAL_MIN := Vector3i(-2, 0, -9)
 const INTRO_GOAL_MAX := Vector3i(2, 0, -8)
 
+## みんなで回す: ジャンプの台（出現地点のすぐ前）と、段の上のはねる台（岩棚の壁ぎわ）。
+const RELAY_POST_CELL := Vector3i(0, 0, 2)
+const RELAY_BOUNCER_CELL := Vector3i(2, 1, -5)
+
 ## 鐘の谷: 発射台（東向き）と、谷の向こうの小島の鐘。
 const BELL_LAUNCHER_CELL := Vector3i(0, 0, 0)
 const BELL_SHORE_MAX_X := 1
@@ -175,31 +179,41 @@ static func intro_jump_lend() -> StageDef:
 	return def
 
 
-## 能力を回して全員で上がる（配置は仮）。開始時は誰もジャンプを持たない。
-## 段（高さ 1）の上がゴールで、動ける全員が入ればクリア（ALL_AT_GOAL）。
-## ジャンプは人数別補助として世界に置く: 1人 1個、2人 1個、3人 1個、4人 2個（仮。共通式にはしない）。
-## 拾ったジャンプで1人が上がり、下の仲間へ渡す（受け渡し）。順に回せば全員上がれる。
-## 台のブロックへ繰り返しで渡して昇降機にする解法もある。ソロは補助の1個で上がれる。
+## みんなで回す（1-2。docs/w1-teaching.md）。新しいこと: **F で取り戻す**（と、協力なら仲間へ回す）。
+## 開始時は誰もジャンプを持たない。ジャンプはブロックに付いている（地面には落ちていない）:
+## - 出現地点のすぐ前の「ジャンプの台」（止まっている）。F で取ると自分のジャンプになり、段（高さ 1）に跳び乗れる。
+##   F のほかに先へ進む方法は無い（自分では跳べず、段は高さ 1 でも歩いては上がれない）
+## - 段の上の「はねる台」（繰り返しのジャンプを持ち、ひとりでに跳ね続ける。繰り返しの見本）。乗ると跳ね上げられて
+##   岩棚（高さ 3）へ移れる。F で取れば、ジャンプ ×2（2.6）で自分で岩棚へ跳べる（少し難しい使い方）
+## 協力: ジャンプは人数によらず 2 つ。先に上がった人が段の縁から下の仲間へ渡す（受け渡し）。
+## ゴール: 岩棚の奥の窪み（高さ 2、5×2）。縁は南 2 マス・北 1 マス・東西 3 マス。
 static func relay_carry() -> StageDef:
 	var def := StageDef.new()
 	def.stage_id = RELAY_ID
 	def.display_name = "みんなで回す"
 	def.target_minutes = 5
-	var goal_min := Vector3i(-5, 0, -6)
-	var goal_max := Vector3i(5, 0, -4)
-	def.terrain_boxes = [
-		[Vector3i(-5, -1, -6), Vector3i(5, -1, 6), "grass"],
-		[goal_min, goal_max, "rock"],
-	]
-	def.spawn_points = _spawn_row(Vector3(0.0, 0.0, 3.5))
-	def.blocks = [StageDef.BlockSpec.new("stool", Vector3i(3, 0, -2))]
+	var m := IslandMap.blank(Vector2i(-6, -12), 13, 20)
+	m.fill(-5, -1, 5, 7, 0)
+	m.fill(-5, -5, 5, -2, 1)
+	m.fill(-5, -10, 5, -6, 3)
+	var goal := OpenIslands.goal_hollow(m, -2, -9, 2, -8)
+	def.terrain_boxes = m.boxes()
+	def.spawn_points = _spawn_row(Vector3(0.0, 0.0, 5.5))
+	var post := StageDef.BlockSpec.new("jump_post", RELAY_POST_CELL)
+	post.color = Color(0.85, 0.65, 0.35)
+	post.tokens.append(StageDef.TokenSpec.new(RuleAction.Kind.JUMP))
+	var bouncer := StageDef.BlockSpec.new("bouncer", RELAY_BOUNCER_CELL)
+	bouncer.color = Color(0.7, 0.58, 0.86)
+	bouncer.tokens.append(
+		StageDef.TokenSpec.new(RuleAction.Kind.JUMP, false, TriggerMode.Kind.REPEAT)
+	)
+	def.blocks = [post, bouncer]
 	def.set_loadout_for_all(_moves_and([]))
-	var one := [StageDef.PlacementSpec.in_world(RuleAction.Kind.JUMP, Vector3(-1.5, 0.0, 1.5))]
-	var two := one.duplicate()
-	two.append(StageDef.PlacementSpec.in_world(RuleAction.Kind.JUMP, Vector3(1.5, 0.0, 1.5)))
-	def.helpers = {1: one, 2: one.duplicate(), 3: one.duplicate(), 4: two}
-	def.checkpoints = [Vector3(-3.5, 0.0, 4.5)]
-	var goal := AABB(Vector3(goal_min) + Vector3(0.0, 0.9, 0.0), Vector3(11.0, 3.0, 3.0))
+	def.checkpoints = [Vector3(-3.5, 1.0, -3.5)]
+	def.hint_spots = [
+		StageDef.HintSpot.new("recall", Vector3(0.5, 0.0, 2.5), 3.2, "F", "台を見て取る"),
+	]
+	def.hint_spots[0].while_holding = "jump_post"
 	def.clear_condition = ClearCondition.all_at_goal(goal)
 	return def
 

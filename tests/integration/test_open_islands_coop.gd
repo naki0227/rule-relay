@@ -19,6 +19,7 @@ func _climb_lookout() -> void:
 
 func test_hill_top_leap_from_the_lookout_needs_double_speed() -> void:
 	await _enter(StageCatalog.HILL_ID)
+	await _throw_a_move_to_the_islet_critter()
 	await _walk_to(Vector3(8.5, 0.0, 3.5))
 	await _climb_lookout()
 	var edge := Vector3(7.2, 3.0, -4.5)
@@ -59,6 +60,7 @@ func test_quarry_banned_lift_after_moving_the_ban_away() -> void:
 		if stone.cell().x <= -5 and not stone.is_moving_horizontally():
 			break
 		await tree.physics_frame
+	await _free_stone_a_from_its_ban()
 	await _walk_to(Vector3(-4.5, 1.0, 1.5))
 	await _walk_to(Vector3(-6.5, 2.0, 1.5))
 	await _walk_to(Vector3(-6.5, 2.0, 6.5))
@@ -80,11 +82,8 @@ func test_quarry_banned_lift_after_moving_the_ban_away() -> void:
 	await wait_physics_frames(2)
 	assert_eq(w.ledger.tokens_on(lift.entity_id).size(), 0, "took the ban off the lift")
 	assert_false(w.ledger.player_can(JUMP, _me().player_id), "now the ban is on me")
-	# 禁止をホットバーへ移し、投げて底の石に渡す
-	var ban_slot := _free_slot()
-	for v in w.ledger.inventory_vessels(_me().player_id):
-		if w.ledger.token(v.token_id).is_prohibition:
-			assert_true(w.ledger_actions.move_to_hotbar(v.id, ban_slot), "ban to the hotbar")
+	# 取った禁止はホットバーに入る。投げて底の石に渡す
+	var ban_slot := _ban_slot(JUMP)
 	await _lend_by_throwing(_block("stone_b"), ban_slot)
 	assert_true(w.ledger.player_can(JUMP, _me().player_id), "can jump again")
 	await _lift_up("banned_lift", Vector3(0.5, 3.0, 8.5), Vector3(1.5, 5.0, 9.6))
