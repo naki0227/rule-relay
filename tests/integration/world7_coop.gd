@@ -90,10 +90,15 @@ func _hand_all_to(j: int, action: RuleAction.Kind) -> void:
 func _pick_remote(at: Vector3, action: RuleAction.Kind) -> void:
 	await _walk_to(at, 0.6)
 	await _settle_me()
-	w.interact(null)
 	var me := _me().player_id
+	var before := w.ledger.ability_count(action, me)
+	w.interact(null)
+	# 拾った器は、ホットバーに空きがあればそこへ入る（2026-11-23。重い・浮く・泳ぐはかばんへ）
 	await party.until(
-		func() -> bool: return _inventory_vessel(action) != null, "picked %s" % action, 240
+		func() -> bool:
+			return _inventory_vessel(action) != null or w.ledger.ability_count(action, me) > before,
+		"picked %s" % action,
+		240
 	)
 	var v := _inventory_vessel(action)
 	if v != null:
@@ -165,6 +170,8 @@ func _recall_all_from_remote(key: String) -> void:
 func _bag_to_hotbar_remote(action: RuleAction.Kind) -> void:
 	var me := _me().player_id
 	var v := _inventory_vessel(action)
+	if v == null and w.ledger.ability_count(action, me) > 0:
+		return  # 拾ったときにホットバーへ入っていた（2026-11-23）
 	assert_ne(v, null, "%s in the bag" % action)
 	if v != null:
 		w.ledger_actions.move_to_hotbar(v.id, _free_slot())

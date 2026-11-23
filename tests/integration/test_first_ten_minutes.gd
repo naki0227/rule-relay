@@ -115,9 +115,54 @@ func test_token_names_match_the_hotbar() -> void:
 	assert_eq(t.describe(), "ジャンプ禁止")
 
 
-## 落ちている器を拾うとかばんに入る（企画書 7）。ホットバーへ移すまで、何も狙っていなければ照準の下に
-## 「E かばんの能力をホットバーへ」を出す（1-3 の頂のジャンプ）。
-func test_a_picked_up_jump_points_to_the_bag_until_it_is_on_the_hotbar() -> void:
+## 落ちている器を拾うと、ホットバーに空きがあればそこへ入り、その枠が選ばれる（2026-11-23 本人の判断
+## 「ホットバーに入れる」。1-3 の頂のジャンプ）。知らせは「ホットバー」で、かばんの案内は出ない。
+func test_a_picked_up_jump_lands_on_the_hotbar_and_is_selected() -> void:
+	var game := await _solo_game_at_the_summit()
+	var w := game.director.world
+	var hud := game.current_hud()
+	w.interact(null)
+	await wait_physics_frames(3)
+	assert_false(hud.needs_bag_prompt(), "nothing went into the bag")
+	var slot := w.selected_slot
+	var v := w.ledger.hotbar_vessel(slot, w.acting_id())
+	assert_true(v != null and w.ledger.token(v.token_id).action == JUMP, "the new jump is selected")
+	var joined := " ".join(hud.toasts.messages())
+	assert_true(joined.contains("ホットバー %d へ" % (slot + 1)), joined)
+	assert_false(joined.contains("かばん"), "no bag words when it did not go to the bag: " + joined)
+	await _close(game)
+
+
+## ホットバーがいっぱいのときだけ、拾った能力はかばんへ。知らせは「かばんへ」。ホットバーに空きができたら、
+## 何も狙っていなければ照準の下に「E かばんの能力をホットバーへ」を出す。
+func test_a_picked_up_jump_goes_to_the_bag_only_when_the_hotbar_is_full() -> void:
+	var game := await _solo_game_at_the_summit()
+	var w := game.director.world
+	var hud := game.current_hud()
+	var me := w.acting_id()
+	for slot in RuleLedger.HOTBAR_SIZE:
+		if w.ledger.hotbar_vessel(slot, me) == null:
+			w.ledger.give_player_item(RuleAction.Kind.DASH, false, slot, me)
+	w.interact(null)
+	await wait_physics_frames(3)
+	var joined := " ".join(hud.toasts.messages())
+	assert_true(joined.contains("かばんへ"), joined)
+	assert_false(joined.contains("通常インベントリ"), "the inventory screen says かばん: " + joined)
+	assert_false(hud.needs_bag_prompt(), "no free slot to move it to")
+	w.ledger.move_to_inventory(w.ledger.hotbar_vessel(8, me).id)
+	await wait_physics_frames(2)
+	assert_true(hud.needs_bag_prompt(), "a slot is free and the jump is really in the bag")
+	# 入った直後の目的の札が大きい間は案内を出さない（TeachHints）。縮むまで待つ
+	await wait_physics_frames(int((ObjectivePanel.BIG_SECONDS + 0.5) * 60.0))
+	game.current_input().set_process(false)  # 照準の先によらず、何も狙っていないときの案内を見る
+	hud.update_context(null, false, false)
+	assert_true(hud.context_actions().has("かばんの能力をホットバーへ"), str(hud.context_actions()))
+	game.current_input().set_process(true)
+	await _close(game)
+
+
+## 1-3 の頂（落ちているジャンプの横）に立った、ひとりのゲーム。
+func _solo_game_at_the_summit() -> GameRoot:
 	var game := GameRoot.new()
 	tree.root.add_child(game)
 	game.start_solo(PROFILE)
@@ -126,29 +171,16 @@ func test_a_picked_up_jump_points_to_the_bag_until_it_is_on_the_hotbar() -> void
 	await wait_physics_frames(5)
 	var w := game.director.world
 	var hud := game.current_hud()
-	hud.hints.used("move")
-	hud.hints.used("move")
-	hud.hints.used("move")
+	for i in 3:
+		hud.hints.used("move")
 	assert_false(hud.needs_bag_prompt(), "nothing in the bag yet")
 	w.player.global_position = Vector3(4.5, 4.1, -11.5)
 	w.player.velocity = Vector3.ZERO
 	await wait_physics_frames(4)
-	w.interact(null)
-	await wait_physics_frames(3)
-	assert_true(hud.needs_bag_prompt(), "the jump went into the bag")
-	var joined := " ".join(hud.toasts.messages())
-	assert_true(joined.contains("かばん"), joined)
-	assert_false(joined.contains("通常インベントリ"), "the inventory screen says かばん: " + joined)
-	# 入った直後の目的の札が大きい間は案内を出さない（TeachHints）。縮むまで待つ
-	await wait_physics_frames(int((ObjectivePanel.BIG_SECONDS + 0.5) * 60.0))
-	game.current_input().set_process(false)  # 照準の先によらず、何も狙っていないときの案内を見る
-	hud.update_context(null, false, false)
-	assert_true(hud.context_actions().has("かばんの能力をホットバーへ"), str(hud.context_actions()))
-	game.current_input().set_process(true)
-	for v in w.ledger.inventory_vessels(w.acting_id()):
-		w.ledger_actions.move_to_hotbar(v.id, 4)
-	await wait_physics_frames(3)
-	assert_false(hud.needs_bag_prompt(), "gone once it is on the hotbar")
+	return game
+
+
+func _close(game: GameRoot) -> void:
 	game.shutdown()
 	game.queue_free()
 	await tree.process_frame

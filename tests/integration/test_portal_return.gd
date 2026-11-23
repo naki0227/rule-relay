@@ -76,6 +76,29 @@ func test_clearing_a_stage_returns_to_its_portal() -> void:
 	_assert_in_front_of(StageCatalog.INTRO_ID)
 
 
+## 1-1 をクリアして戻ると、ゲームのカメラの画面に次のポータル（1-2。光の柱の「つぎはここ」）が写る
+## （2026-11-23 本人の判断「次のポータルに向ける」）。カメラは戻った門の外のまま。
+func test_after_clearing_1_1_the_camera_shows_the_next_portal() -> void:
+	await _enter_by_portal(StageCatalog.INTRO_ID)
+	var goal := director.world.def.clear_condition.goal_area()
+	await _put(Vector3(goal.get_center().x, goal.position.y + 0.2, goal.get_center().z))
+	await wait_physics_frames(int(PartyDirector.RETURN_DELAY * 60.0) + 15)
+	_assert_in_front_of(StageCatalog.INTRO_ID)
+	var next := director.world.def.overworld.recommended()
+	assert_eq(next.stage_id, StageCatalog.RELAY_ID, "1-2 is next")
+	var cam := director.world.camera_rig.camera()
+	var size := cam.get_viewport().get_visible_rect().size
+	for h: float in [0.5, 2.0, 4.0]:
+		var point := next.position + Vector3(0.0, h, 0.0)
+		assert_false(cam.is_position_behind(point), "in front of the camera")
+		var on_screen := cam.unproject_position(point)
+		assert_true(Rect2(Vector2.ZERO, size).has_point(on_screen), "on screen: %s" % on_screen)
+	assert_true(
+		PortalSpots.camera_clear_of_gates(cam.global_position, director.world.def),
+		"the camera stays out of the arches"
+	)
+
+
 func test_leaving_from_the_menu_returns_to_its_portal() -> void:
 	await _enter_by_portal(ROLLING)
 	assert_eq(director.stage_id, ROLLING)

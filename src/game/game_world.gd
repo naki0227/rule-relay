@@ -56,6 +56,8 @@ var move_buffer: BlockMoveBuffer = BlockMoveBuffer.new()
 
 ## 足もとの禁止の知らせを出した行動（一度だけ出す）。
 var _floor_ban_told: Dictionary = {}
+## F の直後に、ホットバーへ新しく入った能力を選ぶ見張り（NewInHotbar）。
+var _new_in_hotbar: NewInHotbar = NewInHotbar.new()
 var _next_block_id: int = FIRST_BLOCK_ID
 var _repeat_cursors: Dictionary[int, RepeatCursor] = {}
 var _repeat_timers: Dictionary[int, float] = {}
@@ -336,17 +338,22 @@ func reach() -> float:
 
 ## W/A/S/D/Space を押した瞬間。自分の行動と、貸し出した単発の起動に振り分ける。
 ## 同じ行動の単発が同じブロックに n 個あれば、まとめて1回 n 倍で試みる。
-func press_action(action: RuleAction.Kind) -> void:
+## 貸した W/A/S/D の単発を起動したら true（その押し下げでは歩かない。PlayerInput.WALK_AFTER_FIRE）。
+func press_action(action: RuleAction.Kind) -> bool:
 	var route := InputRouter.route_press(ledger, action, acting_id())
 	if route.player_acts and action == RuleAction.Kind.JUMP:
 		player.request_jump()
 	elif route.player_acts and action == RuleAction.Kind.DASH:
 		player.request_dash()
+	var fired_move := (
+		RuleAction.is_horizontal(action) and not route.single_shot_token_ids.is_empty()
+	)
 	if replica:
 		action_requested.emit({"op": "press", "action": action})
-		return
+		return fired_move
 	if not route.single_shot_token_ids.is_empty():
 		WorldTicks.fire_single_shots(self, route.single_shot_token_ids)
+	return fired_move
 
 
 ## 選択中のホットバーの器から、target へ付与する。use_range なら target の層の円内の全ブロックへ。
@@ -459,18 +466,22 @@ func cancel_range_preview() -> void:
 
 ## F: 足もとに器が落ちていれば拾う。チェックポイント上なら保存。そうでなければ狙ったブロックから
 ## 付いているものを全部回収し、無ければ立っている範囲付与を全部回収する。回収は「投げる」の有無によらず触る距離。
-## 全部回収（2026-11-19 本人の判断）: 自分が貸したものは器へ、最初から置かれていたものは拾ったものとして通常インベントリへ。
+## 全部回収（2026-11-19 本人の判断）: 自分が貸したものは器へ、最初から置かれていたものは拾ったものとして手元へ
+## （ホットバーに空きがあればそこ、無ければかばん。WorldLending.to_hotbar_if_free）。
+## F で取った・拾った能力がホットバーに新しく入ったら、その枠を選ぶ（NewInHotbar）。
 func interact(target: Node3D) -> void:
+	_new_in_hotbar.watch(self)
 	if replica:
 		action_requested.emit({"op": "interact", "target": WorldQueries.target_ref(self, target)})
 		return
 	var dropped := WorldQueries.nearest_dropped(ledger, player.global_position)
 	if dropped == -1:
 		_interact(target)
-		return
-	ledger.pickup_token(dropped, acting_id())
-	_post("落ちていた%sを拾いました" % ledger.token(dropped).describe())
-	_sound(&"ui_pick", player.global_position)
+	else:
+		ledger.pickup_token(dropped, acting_id())
+		_post("落ちていた%sを拾いました" % ledger.token(dropped).describe())
+		_sound(&"ui_pick", player.global_position)
+	_new_in_hotbar.settle(self)
 
 
 func _interact(target: Node3D) -> void:
@@ -493,7 +504,7 @@ func _interact(target: Node3D) -> void:
 		var picked := _recall_all(on_target)
 		if not picked.is_empty():
 			var verb := "取り戻しました" if mine else "取りました"
-			_post("%sを%s%s" % [_describe_tokens(picked), verb, _bag_note(picked)])
+			_post("%sを%s%s" % [_describe_tokens(picked), verb, WorldLending.bag_note(self, picked)])
 			var only_bans := picked.all(func(t: RuleToken) -> bool: return t.is_prohibition)
 			var back := "recall@%d" % RuleAction.motif_semitone(picked[0].action)
 			_sound(&"prohibit" if only_bans else StringName(back), target.global_position)
@@ -512,10 +523,12 @@ func nearest_world_item() -> RuleVessel:
 	return WorldItem.nearest(ledger, player.global_position)
 
 
+## 拾った器は、ホットバーに空きがあればそこへ入る（2026-11-23 本人の判断。WorldLending.vessel_to_hotbar_if_free）。
 func _pick_up(v: RuleVessel) -> void:
 	var at := v.world_position
 	ledger.pickup(v.id, acting_id())
-	_post(WorldItem.pickup_text(v, ledger.token(v.token_id)))
+	var slot := WorldLending.vessel_to_hotbar_if_free(self, v)
+	_post(WorldItem.pickup_text(v, ledger.token(v.token_id), slot))
 	_sound(&"ui_pick", at)
 
 
@@ -711,16 +724,6 @@ func _recall_all(tokens: Array[RuleToken]) -> Array[RuleToken]:
 	return picked
 
 
-## 回収した物がかばんに入ったとき（置かれていた能力・生き物が最初から持っていた能力）の一言。
-## ホットバーには出てこないので、どこへ行ったか分からなかった（2026-11-22 の通し）。
-func _bag_note(tokens: Array[RuleToken]) -> String:
-	for t in tokens:
-		var v := ledger.vessel(t.vessel_id)
-		if v != null and v.location == RuleVessel.Location.INVENTORY and t.is_in_vessel():
-			return "（かばんへ。%s で開いてホットバーへ）" % InputMode.token(&"inventory")
-	return ""
-
-
 func _describe_tokens(tokens: Array[RuleToken]) -> String:
 	var names := PackedStringArray()
 	for t in tokens:
@@ -782,6 +785,8 @@ func _post(text: String) -> void:
 
 
 func _on_ledger_changed() -> void:
+	if replica:
+		_new_in_hotbar.arrived(self)
 	for id in blocks:
 		blocks[id].show_tokens(ledger.tokens_on(id))
 	for id in creatures:

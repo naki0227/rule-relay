@@ -6,6 +6,9 @@ extends Node3D
 ## - 巣の床の薄い輪と、島の向こうからでも見える高い光の柱。色は生き物ごと（tint。同じ島に何匹いても、
 ##   どの巣が誰のか分かる。吹き出しの巣の絵・画面の縁の案内も同じ色）
 ## - 光の柱は、カメラが巣に近づくと薄くなり、近くでは消える（間近の謎を隠さない）
+## - 近く〜中くらいのきょり（CENTER_FADE_FAR より近い）では、画面の真ん中の縦の帯と、上の帯（ステージの名前の札・
+##   目的の札がある所）で柱を薄くする（beam_screen_fade）。原っぱから見ると柱が画面を縦に横切り、照準と上の札に
+##   重なっていた（2026-11-22 のはじめての 10 分の通し・1-4）。遠くからの目印としては、そのまま見える
 ## - 願いがかなったら輪と柱を消し、巣の上で小さく喜びの輪を広げる。巣のモデルは残る（生き物の家）
 ## 参加者の画面でも、ホストから届いた頭の上の吹き出し（♪）で同じに判断する。同じ箱を行き先にする生き物が
 ## 何匹いても、目印は 1 つ（全員の願いがかなうまで柱を出す）。
@@ -19,6 +22,15 @@ const TINTS: Array[Color] = [
 ## カメラから巣までの水平の距離が FADE_NEAR 以下で柱は消え、FADE_FAR 以上ではっきり見える。
 const FADE_NEAR: float = 4.0
 const FADE_FAR: float = 13.0
+## 画面で柱を薄くするのは、カメラから巣までの水平の距離が CENTER_FADE_FAR より近いとき（FADE_FAR〜これの間で
+## 薄くする度合いを弱める）。遠くの目印としての柱は変えない。
+const CENTER_FADE_FAR: float = 30.0
+## 画面の真ん中の縦の帯（横の位置 0.5 からの幅。SCREEN_UV）。CENTER_CLEAR_INNER より内側は消し、OUTER で元どおり。
+const CENTER_CLEAR_INNER: float = 0.05
+const CENTER_CLEAR_OUTER: float = 0.16
+## 画面の上の帯（SCREEN_UV の縦。0 が上）。TOP_CLEAR_INNER より上は消し、OUTER で元どおり。
+const TOP_CLEAR_INNER: float = 0.08
+const TOP_CLEAR_OUTER: float = 0.2
 ## 巣のモデルの直径（箱の小さいほうの辺に対する割合と、上限 m）。
 const NEST_FILL: float = 0.8
 const NEST_MAX: float = 1.8
@@ -33,19 +45,28 @@ uniform vec4 tint : source_color = vec4(1.0, 0.7, 0.35, 0.5);
 uniform float fade_near = 4.0;
 uniform float fade_far = 13.0;
 uniform float height = 24.0;
+uniform float screen_fade = 0.0;
+uniform float center_fade_far = 30.0;
+uniform vec2 center_clear = vec2(0.05, 0.16);
+uniform vec2 top_clear = vec2(0.08, 0.2);
 varying float rise;
 varying float near_fade;
+varying float mid_range;
 void vertex() {
 	rise = clamp(VERTEX.y / height + 0.5, 0.0, 1.0);
 	vec3 cam = INV_VIEW_MATRIX[3].xyz;
 	vec3 origin = MODEL_MATRIX[3].xyz;
-	near_fade = smoothstep(fade_near, fade_far, length(cam.xz - origin.xz));
+	float d = length(cam.xz - origin.xz);
+	near_fade = smoothstep(fade_near, fade_far, d);
+	mid_range = screen_fade * (1.0 - smoothstep(fade_far, center_fade_far, d));
 }
 void fragment() {
 	float edge = mix(0.3, 1.0, abs(dot(NORMAL, VIEW)));
 	float top = 1.0 - smoothstep(0.6, 1.0, rise);
+	float clear = smoothstep(center_clear.x, center_clear.y, abs(SCREEN_UV.x - 0.5))
+		* smoothstep(top_clear.x, top_clear.y, SCREEN_UV.y);
 	ALBEDO = tint.rgb;
-	ALPHA = tint.a * edge * top * near_fade;
+	ALPHA = tint.a * edge * top * near_fade * mix(1.0, clear, mid_range);
 }
 """
 
@@ -100,6 +121,17 @@ static func beam_fade(distance: float) -> float:
 	return smoothstep(FADE_NEAR, FADE_FAR, distance)
 
 
+## 画面の位置 uv（SCREEN_UV。0〜1、上が 0）と、カメラから巣までの水平の距離での、柱の濃さの倍率（0〜1。
+## シェーダーと同じ式）。近く〜中くらいのきょりで、画面の真ん中の縦の帯と上の帯を薄くする。
+static func beam_screen_fade(uv: Vector2, distance: float) -> float:
+	var mid := 1.0 - smoothstep(FADE_FAR, CENTER_FADE_FAR, distance)
+	var clear := (
+		smoothstep(CENTER_CLEAR_INNER, CENTER_CLEAR_OUTER, absf(uv.x - 0.5))
+		* smoothstep(TOP_CLEAR_INNER, TOP_CLEAR_OUTER, uv.y)
+	)
+	return lerpf(1.0, clear, mid)
+
+
 ## 巣のモデルの直径（m）。
 func nest_diameter() -> float:
 	return minf(minf(box.size.x, box.size.z) * NEST_FILL, NEST_MAX)
@@ -142,6 +174,11 @@ func _ready() -> void:
 	beam_mat.set_shader_parameter("fade_near", FADE_NEAR)
 	beam_mat.set_shader_parameter("fade_far", FADE_FAR)
 	beam_mat.set_shader_parameter("height", BEAM_HEIGHT)
+	# 画面で薄くするのは巣の柱だけ（広場の「つぎはここ」の柱は同じシェーダーで、画面に入れて見せたい）
+	beam_mat.set_shader_parameter("screen_fade", 1.0)
+	beam_mat.set_shader_parameter("center_fade_far", CENTER_FADE_FAR)
+	beam_mat.set_shader_parameter("center_clear", Vector2(CENTER_CLEAR_INNER, CENTER_CLEAR_OUTER))
+	beam_mat.set_shader_parameter("top_clear", Vector2(TOP_CLEAR_INNER, TOP_CLEAR_OUTER))
 	_beam.material_override = beam_mat
 	_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_beam)

@@ -294,16 +294,18 @@ func _floor_points(goal: AABB, step: float) -> Array[Vector3]:
 	return out
 
 
-## カメラを viewer の頭の上 1.5（CameraRig の回転の中心）から point へ向ける（範囲は CameraRig のまま）。
+## カメラを viewer の頭の上（CameraRig の回転の中心）から point へ向ける（範囲は CameraRig のまま）。
 ## 照準の光線は肩越しのずれ（h_offset）の分だけ右を通るので、そのずれた線が point を通る向きに合わせる。
+## 見上げると支点が上がる（CameraRig.pivot_height）ので、その高さも向きに合わせて求め直す。
 func _aim_point(world: GameWorld, viewer: PlayerAvatar, point: Vector3) -> void:
-	var pivot := viewer.global_position + Vector3(0.0, 1.5, 0.0)
-	var origin := pivot
-	for i in 4:
+	var feet := viewer.global_position
+	var origin := feet + Vector3(0.0, CameraRig.PIVOT_HEIGHT, 0.0)
+	for i in 6:
 		var dir := (point - origin).normalized()
 		world.camera_rig.yaw = atan2(-dir.x, -dir.z)
 		world.camera_rig.pitch = clampf(asin(dir.y), CameraRig.MIN_PITCH, CameraRig.MAX_PITCH)
 		var right := Vector3(cos(world.camera_rig.yaw), 0.0, -sin(world.camera_rig.yaw))
+		var pivot := feet + Vector3(0.0, CameraRig.pivot_height(world.camera_rig.pitch), 0.0)
 		origin = pivot + right * world.camera_rig.camera().h_offset
 
 

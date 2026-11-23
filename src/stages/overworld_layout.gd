@@ -89,6 +89,23 @@ class SignSpec:
 		text = p_text
 
 
+## 次に遊ぶとよいポータル（広場へ戻ったとき、体と視点をこれへ向ける。PortalSpots.face_next）。
+## はじまりの草原の「つぎはここ」（next。光の柱の門）があればそれ。無ければ、本編のワールドの順で、開いていて
+## まだクリアしていない最初のポータル。どれも無ければ null。
+func recommended() -> PortalSpec:
+	for p in portals:
+		if p.next:
+			return p
+	for p in portals:
+		var slot := CampaignPlan.slot(p.stage_id)
+		if slot == null or not p.open or p.cleared:
+			continue
+		var world := CampaignPlan.world(slot.world_id)
+		if world != null and not world.optional:
+			return p
+	return null
+
+
 func portal(stage_id: String) -> PortalSpec:
 	for p in portals:
 		if p.stage_id == stage_id:

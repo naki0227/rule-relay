@@ -141,19 +141,47 @@ static func give_token(
 
 ## ブロック・生き物・地形に最初から付いていた（だれの器にも入っていなかった）能力・禁止を F で取ったら、
 ## ホットバーに空きがあればそこへ入れる（docs/w1-teaching.md）。2026-11-22: 初めての人が F で取ったジャンプを
-## 「かばんを開いて並べる」まで使えず止まっていたため。自分の器の能力は今までどおり器へ戻り、落ちている器を
-## 拾ったときは今までどおり通常インベントリへ（ほかのワールドの拾う遊びを変えない）。持っているだけで効く性質
-## （重い・浮く・泳ぐ。ホットバーに置くと勝手に効く）は、かばんへ。
-static func to_hotbar_if_free(w: GameWorld, tokens: Array[RuleToken]) -> void:
+## 「かばんを開いて並べる」まで使えず止まっていたため。自分の器の能力は今までどおり器へ戻る。
+## 持っているだけで効く性質（重い・浮く・泳ぐ。ホットバーに置くと勝手に効く）は、かばんへ。
+## 入れた枠を返す（どれも入らなければ -1。最後に入れた能力の枠）。
+static func to_hotbar_if_free(w: GameWorld, tokens: Array[RuleToken]) -> int:
+	var landed := -1
+	for t in tokens:
+		var v := w.ledger.vessel(t.vessel_id) if t != null else null
+		if v == null or v.is_equipment() or t.action in TRAITS:
+			continue
+		var slot := vessel_to_hotbar_if_free(w, v)
+		if slot != -1 and not t.is_prohibition:
+			landed = slot
+	return landed
+
+
+## 拾った器（自分のかばんにある）を、ホットバーに空きがあればそこへ移し、その枠を返す（入らなければ -1）。
+## 2026-11-23 本人の判断「ホットバーに入れる」: 落ちている器を拾ったときも、F で取ったときと同じにする
+## （前はかばんへ入り、1-3 の頂のジャンプで初めてかばんを開く操作を求めていた）。
+## 装備は入れ物のままホットバーへ入れ、身につけない（ADR 0018。身につけるのは自分で）。
+## 持っているだけで効く性質（重い・浮く・泳ぐ）は、ホットバーに置くと勝手に効くので、今までどおりかばんへ
+## （装備を勝手に身につけないのと同じ。AI の判断）。
+static func vessel_to_hotbar_if_free(w: GameWorld, v: RuleVessel) -> int:
 	var ledger := w.ledger
 	var me := w.acting_id()
+	if v == null or v.owner_id != me or v.location != RuleVessel.Location.INVENTORY:
+		return -1
+	var t := ledger.token(v.token_id)
+	if t != null and t.action in TRAITS:
+		return -1
+	for slot in RuleLedger.HOTBAR_SIZE:
+		if ledger.hotbar_vessel(slot, me) == null:
+			ledger.move_to_hotbar(v.id, slot)
+			return slot
+	return -1
+
+
+## 回収した物がかばんに入ったとき（ホットバーがいっぱい・持っているだけで効く性質）の一言。
+## ホットバーに入ったときは何も足さない。本当にかばんに入ったときだけ「かばんへ」と言う（2026-11-23）。
+static func bag_note(w: GameWorld, tokens: Array[RuleToken]) -> String:
 	for t in tokens:
-		var v := ledger.vessel(t.vessel_id) if t != null else null
-		if v == null or v.owner_id != me or v.location != RuleVessel.Location.INVENTORY:
-			continue
-		if v.is_equipment() or t.action in TRAITS:
-			continue
-		for slot in RuleLedger.HOTBAR_SIZE:
-			if ledger.hotbar_vessel(slot, me) == null:
-				ledger.move_to_hotbar(v.id, slot)
-				break
+		var v := w.ledger.vessel(t.vessel_id)
+		if v != null and v.location == RuleVessel.Location.INVENTORY and t.is_in_vessel():
+			return "（かばんへ。%s で開いてホットバーへ）" % InputMode.token(&"inventory")
+	return ""

@@ -107,7 +107,7 @@ func _pick_and_wear(at: Vector3, part: RuleVessel.Part) -> void:
 	await _walk_to(at, 0.6)
 	w.interact(null)
 	await wait_physics_frames(2)
-	for v in w.ledger.inventory_vessels(_me().player_id):
+	for v in carried(w.ledger, _me().player_id):
 		if v.part == part:
 			assert_true(w.ledger_actions.equip(v.id), "wear %s" % v.item_name)
 
@@ -117,7 +117,7 @@ func _pick_dash(at: Vector3) -> void:
 	await _walk_to(at, 0.6)
 	w.interact(null)
 	await wait_physics_frames(2)
-	for v in w.ledger.inventory_vessels(_me().player_id):
+	for v in carried(w.ledger, _me().player_id):
 		if w.ledger.token(v.token_id).action == DASH:
 			assert_true(w.ledger_actions.move_to_hotbar(v.id, DASH_SLOT), "dash on the hotbar")
 	assert_true(w.ledger.player_can(DASH, _me().player_id), "can dash")

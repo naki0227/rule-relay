@@ -71,6 +71,7 @@ static func build(state: OverworldState) -> StageDef:
 	_loadout(def, state)
 	_portals(def, layout, state)
 	PortalSpots.place(def, layout, field)  # ステージから戻ったときの立ち位置（docs/adr/0020）
+	PortalSpots.face_next(def, layout, field)  # 戻ったら次のポータルが見える向き（2026-11-23）
 	_settle(layout, state)
 	OverworldScenery.scatter(layout, field, def)
 	return def

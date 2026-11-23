@@ -89,6 +89,31 @@ func test_every_nest_stage_builds_a_nest_model_and_a_beam() -> void:
 
 
 ## 光の柱は遠くからははっきり、巣に近づくと薄くなり、間近では消える（謎を隠さない）。
+## 近く〜中くらいのきょりでは、画面の真ん中の縦の帯と上の帯（ステージの名前・目的の札）で柱を薄くする。
+## 1-4 の原っぱから見ると、柱が画面を縦に横切って照準と上の札に重なっていた（はじめての 10 分の通し）。
+## 遠くからの目印としては、画面のどこでもそのまま。
+func test_nest_beam_clears_the_crosshair_and_the_top_banner_at_mid_range() -> void:
+	var mid := 15.0
+	assert_lt(WishMarker.beam_screen_fade(Vector2(0.5, 0.5), mid), 0.15, "faded over the crosshair")
+	assert_lt(WishMarker.beam_screen_fade(Vector2(0.8, 0.03), mid), 0.15, "faded under the banner")
+	assert_almost(
+		WishMarker.beam_screen_fade(Vector2(0.8, 0.5), mid), 1.0, 0.001, "off to the side"
+	)
+	assert_almost(WishMarker.beam_screen_fade(Vector2(0.5, 0.5), 40.0), 1.0, 0.001, "far: landmark")
+	assert_almost(WishMarker.beam_screen_fade(Vector2(0.5, 0.03), 40.0), 1.0, 0.001)
+	# 柱の材質にも、同じ値が入っている（広場の「つぎはここ」の柱は画面で薄くしない）
+	var marker := WishMarker.new()
+	marker.box = AABB(Vector3(-1.0, 0.0, -1.0), Vector3(2.0, 2.0, 2.0))
+	tree.root.add_child(marker)
+	await wait_physics_frames(1)
+	var beam := marker.get_node(^"Beam") as MeshInstance3D
+	var mat := beam.material_override as ShaderMaterial
+	assert_eq(float(mat.get_shader_parameter("screen_fade")), 1.0)
+	assert_eq(float(mat.get_shader_parameter("center_fade_far")), WishMarker.CENTER_FADE_FAR)
+	marker.queue_free()
+	await tree.process_frame
+
+
 func test_nest_beam_fades_up_close() -> void:
 	assert_eq(WishMarker.beam_fade(1.0), 0.0, "gone right at the nest")
 	assert_eq(WishMarker.beam_fade(WishMarker.FADE_NEAR), 0.0)

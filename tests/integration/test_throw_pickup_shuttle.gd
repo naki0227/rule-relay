@@ -64,14 +64,31 @@ func test_recall_with_f_is_touch_range_even_while_throwing() -> void:
 	assert_true(island.ledger.tokens_on(block.entity_id).is_empty(), "F recalls up close")
 
 
-func test_f_picks_up_a_world_item_into_the_bag() -> void:
+## 拾った器は、ホットバーに空きがあればそこへ入り、その枠が選ばれる（2026-11-23 本人の判断）。
+func test_f_picks_up_a_world_item_onto_a_free_hotbar_slot() -> void:
 	var spot := island.player.global_position + Vector3(1.0, 0.0, 0.0)
 	var v := island.ledger.place_in_world(RuleAction.Kind.LEFT, false, spot)
 	await wait_physics_frames(2)
 	assert_eq(island.nearest_world_item(), v)
 	island.interact(null)
-	assert_eq(island.ledger.vessel(v.id).location, RuleVessel.Location.INVENTORY)
+	assert_eq(island.ledger.vessel(v.id).location, RuleVessel.Location.HOTBAR)
+	assert_eq(island.selected_slot, island.ledger.vessel(v.id).slot, "the new item is selected")
 	assert_eq(island.nearest_world_item(), null)
+
+
+## ホットバーがいっぱいなら、かばん（通常インベントリ）へ。選んでいる枠は変えない。
+func test_f_picks_up_into_the_bag_when_the_hotbar_is_full() -> void:
+	var me := island.acting_id()
+	for slot in RuleLedger.HOTBAR_SIZE:
+		if island.ledger.hotbar_vessel(slot, me) == null:
+			island.ledger.give_player_item(RuleAction.Kind.DASH, false, slot, me)
+	island.select_slot(2)
+	var spot := island.player.global_position + Vector3(1.0, 0.0, 0.0)
+	var v := island.ledger.place_in_world(RuleAction.Kind.LEFT, false, spot)
+	await wait_physics_frames(2)
+	island.interact(null)
+	assert_eq(island.ledger.vessel(v.id).location, RuleVessel.Location.INVENTORY)
+	assert_eq(island.selected_slot, 2)
 
 
 func test_restoring_puts_a_picked_up_item_back_in_the_world() -> void:

@@ -32,7 +32,10 @@ func pick_up_and_wear(at: Vector3, part: RuleVessel.Part) -> RuleVessel:
 	await place_player(at)
 	var item := island.nearest_world_item()
 	island.interact(null)
-	assert_eq(island.ledger.vessel(item.id).location, RuleVessel.Location.INVENTORY)
+	# 拾った装備は入れ物のままホットバーの空きへ入り、身につけない（2026-11-23 本人の判断・ADR 0018）
+	assert_eq(island.ledger.vessel(item.id).location, RuleVessel.Location.HOTBAR)
+	var power := island.ledger.token(item.token_id).action
+	assert_false(island.ledger.player_can(power), "not worn by picking it up")
 	panel.open()
 	assert_true(panel.drop_on_equip(item.id, part), "dropped on the right slot")
 	panel.close()
@@ -88,6 +91,9 @@ func test_gloves_climb_the_high_ground_wall() -> void:
 
 
 func test_unworn_gloves_do_not_climb() -> void:
+	# 拾ってホットバーに入っただけ（身につけていない）グローブでは登れない
+	await place_player(island.GLOVES_AT)
+	island.interact(null)
 	await place_player(Vector3(6.5, 0.0, -4.3))
 	for i in 120:
 		island.player.move_intent = Vector2(0.0, 1.0)

@@ -228,6 +228,8 @@ func _bag_to_hotbar(action: RuleAction.Kind) -> void:
 		if t.action == action and not t.is_prohibition and v.part == RuleVessel.Part.NONE:
 			assert_true(w.ledger_actions.move_to_hotbar(v.id, slot), "%s to the hotbar" % action)
 			return
+	if _picked_slot(action) != -1:
+		return  # 拾ったときにホットバーへ入っていた
 	fail("no %s in the bag" % action)
 
 

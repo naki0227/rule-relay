@@ -48,15 +48,13 @@ func _swim_to(target: Vector3, frames: int = 900) -> bool:
 	return false
 
 
-## 足もとに落ちている器を拾う（通常インベントリへ）。
+## 足もとに落ちている器を拾う（ホットバーの空きか、重い・浮く・泳ぐなら通常インベントリへ）。
 func _pick_up_here(at: Vector3) -> void:
 	await _walk_to(at, 0.6)
-	var before := w.ledger.inventory_vessels(_me().player_id).size()
+	var before := carried(w.ledger, _me().player_id).size()
 	w.interact(null)
 	await wait_physics_frames(2)
-	assert_eq(
-		w.ledger.inventory_vessels(_me().player_id).size(), before + 1, "picked up at %s" % at
-	)
+	assert_eq(carried(w.ledger, _me().player_id).size(), before + 1, "picked up at %s" % at)
 
 
 ## 通常インベントリの能力（禁止ではない）を、ホットバーの空きへ移す。移した枠を返す。
@@ -67,6 +65,8 @@ func _to_hotbar(action: RuleAction.Kind) -> int:
 		if t.action == action and not t.is_prohibition:
 			assert_true(w.ledger_actions.move_to_hotbar(v.id, slot), "%s to the hotbar" % action)
 			return slot
+	if _picked_slot(action) != -1:
+		return _picked_slot(action)  # 拾ったときにホットバーへ入っていた
 	fail("no %s in the inventory" % action)
 	return -1
 

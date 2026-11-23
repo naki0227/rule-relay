@@ -147,6 +147,25 @@ func test_client_recalls_what_the_host_lent() -> void:
 	await _until(func() -> bool: return client_world.ledger.ability_count(JUMP, B) == 2)
 
 
+## 置かれていた能力を参加者が F で取ると、ホストが参加者のホットバーの空きへ入れ、参加者の画面ではその枠が
+## 選ばれる（2026-11-23。ホストは参加者の選択を持たないので、台帳が届いたときに参加者の画面で選ぶ）。
+func test_client_takes_a_placed_ability_and_it_is_selected() -> void:
+	var host_block := host_world.row[0]
+	var left := RuleAction.Kind.LEFT
+	host_world.ledger.place_on_entity(left, false, host_block.entity_id, TriggerMode.Kind.REPEAT)
+	await _place_client(_near(client_world.row[0]))
+	await _until(
+		func() -> bool: return client_world.ledger.can_initiate(host_block.entity_id, left)
+	)
+	client_world.select_slot(JUMP_SLOT)
+	host_world.select_slot(0)
+	client_world.interact(client_world.row[0])
+	await _until(func() -> bool: return client_world.selected_slot != JUMP_SLOT)
+	var v := client_world.ledger.hotbar_vessel(client_world.selected_slot, B)
+	assert_true(v != null and client_world.ledger.token(v.token_id).action == left, "selected")
+	assert_eq(host_world.selected_slot, 0, "the host's own selection is untouched")
+
+
 func test_client_gives_its_jump_to_the_host() -> void:
 	await _place_client(host_world.player.global_position + Vector3(1.0, 0.0, 0.0))
 	await _until(func() -> bool: return client_world.avatars[A].global_position.y > -5.0)
@@ -203,9 +222,10 @@ func test_client_buffered_w_climbs_a_ledge_on_both_sides() -> void:
 		client_world.lend_to(block, false)
 	var w_action := RuleAction.Kind.FORWARD
 	await _until(func() -> bool: return client_world.ledger.can_initiate(block.entity_id, w_action))
-	client_world.press_action(JUMP)
+	assert_false(client_world.press_action(JUMP), "a jump is not a walking key")
 	await _until(func() -> bool: return host_block.global_position.y > 0.7)
-	client_world.press_action(w_action)
+	# 参加者の画面でも、貸した W を起動した押し下げは「自分は歩かない」と分かる（PlayerInput が使う）
+	assert_true(client_world.press_action(w_action), "fired the lent W: the client does not walk")
 	await _until(func() -> bool: return host_block.cell() == Vector3i(8, 2, -3))
 	await _until(
 		func() -> bool: return block.global_position.distance_to(host_block.global_position) < 0.05

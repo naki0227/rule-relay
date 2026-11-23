@@ -1,6 +1,6 @@
 class_name WorldItem
 extends Node3D
-## 世界に落ちている器の見た目（F で拾うと通常インベントリへ入る）。台帳の状態を映すだけで、
+## 世界に落ちている器の見た目（F で拾うと、ホットバーに空きがあればそこ、無ければかばんへ入る）。台帳の状態を映すだけで、
 ## 拾う処理は GameWorld が台帳に対して行う。当たり判定はない。
 
 ## 装備・ダッシュの道具を、手に持つ大きさより少し大きく見せる倍率。
@@ -145,12 +145,17 @@ static func _place(
 	nodes[key].position = v.world_position
 
 
-## 拾ったときの知らせ。装備品は、つけるまで効かないことと、つけ方を添える（docs/adr/0018）。
-static func pickup_text(v: RuleVessel, t: RuleToken) -> String:
+## 拾ったときの知らせ。slot は入ったホットバーの枠（0 始まり。かばんに入ったら -1）。
+## 「かばんへ」は本当にかばんに入ったときだけ言う（2026-11-23 本人の判断「ホットバーに入れる」）。
+## 装備品は、つけるまで効かないことと、つけ方を添える（docs/adr/0018）。
+static func pickup_text(v: RuleVessel, t: RuleToken, slot: int = -1) -> String:
 	var item_label := v.item_name if v.item_name != "" else t.describe()
 	var bag := InputMode.token(&"inventory")
 	if v.is_equipment():
-		return "%sを拾いました（つけるまで効きません。%s で開いて「そうびする」）" % [item_label, bag]
+		var where := "ホットバー %d へ。" % (slot + 1) if slot >= 0 else ""
+		return "%sを拾いました（%sつけるまで効きません。%s で開いて「そうびする」）" % [item_label, where, bag]
+	if slot >= 0:
+		return "%sを拾いました（ホットバー %d へ）" % [item_label, slot + 1]
 	# 持ち物の画面の言い方（かばん）にそろえる。前は「通常インベントリ」だった
 	return "%sを拾いました（かばんへ。%s で開いてホットバーへ）" % [item_label, bag]
 

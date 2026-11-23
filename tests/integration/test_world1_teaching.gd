@@ -50,6 +50,19 @@ func test_relay_the_shelf_needs_a_jump_taken_with_f() -> void:
 	assert_lt(_me().global_position.y, 0.5, "still on the ground")
 
 
+## 台のジャンプを F で取ると、その枠が選ばれる。空になった台を狙っても「W を渡す」とは出ない
+## （2026-11-23。はじめての 10 分の通しで、取った直後も W のままで、W を台へ返しそうになった）。
+func test_relay_the_jump_taken_from_the_post_is_selected() -> void:
+	await _enter(RELAY)
+	await _attach_hud()
+	w.select_slot(0)
+	await _take_the_post_jump()
+	_learn("recall")
+	var post := _block("jump_post")
+	var shown := _shown(post)
+	assert_false(shown.has("Wを渡す"), str(shown))
+
+
 ## ひとりの道 1: 台のジャンプを F で取り（すぐホットバーに入る）、段へ跳び、はねる台に乗って岩棚へ。
 func test_relay_take_the_post_jump_and_ride_the_bouncer() -> void:
 	await _enter(RELAY)
@@ -104,6 +117,7 @@ func _take_the_post_jump() -> void:
 	await wait_physics_frames(2)
 	assert_true(w.ledger.player_can(JUMP, _me().player_id), "took the jump with F")
 	assert_ne(_slot_of(JUMP), -1, "it went straight to the hotbar (no bag to open)")
+	assert_eq(w.selected_slot, _slot_of(JUMP), "the jump just taken is selected")
 
 
 ## はねる台が下りているときに跳び乗り、上がりきったところで岩棚へ歩いて移る。
@@ -241,8 +255,10 @@ func test_hill_equipment_hint_until_worn() -> void:
 	await _walk_to(Vector3(8.5, 3.0, -3.5), 0.4)
 	assert_eq(_shown(), PackedStringArray(["そうびする"]))
 	assert_eq(hud.context_keys(), PackedStringArray(["E"]))
-	for v in w.ledger.inventory_vessels(_me().player_id):
+	# 拾ったブーツは身につけずにホットバーへ入っている（2026-11-23。ADR 0021）
+	for v in carried(w.ledger, _me().player_id):
 		if v.part == RuleVessel.Part.FEET:
+			assert_eq(v.location, RuleVessel.Location.HOTBAR, "the boots sit on the hotbar")
 			assert_true(w.ledger_actions.equip(v.id), "wear the boots")
 	assert_eq(_shown(), PackedStringArray(), "worn: the hint is learned")
 	assert_false(hud.hints.should_show("equip"))
