@@ -31,6 +31,8 @@ signal left_room
 const RETURN_DELAY: float = 4.0
 ## 全員リセット（V 長押し・メニューの「チェックポイントからやり直す」）の投票の、画面での呼び名（docs/adr/0020）。
 const RESET_VOTE_TITLE := "チェックポイントからやり直す投票"
+## 初めてクリアしたときの知らせ（報酬の中身は仮なので名前は出さない）。
+const FIRST_CLEAR_TEXT := "はじめてのクリア！ 広場がにぎやかになります"
 
 var world: StageWorld
 ## オンラインのとき（1人用なら null）。
@@ -482,16 +484,9 @@ func _on_clear() -> void:
 	_runs.append(rewards)
 	_clear_timer = RETURN_DELAY
 	var seconds := int(tracker.seconds)
-	var text := (
-		"クリア！ %d 分 %02d 秒（目安 %d 分）・付与 %d 回・受け渡し %d 回"
-		% [
-			seconds / 60,
-			seconds % 60,
-			world.def.target_minutes,
-			tracker.abilities_used,
-			tracker.hand_offs,
-		]
-	)
+	var text := "クリア！ %d 分 %02d 秒（目安 %d 分）" % [seconds / 60, seconds % 60, world.def.target_minutes]
+	# 渡した回数などは記録（RunMetrics）に残し、画面には時間だけ出す（「付与」「受け渡し」は
+	# 案内の「渡す」と言い方がずれていて、初めての人には意味が無かった。2026-11-22 の通し）
 	_show_clear(text)
 	if _online():
 		_cleared.rpc(text)
@@ -531,9 +526,11 @@ func _apply_reward(event: Dictionary) -> bool:
 	var result := progress.apply_reward_event(event, table)
 	if result.outcome == PlayerProgress.Outcome.APPLIED:
 		store.save(profile, progress)
-		var got := "、".join(result.granted) if not result.granted.is_empty() else "記録"
-		var head := "初回クリア" if result.first_clear else "クリア"
-		world.message_posted.emit("%s の報酬: %s" % [head, got])
+		# 報酬の中身はまだ仮の ID（tmp_…。docs/adr/0008）なので、名前は出さない。初めてのクリアで広場に
+		# 起きること（金色の花・住む生き物・建物）だけを短く言う。前は「初回クリア の報酬: tmp_hub_…」と
+		# 内部の ID が並び、クリアのカードの下まで伸びていた（2026-11-22 の通し）
+		if result.first_clear:
+			world.message_posted.emit(FIRST_CLEAR_TEXT)
 	return result.should_acknowledge()
 
 

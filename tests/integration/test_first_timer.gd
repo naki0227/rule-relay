@@ -108,6 +108,16 @@ func _enter_intro() -> void:
 	await _put(entrance.position + Vector3(0.0, 0.1, 0.0))
 	await _press(&"interact")
 	await wait_physics_frames(5)
+	await _wait_objectives_small()
+
+
+## ステージに入った直後の目的の札が大きく出ている間は、案内を重ねない（TeachHints）。縮むまで待つ。
+func _wait_objectives_small() -> void:
+	var panel := _hud().get_node_or_null(^"Objectives") as ObjectivePanel
+	for i in 400:
+		if panel == null or not panel.is_big():
+			return
+		await tree.process_frame
 
 
 func _learn(keys: Array[String]) -> void:
@@ -125,19 +135,21 @@ func _lift() -> RuleBlock:
 
 
 func test_a_first_timer_follows_the_hints_from_the_hub_to_the_clear() -> void:
-	# 1. ハブ: 最初は「歩く」「見回す」だけ。最初に正面に見える入口は導入
+	# 1. ハブ: 最初は「歩く」だけ（案内は 1 つずつ）。最初に正面に見える入口は導入
 	assert_eq(_world().def.stage_id, StageCatalog.HUB_ID)
-	assert_eq(await _shown(), PackedStringArray(["歩く", "見回す"]), "only the first steps")
-	assert_eq(_hud().context_keys(), PackedStringArray(["W/A/S/D", "マウス"]))
+	assert_eq(await _shown(), PackedStringArray(["歩く"]), "only the first step")
+	assert_eq(_hud().context_keys(), PackedStringArray(["W/A/S/D"]))
 	var first: StageDef.EntranceSpec = _world().def.entrances[0]
 	assert_eq(first.stage_id, StageCatalog.INTRO_ID)
 	var ahead := first.position - _world().player.global_position
 	assert_lt(absf(ahead.x), 0.6, "the intro entrance is straight ahead of the spawn")
 	assert_lt(ahead.z, 0.0, "and the camera starts facing it (north)")
 
-	# 2. 歩いて見回すと、その案内は消える（記録される）
+	# 2. 歩くと「見回す」に変わり、見回すと消える（記録される）
 	await _hold(&"move_right", 200)
 	assert_false(_hints().should_show("move"), "walked for a few seconds")
+	assert_eq(await _shown(), PackedStringArray(["見回す"]), "then looking around")
+	assert_eq(_hud().context_keys(), PackedStringArray(["マウス"]))
 	await _hold(&"camera_right", 75)
 	assert_false(_hints().should_show("look"), "looked around")
 	assert_eq(await _shown(), PackedStringArray(), "nothing left on screen in the open hub")
@@ -150,40 +162,47 @@ func test_a_first_timer_follows_the_hints_from_the_hub_to_the_clear() -> void:
 	await wait_physics_frames(5)
 	assert_eq(game.director.stage_id, StageCatalog.INTRO_ID)
 	assert_eq(_hints().uses("recall"), 0, "entering a stage is not a recall")
+	assert_eq(await _shown(), PackedStringArray(), "no hint over the big objective card")
+	await _wait_objectives_small()
 	assert_false(_hints().should_show("move"), "the new island's HUD keeps the same record")
 
-	# 4. 道なりの台座でチェックポイントを知る（知らせが出る）
+	# 4. 小段差の手前でその方を向くと「ジャンプ」。跳ぶと数える
+	await _put(Vector3(0.5, 0.1, 1.6))
+	_world().camera_rig.yaw = 0.0
+	assert_eq(await _shown(), PackedStringArray(["ジャンプ"]), "a step you can hop")
+	assert_eq(_hud().context_keys(), PackedStringArray(["Space"]))
+	await _press(&"jump")
+	assert_eq(_hints().uses("jump"), 1)
+	await wait_physics_frames(40)
+
+	# 5. 道なりの台座でチェックポイントを知る（知らせが出る）
 	await _put(Vector3(0.5, 1.1, 0.0))  # 小段差の上（台座の手前）から北へ歩く
 	await _hold(&"move_forward", 30)
 	await wait_physics_frames(5)
 	assert_eq(game.director.lifecycle.latest_checkpoint(), "cp0", "walked over the pad")
 	var told := " ".join(_hud().toasts.messages())
 	assert_true(told.contains("チェックポイント"), told)
-	assert_true(told.contains("F"), "the toast names the key")
+	assert_true(told.contains("落ちたらここから"), "solo: what the pad means for me")
+	assert_false(told.contains("全員"), "solo: no team words")
 
-	# 5. ブロックを狙う: 選んでいる能力の名前と、選び方が出る（最初は W が選ばれている）
+	# 6. 窪みのブロックを狙う: 最初は W が選ばれているので「[5] ジャンプをえらぶ」。選ぶと「ジャンプを渡す」
 	var lift := _lift()
 	await _put(lift.global_position + Vector3(0.0, 0.6, 1.4))
 	assert_true(await _aim_at(lift), "can aim at the block in the hollow")
-	var shown := await _shown()
-	assert_true(shown.has("Wを渡す"), str(shown))
-	assert_true(shown.has("えらぶ"), str(shown))
-	assert_false(shown.has("まとめて"), "range is not offered yet")
+	assert_eq(await _shown(), PackedStringArray(["ジャンプをえらぶ"]))
+	assert_eq(_hud().context_keys(), PackedStringArray(["5"]))
 	await _press(&"slot_5")
 	assert_eq(_hints().uses("select"), 1)
-	assert_true((await _shown()).has("ジャンプを渡す"))
+	assert_eq(await _shown(), PackedStringArray(["ジャンプを渡す"]))
 
-	# 6. 渡す（単発）。手元のジャンプが減り、「貸したジャンプを使う [Space]」と「回収」が出る
+	# 7. 渡す（単発）。手元のジャンプが減り、「[Space] 貸したジャンプを使う」だけが出る
 	await _press(&"lend_single")
 	assert_eq(_hints().uses("lend"), 1)
 	assert_false(_world().ledger.player_can(JUMP), "the jump went to the block")
-	shown = await _shown()
-	assert_true(shown.has("貸したジャンプを使う"), str(shown))
-	assert_true(shown.has("回収"), str(shown))
-	var keys := _hud().context_keys()
-	assert_eq(keys[shown.find("貸したジャンプを使う")], "Space")
+	assert_eq(await _shown(), PackedStringArray(["貸したジャンプを使う"]), "one hint at a time")
+	assert_eq(_hud().context_keys(), PackedStringArray(["Space"]))
 
-	# 7. ブロックに乗って Space: ブロックが跳ぶ。頂点で岩棚へ歩き、ゴールの窪みに降りる
+	# 8. ブロックに乗って Space: ブロックが跳ぶ。頂点で岩棚へ歩き、ゴールの窪みに降りる
 	await _put(lift.global_position + Vector3(0.0, 0.6, 0.0))
 	_world().camera_rig.yaw = 0.0
 	await _press(&"jump")
@@ -203,44 +222,46 @@ func test_a_first_timer_follows_the_hints_from_the_hub_to_the_clear() -> void:
 	assert_true(_world().ledger.player_can(JUMP), "the single shot came back")
 	assert_false((await _shown()).has("貸したジャンプを使う"), "nothing left to fire")
 
-	# 8. しばらくしてハブへ戻る。慣れた案内は戻っても出ない
+	# 9. しばらくしてハブへ戻る。慣れた案内は戻っても出ない
 	await wait_physics_frames(int(PartyDirector.RETURN_DELAY * 60.0) + 10)
 	assert_eq(game.director.stage_id, StageCatalog.HUB_ID)
 	assert_false((await _shown()).has("歩く"), "learned hints stay learned")
 
 
-## 繰り返しで渡したブロックは F で回収する。回収したときだけ「回収」を数え、慣れたら消える。
+## 自分が渡したブロックは「[F] 取り戻す」。取り戻したときだけ数え、慣れたら消える。
 func test_recall_hint_counts_only_real_recalls() -> void:
 	await _enter_intro()
-	_learn(["move", "look"])
+	_learn(["move", "look", "fire", "jump"])
 	var lift := _lift()
 	await _put(lift.global_position + Vector3(0.0, 0.6, 1.4))
 	assert_true(await _aim_at(lift))
 	await _press(&"slot_5")
 	for turn: int in HintMemory.LEARN_AFTER:
 		await _press(&"lend_single")
-		assert_true((await _shown()).has("回収"), "round %d" % turn)
+		assert_eq(await _shown(), PackedStringArray(["取り戻す"]), "round %d" % turn)
 		await _press(&"interact")
 		assert_eq(_hints().uses("recall"), turn + 1)
 		assert_true(_world().ledger.player_can(JUMP), "recalled into the hand")
-	assert_false((await _shown()).has("回収"), "learned after %d recalls" % HintMemory.LEARN_AFTER)
+	assert_false((await _shown()).has("取り戻す"), "learned after %d recalls" % HintMemory.LEARN_AFTER)
 
 
 ## 目安の時間を過ぎたら「V 長押しでやり直し」「Esc メニュー」をそっと出す。使ったら一度消える。
 func test_retry_hints_appear_only_after_the_target_time() -> void:
 	await _enter_intro()
-	_learn(["move", "look"])
+	_learn(["move", "look", "jump"])
 	await _put(Vector3(-1.5, 0.1, 4.5))
 	assert_false((await _shown()).has("長押しでやり直し"), "not before the target time")
 	_hud().stage_seconds = _world().def.target_minutes * 60.0 + 1.0
-	var shown := await _shown()
-	assert_true(shown.has("長押しでやり直し"), str(shown))
-	assert_true(shown.has("メニュー"), str(shown))
-	assert_eq(_hud().context_keys()[shown.find("長押しでやり直し")], "V")
+	assert_eq(await _shown(), PackedStringArray(["長押しでやり直し"]), "one at a time")
+	assert_eq(_hud().context_keys(), PackedStringArray(["V"]))
 	await _hold(&"vote_reset", int(HoldAction.new().hold_seconds * 60.0) + 10)
 	assert_eq(game.director.lifecycle.reset_count(), 1, "the solo vote resets at once")
 	assert_eq(_hints().uses("vote"), 1)
-	assert_false((await _shown()).has("長押しでやり直し"), "quiet again after use")
+	assert_eq(await _shown(), PackedStringArray(), "quiet again after use")
+	_learn(["vote"])
+	_hud().stage_seconds = _world().def.target_minutes * 60.0 + 1.0
+	assert_eq(await _shown(), PackedStringArray(["メニュー"]), "then the menu")
+	assert_eq(_hud().context_keys(), PackedStringArray(["Esc"]))
 	await _press(&"restore_checkpoint")
 	assert_true(_hud().pause_menu.is_open())
 	assert_eq(_hints().uses("menu"), 1)
@@ -251,21 +272,22 @@ func test_retry_hints_appear_only_after_the_target_time() -> void:
 func test_hints_follow_the_pad_and_rebinding() -> void:
 	await _enter_intro()
 	InputMode.using_pad = true
-	var shown := await _shown()
-	var keys := _hud().context_keys()
-	assert_eq(keys[shown.find("歩く")], "左スティック")
-	assert_eq(keys[shown.find("見回す")], "右スティック")
-	_learn(["move", "look"])
+	assert_eq(await _shown(), PackedStringArray(["歩く"]))
+	assert_eq(_hud().context_keys(), PackedStringArray(["左スティック"]))
+	_learn(["move"])
+	assert_eq(await _shown(), PackedStringArray(["見回す"]))
+	assert_eq(_hud().context_keys(), PackedStringArray(["右スティック"]))
+	_learn(["look", "jump"])
 	var lift := _lift()
 	await _put(lift.global_position + Vector3(0.0, 0.6, 1.4))
 	assert_true(await _aim_at(lift))
-	shown = await _shown()
-	keys = _hud().context_keys()
-	assert_eq(keys[shown.find("えらぶ")], "LB / RB")
-	assert_eq(keys[shown.find("Wを渡す")], "RT")
+	assert_eq(await _shown(), PackedStringArray(["ジャンプをえらぶ"]))
+	assert_eq(_hud().context_keys(), PackedStringArray(["LB / RB"]))
 	_world().select_slot(4)
+	assert_eq(await _shown(), PackedStringArray(["ジャンプを渡す"]))
+	assert_eq(_hud().context_keys(), PackedStringArray(["RT"]))
 	_world().lend_to(lift, false)
-	shown = await _shown()
+	var shown := await _shown()
 	assert_eq(_hud().context_keys()[shown.find("貸したジャンプを使う")], "A")
 	# キーボードで、ジャンプを J に割り当て直す
 	InputMode.using_pad = false

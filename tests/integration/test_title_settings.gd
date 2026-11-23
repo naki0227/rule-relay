@@ -92,3 +92,24 @@ func test_changes_from_the_title_apply_and_save() -> void:
 	assert_eq(
 		saved.bindings.get_descriptor(&"interact", KeyBindings.Slot.KEYBOARD), "key:%d" % KEY_G
 	)
+
+
+## 最初の画面には部屋の項目（IP アドレス・ポート・部屋のオプション）を出さない。「友だちと遊ぶ」で出す。
+func test_room_fields_stay_folded_until_friends_is_chosen() -> void:
+	assert_false(title.is_room_open(), "folded at first")
+	var visible_edits := 0
+	for node: Node in title.menu_box().find_children("*", "LineEdit", true, false):
+		if (node as LineEdit).is_visible_in_tree():
+			visible_edits += 1
+	assert_eq(visible_edits, 1, "only the record name is on the first screen")
+	for node: Node in title.menu_box().find_children("*", "CheckBox", true, false):
+		assert_false((node as CheckBox).is_visible_in_tree(), "no room option on the first screen")
+	title.toggle_room()
+	assert_true(title.is_room_open())
+	visible_edits = 0
+	for node: Node in title.menu_box().find_children("*", "LineEdit", true, false):
+		if (node as LineEdit).is_visible_in_tree():
+			visible_edits += 1
+	assert_eq(visible_edits, 3, "record name, address and port")
+	title.toggle_room()
+	assert_false(title.is_room_open(), "folds again")

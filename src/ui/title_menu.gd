@@ -5,6 +5,8 @@ extends Control
 ## Steam 版だけ、Steam 版の通信（src/steam/）が add_entry / add_note で項目を足す（docs/adr/0012）。
 ## 足されなければ、この画面は Steam のことを何も知らない（提出版はいつもこちら）。
 ## 「せってい」は Esc のメニューと同じ設定の画面（SettingsMenu）を開く。遊ぶ前にキーや文字の大きさを変えられる。
+## 部屋の項目（作る・IP アドレス・ポート・入る・部屋のオプション）は「友だちと遊ぶ」を選んだときだけ出す。
+## 初めての人の最初の画面に、IP アドレスやポートや「いたずら向け」の選択が並んでいた（2026-11-22 の通し）。
 
 signal solo_chosen(profile: String)
 signal host_chosen(profile: String, port: int)
@@ -12,6 +14,8 @@ signal join_chosen(profile: String, address: String, port: int)
 signal prohibition_option_toggled(on: bool)
 
 const DEFAULT_PORT: int = 24565
+const FRIENDS_CLOSED := "友だちと遊ぶ"
+const FRIENDS_OPEN := "友だちと遊ぶ（とじる）"
 
 ## 設定の画面（Esc のメニューと同じもの）。
 var settings_menu: SettingsMenu
@@ -23,6 +27,9 @@ var _status: Label
 var _box: VBoxContainer
 var _center: CenterContainer
 var _settings_button: Button
+var _friends_button: Button
+## 部屋の項目（「友だちと遊ぶ」で開く）。
+var _room: VBoxContainer
 
 
 func _ready() -> void:
@@ -46,19 +53,25 @@ func _ready() -> void:
 	_box = box
 	_add_label(box, "Rule Relay", UiTheme.SIZE_TITLE, UiTheme.INK)
 	_add_label(box, "ルールは厳格に。解法は自由に。", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
-	_profile = _add_field(box, "記録の名前（同じ PC で2つ起動するときは別の名前に）", "player")
+	_profile = _add_field(box, "記録の名前", "player")
 	var first := _add_button(box, "ひとりで遊ぶ", func() -> void: solo_chosen.emit(profile_name()))
 	# ゲームパッドでも選べるよう、最初のボタンに焦点を置く（十字キーで移動、A で決定）
 	first.call_deferred(&"grab_focus")
-	_add_button(box, "部屋を作る（友だちを待つ）", _host)
+	_friends_button = _add_button(box, FRIENDS_CLOSED, toggle_room)
+	_room = VBoxContainer.new()
+	_room.add_theme_constant_override("separation", 12)
+	_room.visible = false
+	box.add_child(_room)
+	_add_button(_room, "部屋を作る（友だちを待つ）", _host)
 	var option := CheckBox.new()
 	option.text = "部屋のオプション: 禁止を仲間へ直接渡せる（いたずら向け）"
 	option.add_theme_font_size_override("font_size", UiTheme.SIZE_SMALL)
 	option.toggled.connect(func(on: bool) -> void: prohibition_option_toggled.emit(on))
-	box.add_child(option)
-	_address = _add_field(box, "部屋に入る: ホストの IP アドレス", "127.0.0.1")
-	_port = _add_field(box, "ポート", str(DEFAULT_PORT))
-	_add_button(box, "部屋に入る", _join)
+	_room.add_child(option)
+	_address = _add_field(_room, "部屋に入る: ホストの IP アドレス", "127.0.0.1")
+	_port = _add_field(_room, "ポート", str(DEFAULT_PORT))
+	_add_button(_room, "部屋に入る", _join)
+	_add_label(_room, "同じ PC で 2 つ起動するときは、記録の名前を別にする", UiTheme.SIZE_SMALL, UiTheme.INK_SOFT)
 	_settings_button = _add_button(box, "せってい", open_settings)
 	_status = _add_label(box, "", UiTheme.SIZE_SMALL, UiTheme.BAN)
 	# 設定の画面は最後の子にして、札より手前に出す
@@ -72,6 +85,16 @@ func _ready() -> void:
 func open_settings() -> void:
 	_center.visible = false
 	settings_menu.open()
+
+
+## 「友だちと遊ぶ」: 部屋の項目を出す・しまう。
+func toggle_room() -> void:
+	_room.visible = not _room.visible
+	_friends_button.text = FRIENDS_OPEN if _room.visible else FRIENDS_CLOSED
+
+
+func is_room_open() -> bool:
+	return _room.visible
 
 
 func is_settings_open() -> bool:

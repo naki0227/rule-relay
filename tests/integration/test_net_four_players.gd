@@ -114,6 +114,7 @@ func test_hill_top_cleared_by_two_players_pooling_jumps() -> void:
 
 func _hill_top_route(players: int) -> void:
 	await _start(players, StageCatalog.HILL_ID)
+	_islet_critter_home()
 	var queue: Array[Vector3] = [
 		Vector3(-3.5, 2.0, -0.6),
 		Vector3(-2.5, 2.0, -0.6),
@@ -128,3 +129,12 @@ func _hill_top_route(players: int) -> void:
 	]
 	await _pool_jumps_and_climb(queue, Vector3(-1.5, 2.0, -2.3), Vector3(-1.5, 4.0, -3.6), goals)
 	await _assert_cleared_by_everyone(StageCatalog.HILL_ID)
+
+
+## 丘の上の旗の東の小島の動物は、巣に着いたことにする（投げて渡す道は test_open_islands。ここは能力を
+## 集めて上がる道を見る）。ホストの画面で置き直す。
+func _islet_critter_home() -> void:
+	var w := party.world(0)
+	var critter := w.creatures[int(w.entity_ids["islet_critter"])] as Creature
+	var nest := OpenIslands.HILL_NEST.get_center()
+	critter.restore_state({"position": Vector3(nest.x, 0.0, nest.z), "velocity": Vector3.ZERO})

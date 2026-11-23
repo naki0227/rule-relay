@@ -86,36 +86,52 @@ func test_blocks_show_token_icons() -> void:
 
 
 func test_goal_banner_appears() -> void:
-	assert_false(_texts(hud).has("高台に到達しました"))
+	assert_false(_texts(hud).has(Hud.GOAL_TITLE))
 	island.goal_reached.emit()
 	await tree.process_frame
-	assert_true(_texts(hud).has("高台に到達しました"))
+	assert_true(_texts(hud).has(Hud.GOAL_TITLE))
+	assert_false(_texts(hud).has("高台に到達しました"), "not the prototype wording")
 
 
+## 案内は 1 つだけ（docs/w1-teaching.md）。狙った相手といまの状況で、いちばん要るものが出て、慣れたら消える。
 func test_context_prompt_follows_the_target_until_learned() -> void:
-	for key: String in ["move", "look"]:
+	for key: String in ["move", "look", "jump"]:
 		for i in HintMemory.LEARN_AFTER:
 			hud.hints.used(key)
 	island.select_slot(0)
 	hud.update_context(island.row[0], true, false)
-	assert_true(hud.context_actions().has("Wを渡す"), "names the selected ability")
-	assert_true(hud.context_actions().has("えらぶ"), "and how to pick another one")
-	assert_false(hud.context_actions().has("まとめて"), "range waits until lending is learned")
+	assert_eq(hud.context_actions(), PackedStringArray(["Wを渡す"]), "one hint naming the ability")
 	island.select_slot(4)
 	hud.update_context(island.row[0], true, false)
-	assert_true(hud.context_actions().has("ジャンプを渡す"))
-	assert_false(hud.context_actions().has("回収"), "nothing to recall on an empty block")
+	assert_eq(hud.context_actions(), PackedStringArray(["ジャンプを渡す"]))
 	hud.update_context(island.row[1], true, false)  # ジャンプ禁止が置かれている
-	assert_true(hud.context_actions().has("回収"))
+	assert_eq(hud.context_actions(), PackedStringArray(["禁止を取る"]), "a ban is taken with F")
 	hud.update_context(null, false, true)
-	assert_true(hud.context_actions().has("ここで保存"))
+	assert_eq(hud.context_actions(), PackedStringArray(["ここで保存"]))
 	for i in HintMemory.LEARN_AFTER:
 		hud.hints.used("lend")
 	hud.update_context(island.row[0], true, false)
-	assert_false(hud.context_actions().has("渡す"), "hint disappears once learned")
-	assert_true(hud.context_actions().has("まとめて"))
+	assert_eq(hud.context_actions().size(), 0, "hint disappears once learned")
 	hud.update_context(null, false, false)
 	assert_eq(hud.context_actions().size(), 0, "nothing aimed, nothing shown")
+
+
+## 2 つ以上の案内が当てはまっても、出すのは 1 つだけ（貸した単発を使う > 取り戻す）。
+func test_only_one_hint_at_a_time() -> void:
+	for key: String in ["move", "look", "jump"]:
+		for i in HintMemory.LEARN_AFTER:
+			hud.hints.used(key)
+	island.player.global_position = island.row[0].global_position + Vector3(0.0, 0.5, 1.4)
+	await wait_physics_frames(3)
+	island.select_slot(4)
+	assert_eq(island.lend_to(island.row[0], false), RuleLedger.LendResult.OK)
+	hud.update_context(island.row[0], true, false)
+	assert_eq(hud.context_actions(), PackedStringArray(["貸したジャンプを使う"]))
+	for i in HintMemory.LEARN_AFTER:
+		hud.hints.used("fire")
+	hud.update_context(island.row[0], true, false)
+	assert_eq(hud.context_actions(), PackedStringArray(["取り戻す"]), "my own lent jump")
+	assert_eq(hud.context_keys(), PackedStringArray(["F"]))
 
 
 func _texts(node: Node) -> PackedStringArray:

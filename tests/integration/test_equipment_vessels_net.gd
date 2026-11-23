@@ -25,7 +25,7 @@ func before_each() -> void:
 	client_net = _net(client_side, client_world)
 	host_net.give_starting_items = host_world.give_starting_items
 	await wait_physics_frames(5)
-	var port := 33000 + randi() % 3000
+	var port := TestCase.free_port()
 	var server := ENetMultiplayerPeer.new()
 	assert_eq(server.create_server(port, 4), OK)
 	host_net.start_host(server, "host-key")
@@ -33,6 +33,8 @@ func before_each() -> void:
 	assert_eq(peer.create_client("127.0.0.1", port), OK)
 	client_net.start_client(peer, "bob-key")
 	await _until(func() -> bool: return client_world.player.player_id == B)
+	TestCase.steady_enet(server)
+	TestCase.steady_enet(peer)
 	await _until(func() -> bool: return client_world.ledger.hotbar_vessel(JUMP_SLOT, B) != null)
 	await wait_physics_frames(10)
 
