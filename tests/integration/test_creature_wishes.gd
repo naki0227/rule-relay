@@ -13,6 +13,51 @@ func _marker() -> WishMarker:
 	return found[0] as WishMarker if not found.is_empty() else null
 
 
+## 吹き出しと願いの一文は、門の文字と同じく近いと画面での大きさを止め、2 m 前後で消える。画面の端から半分ほど
+## はみ出しても消える（2026-11-23。段の真下でカメラのすぐ前の生き物の一文と吹き出しが、画面の端で大きく切れていた）。
+func test_wish_bubble_and_text_stay_small_and_fade_up_close_or_off_screen() -> void:
+	assert_almost(CreatureWishView.near_fit(20.0).x, 1.0, 0.001, "full size from mid range")
+	assert_almost(CreatureWishView.near_fit(4.0).x, 4.0 / OverworldPortal.LABEL_FULL_AT, 0.001)
+	assert_almost(CreatureWishView.near_fit(4.0).y, 1.0, 0.001, "readable at 4 m")
+	assert_almost(CreatureWishView.near_fit(1.8).y, 0.0, 0.001, "gone under 2 m")
+	var view := Vector2(1280, 720)
+	assert_almost(
+		CreatureWishView.on_screen_alpha(Vector2(640, 360), Vector2(100, 40), view), 1.0, 0.001
+	)
+	var edge := CreatureWishView.on_screen_alpha(Vector2(20, 360), Vector2(100, 40), view)
+	assert_lt(edge, 0.5, "fading when most of it is past the edge")
+	assert_almost(
+		CreatureWishView.on_screen_alpha(Vector2(-50, 360), Vector2(100, 40), view), 0.0, 0.001
+	)
+	# ゲームの中: 子どもの生き物の真後ろ 1.5 m にカメラが来ると、吹き出しも一文も消える
+	await _enter(PATH_ID)
+	var kit := _creature("kit")
+	kit.show_wish(true)
+	# ゲームのカメラ（ばねの先）の代わりに、置いた場所から動かないカメラで見る
+	var cam := Camera3D.new()
+	w.add_child(cam)
+	cam.current = true
+	var head := kit.global_position + Vector3(0.0, 2.0, 0.0)
+	cam.global_position = head + Vector3(0.0, 0.0, 1.5)
+	cam.look_at(head)
+	await wait_physics_frames(3)
+	var view_node := kit.wish_view()
+	assert_lt(view_node.bubble_fit().y, 0.01, "the bubble fades right in front of the camera")
+	assert_lt(view_node.wish_fit().y, 0.01, "so does the wish text")
+	assert_lt(view_node.held_fit().y, 0.01, "and the held-ability medal over its head")
+	# 6 m 離れて正面に見ると、出ていて、画面での大きさは止まっている（近づいても大きくならない）
+	cam.global_position = head + Vector3(0.0, 0.0, 6.0)
+	cam.look_at(head)
+	await wait_physics_frames(3)
+	assert_almost(view_node.bubble_fit().y, 1.0, 0.01, "shown at 6 m")
+	assert_lt(view_node.bubble_fit().x, 1.0, "the screen size is clamped")
+	# 横を向いて、生き物が画面の端の外へ出ると消える
+	cam.look_at(head + Vector3(-6.0, 0.0, 0.0))
+	await wait_physics_frames(3)
+	assert_lt(view_node.wish_fit().y, 0.01, "off screen: faded")
+	cam.queue_free()
+
+
 func test_kit_has_its_nest_and_a_default_wish() -> void:
 	await _enter(PATH_ID)
 	var kit := _creature("kit")

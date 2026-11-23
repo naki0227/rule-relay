@@ -10,6 +10,10 @@ extends Node3D
 ## - 何も足りない物が無い（歩いている・待つだけ）: 吹き出しを出さない
 ## 吹き出しはカメラのほうを向き、ゆっくり上下する（Creature が高さを揺らす）。遠いと薄くなり、もっと遠いと消える。
 ## 願いの一文（「高いところの巣へ行きたい」）は、近くに来たか狙ったときだけ吹き出しの上に小さく出す。
+## 近くでは門の文字と同じ決まり（ADR 0020・KeyLabel3D）で、吹き出しも願いの一文も、カメラから LABEL_FULL_AT
+## より近いと画面での大きさを止め、2 m 前後（LABEL_FADE_FROM〜LABEL_GONE_AT）で薄くして消す。画面の端から半分ほど
+## はみ出したときも薄くして消す（2026-11-23。段の真下でカメラのすぐ前に生き物がいると、一文と吹き出しが画面の
+## 端で大きく切れていた。camera-ledge-after.png）。
 ## 印は文字列の鍵で持ち、通信では鍵だけを配る（参加者の画面も同じ吹き出しになる。WorldFrame）。
 
 ## 鍵: 空 = 出さない、"happy" = ♪、"path" = 階段、"need:<RuleAction.Kind>,..." = メダル。
@@ -30,10 +34,16 @@ const HAPPY_FADE: float = 1.0
 ## カメラからこの距離までははっきり、FAR で消える（遠くの吹き出しで画面をにぎやかにしない）。
 const NEAR: float = 10.0
 const FAR: float = 18.0
+## 画面の中に入っている割合（横・縦の小さいほう）がこれより下で薄くし始め、ON_SCREEN_GONE で消す。
+const ON_SCREEN_FULL: float = 0.85
+const ON_SCREEN_GONE: float = 0.5
 
 static var _backs: Dictionary[int, ImageTexture] = {}
 static var _stairs_texture: ImageTexture
 static var _nest_textures: Dictionary[String, ImageTexture] = {}
+
+## 頭の上の、持っている能力のアイコン（Creature が渡す）。吹き出しと同じ決まりで大きさを止め、薄くする。
+var held_icons: Node3D
 
 var _key: String = KEY_NONE
 var _bubble: Node3D
@@ -46,6 +56,9 @@ var _note: Label3D
 var _wish: Label3D
 var _happy_time: float = 0.0
 var _distance_alpha: float = 1.0
+var _held_fit: Vector2 = Vector2.ONE
+var _bubble_fit: Vector2 = Vector2.ONE
+var _wish_fit: Vector2 = Vector2.ONE
 
 
 func _ready() -> void:
@@ -91,9 +104,24 @@ func _process(delta: float) -> void:
 		return
 	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
 	if cam != null:
-		_bubble.global_basis = cam.global_basis
 		var d := cam.global_position.distance_to(global_position)
 		_distance_alpha = clampf((FAR - d) / (FAR - NEAR), 0.0, 1.0)
+		_bubble_fit = _fit_on(cam, _bubble.global_position, Vector2(0.5, 0.25))
+		_bubble.global_basis = cam.global_basis.scaled(Vector3.ONE * _bubble_fit.x)
+		if _wish.visible:
+			var size := _wish.get_aabb().size
+			_wish_fit = _fit_on(cam, _wish.global_position, Vector2(size.x, size.y) * 0.5)
+			_wish.scale = Vector3.ONE * _wish_fit.x
+			_wish.modulate.a = _wish_fit.y
+			_wish.outline_modulate.a = 0.95 * _wish_fit.y
+		if held_icons != null:
+			var icons := held_icons.get_child_count()
+			_held_fit = _fit_on(cam, held_icons.global_position, Vector2(0.18 * icons, 0.17))
+			held_icons.scale = Vector3.ONE * _held_fit.x
+			for child in held_icons.get_children():
+				var icon := child as Sprite3D
+				if icon != null:
+					icon.modulate.a = _held_fit.y
 	if _key == KEY_HAPPY:
 		_happy_time += delta
 	_apply_alpha()
@@ -226,8 +254,55 @@ func is_wish_shown() -> bool:
 	return _wish != null and _wish.visible
 
 
+## カメラから見た、point（半分の大きさ half_m。m）の画面での [大きさの倍率, 濃さ]。
+func _fit_on(cam: Camera3D, point: Vector3, half_m: Vector2) -> Vector2:
+	var fit := near_fit(cam.global_position.distance_to(point))
+	if cam.is_position_behind(point):
+		return Vector2(fit.x, 0.0)
+	var center := cam.unproject_position(point)
+	var right := cam.global_basis.x * half_m.x * fit.x
+	var up := cam.global_basis.y * half_m.y * fit.x
+	var half_px := Vector2(
+		cam.unproject_position(point + right).distance_to(center),
+		cam.unproject_position(point + up).distance_to(center)
+	)
+	var view := cam.get_viewport().get_visible_rect().size
+	return Vector2(fit.x, fit.y * on_screen_alpha(center, half_px, view))
+
+
+## カメラからのきょりでの [画面での大きさを止める倍率, 濃さ]（門の文字と同じ決まり。OverworldPortal.fit_label）。
+static func near_fit(distance: float) -> Vector2:
+	var scale := clampf(distance / OverworldPortal.LABEL_FULL_AT, 0.05, 1.0)
+	var span := OverworldPortal.LABEL_FADE_FROM - OverworldPortal.LABEL_GONE_AT
+	return Vector2(scale, clampf((distance - OverworldPortal.LABEL_GONE_AT) / span, 0.0, 1.0))
+
+
+## 画面の中心 center・半分の大きさ half_px（ピクセル）の四角が、画面 view にどれだけ入っているかでの濃さ（0〜1）。
+static func on_screen_alpha(center: Vector2, half_px: Vector2, view: Vector2) -> float:
+	var inside := 1.0
+	for axis in 2:
+		var h := maxf(half_px[axis], 1.0)
+		var lo := clampf(center[axis] - h, 0.0, view[axis])
+		var hi := clampf(center[axis] + h, 0.0, view[axis])
+		inside = minf(inside, (hi - lo) / (2.0 * h))
+	return clampf((inside - ON_SCREEN_GONE) / (ON_SCREEN_FULL - ON_SCREEN_GONE), 0.0, 1.0)
+
+
+## いまの吹き出しと願いの一文の [大きさの倍率, 濃さ]（テスト用）。
+func bubble_fit() -> Vector2:
+	return _bubble_fit
+
+
+func wish_fit() -> Vector2:
+	return _wish_fit
+
+
+func held_fit() -> Vector2:
+	return _held_fit
+
+
 func _apply_alpha() -> void:
-	var alpha := _distance_alpha
+	var alpha := _distance_alpha * _bubble_fit.y
 	if _key == KEY_HAPPY:
 		alpha *= clampf(1.0 - (_happy_time - HAPPY_HOLD) / HAPPY_FADE, 0.0, 1.0)
 	_bubble.visible = alpha > 0.01 and _key != KEY_NONE

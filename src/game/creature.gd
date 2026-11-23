@@ -486,6 +486,11 @@ func set_nest_tint(color: Color) -> void:
 
 
 ## 願いの一文を出す・隠す（プレイヤーが近くに来た・狙ったとき。PlayerInput が決める）。
+## 頭の上の吹き出し（テスト用）。
+func wish_view() -> CreatureWishView:
+	return _view
+
+
 func show_wish(on: bool) -> void:
 	if _view != null:
 		_view.show_wish(on)
@@ -665,6 +670,7 @@ func _build() -> void:
 	_view.position.y = 1.05
 	add_child(_view)
 	_tokens_label = _label(1.45, 30)
+	_view.held_icons = _tokens_label  # 持っている能力のアイコンも、吹き出しと同じく近いと小さく・消す
 	_set_stage(CreatureMind.Stage.WAIT)
 
 
