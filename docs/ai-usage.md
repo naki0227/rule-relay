@@ -2,6 +2,9 @@
 
 コンテストの応募規約・AI 利用ガイドラインで、使用した AI ツールと工程の記載を求められる（企画書 12）。提出前に正式なガイドラインを再確認し、この記録から企画書 PDF へ転記する。
 
+- **この文書が AI の使用の記録の正本**。企画書の開示表（`docs/submission/proposal-draft.md` 3.6）とエントリーフォームの申告は、ここから写す。
+- GitHub Release のリリースノートには AI の節を載せない（本人の決定 2026-11-22。`docs/release-notes/README.md`）。
+
 | 日付 | ツール | 工程 | 内容 | 人の確認 |
 |---|---|---|---|---|
 | 2026-11-17 | ChatGPT | 企画 | 企画相談（Vault の企画書ノートに記録） | 本人が仕様を選択 |
@@ -19,6 +22,7 @@
 | 2026-11-20 | Stable Audio 3 medium（Stability AI。Hugging Face `stabilityai/stable-audio-3-optimized` の MLX 版 `dit_medium_f16`、リビジョン `30cb2644da54bfa63275d1bc7f1fa67fc718680f`。Audio Studio MCP 1.2.0 経由で本人の Mac でローカル生成。ライセンス: Stability AI Community License） | 効果音 | 上の3回目の候補のうち、測定の基準を全部満たす効果音 6 種をゲームの効果音として採用: T03→ui_confirm、T07→ui_error、T09→ui_open、T15→bell、T17→dash（新しい音）、T21→ui_notice（新しい音）（`assets/audio/sfx/`、取り込みは `tools/sfx/build_sfx.py` の `ADOPTED`、経緯と数値は `docs/sound-design.md`）。加工は人の書いたスクリプトでのフィルター・切り出し・音量調整だけ | AI（Claude Code）が測定値で選んだ。本人の試聴待ち |
 | 2026-11-21 | Audio Studio MCP 1.2.0（Stable Audio 3 medium、Stability AI、`stabilityai/stable-audio-3-optimized` MLX 版 rev `30cb264`、ローカル生成） | 効果音 | 4回目: 足音（footstep）とホットバーの音（ui_select）を、1回だけの短い打音として5つずつ、計10個の候補を生成（`art/audio/stable-audio/sfx4/`、一覧は `docs/sound-candidates-round4.md`）。頭の1打の切り出し・ui_select のピッチ −3 半音は Python のスクリプトで加工。ゲームの音は置き換えていない | 本人の試聴待ち |
 | 2026-11-21 | Stable Audio 3 medium（Stability AI。Hugging Face `stabilityai/stable-audio-3-optimized` の MLX 版 `dit_medium_f16`、リビジョン `30cb2644da54bfa63275d1bc7f1fa67fc718680f`。Audio Studio MCP 1.2.0 経由で本人の Mac でローカル生成。ライセンス: Stability AI Community License） | 効果音 | 上の4回目の候補（2026-11-21 生成）のうち、効果音 5 個をゲームの効果音として採用: U01→footstep_1、U03→footstep_2、U04→footstep_3、U05→footstep_4（足音は本人の判断で 4 種に増やし、順番に鳴らす）、U07→ui_select（生成した音を加工で −3 半音下げたもの）（`assets/audio/sfx/`、取り込みは `tools/sfx/build_sfx.py` の `ADOPTED`、経緯と数値は `docs/sound-design.md` の 6回目）。加工は人の書いたスクリプトでのフィルター・切り出し・ピッチ変更・音量調整だけ。これでゲームの効果音 32 個はすべてこのモデルの生成物 | 足音の4つは本人が指定、ui_select は AI（Claude Code）が測定値で選んだ。本人の試聴待ち |
+| 2026-11-22 | Claude Code（Anthropic） | 動画の素材・提出の文書 | ゲームプレイ動画の下書き用の素材を、決まった手順で遊んで撮るスクリプト（`tools/capture_video.gd`・`capture_video.sh`。撮るのは Godot の Movie Maker で、映像と音はゲームそのもの。生成 AI の映像・音声は使っていない）と、企画書の下書き・撮影計画・提出のチェックリストの更新 | PR でレビュー予定 |
 
 - モデル名・バージョンは、提出時に本人が各サービスの表示で確認して記入する。
 - 生成 AI（音声）の版（2026-11-20 に本人から受け取った情報。企画書の開示表 `docs/submission/proposal-draft.md` 3.6 に転記）: Hugging Face の `stabilityai/stable-audio-3-optimized` の MLX 版、リビジョン `30cb264`。Audio Studio MCP 1.2.0 を通して、本人の Mac の中で生成した
