@@ -146,7 +146,8 @@ static func _bell(target: Node3D, in_reach: bool) -> Array:
 	return ["F", "鳴らす"] if target is Bell and in_reach else []
 
 
-## 拾った能力がかばんにあって、ホットバーに空きがあるとき（何かを狙って渡す案内とは重ねない）。
+## 使える能力が本当にかばんにあって、ホットバーに空きがあるとき（何かを狙って渡す案内とは重ねない）。
+## 拾った・F で取った能力は空きがあればホットバーへ入るので（2026-11-23）、ふだんは出ない。
 static func _bag(hud: Hud, target: Node3D, in_reach: bool) -> Array:
 	if target != null and in_reach and not target is TerrainCell:
 		return []  # 足もとの地面を見ているだけなら出す

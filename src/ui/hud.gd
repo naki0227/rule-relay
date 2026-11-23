@@ -236,8 +236,9 @@ func play_ui(event: StringName) -> void:
 
 
 ## かばんからホットバーへ移す案内を出す状況か（TeachHints が使う。テスト用にも使う）。
-## 拾った器はかばんに入り、効かず、ホットバーにも出てこないので、拾った後にどこへ行ったか分からなかった
-## （2026-11-22 のはじめての 10 分の通し）。ステージの中で、ホットバーに空きがあるときだけ。
+## 本当にかばんに使える能力があって、ホットバーに空きがあるときだけ（ステージの中）。
+## 2026-11-23 から、拾った・F で取った能力は空きがあればホットバーへ入るので、かばんに入るのはホットバーが
+## いっぱいだったとき・開始時にかばんへ置かれた能力だけ（その後に空きができたら出す）。
 func needs_bag_prompt() -> bool:
 	var stage_world := world as StageWorld
 	if stage_world == null or stage_world.def == null or stage_world.def.is_hub():

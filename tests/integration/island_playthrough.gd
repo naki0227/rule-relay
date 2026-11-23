@@ -130,7 +130,7 @@ func _pick_and_wear(at: Vector3, part: RuleVessel.Part) -> void:
 	await _walk_to(at, 0.6)
 	w.interact(null)
 	await wait_physics_frames(2)
-	for v in w.ledger.inventory_vessels(_me().player_id):
+	for v in carried(w.ledger, _me().player_id):
 		if v.part == part:
 			assert_true(w.ledger_actions.equip(v.id), "wear %s" % v.item_name)
 	assert_ne(w.ledger.equipped_vessel(part, _me().player_id), null, "equipped")
@@ -254,6 +254,19 @@ func _slots_holding(action: RuleAction.Kind) -> Array[int]:
 		if t != null and t.action == action and not t.is_prohibition:
 			result.append(slot)
 	return result
+
+
+## 拾ったばかりの action の能力が入っているホットバーの枠（拾うとその枠が選ばれる。NewInHotbar）。
+## 選んでいる枠に無ければ、action が入っている最後の枠。無ければ -1。
+func _picked_slot(action: RuleAction.Kind) -> int:
+	var me := _me().player_id
+	var v := w.ledger.hotbar_vessel(w.selected_slot, me)
+	if v != null and w.ledger.token(v.token_id).action == action:
+		return w.selected_slot
+	var found := -1
+	for slot in _slots_holding(action):
+		found = slot
+	return found
 
 
 func _free_slot() -> int:

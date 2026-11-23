@@ -4,11 +4,40 @@ extends TestCase
 
 
 func _states() -> Array[OverworldState]:
-	return [
+	var states: Array[OverworldState] = [
 		OverworldState.first_visit(),
 		OverworldState.everything(false),
 		OverworldState.everything(true),
 	]
+	for cleared in _w1_progress():
+		states.append(OverworldState.of(cleared, false, false, false))
+		states.append(OverworldState.of(cleared, true, true, false))
+	return states
+
+
+## はじまりの草原（W1）のステージの順。
+func _w1_ids() -> PackedStringArray:
+	var ids := PackedStringArray()
+	for slot in CampaignPlan.built_slots(CampaignPlan.worlds()[0]):
+		ids.append(slot.stage_id)
+	return ids
+
+
+## W1 を 1 つずつクリアした進み具合（1-1 だけ、1-1 と 1-2、…。最後の 1 つの手前まで）。
+func _w1_progress() -> Array[PackedStringArray]:
+	var ids := _w1_ids()
+	var result: Array[PackedStringArray] = []
+	for k in range(1, ids.size()):
+		result.append(ids.slice(0, k))
+	return result
+
+
+## カメラ（camera_point）から point が画面に入っているか（PortalSpots.VISIBLE_ANGLE の中）。
+func _on_screen(spot: Vector3, yaw: float, point: Vector3) -> bool:
+	var cam := PortalSpots.camera_point(spot, yaw)
+	var look := Basis(Vector3.UP, yaw) * Vector3.FORWARD
+	var to := Vector2(point.x - cam.x, point.z - cam.z)
+	return absf(Vector2(look.x, look.z).angle_to(to)) <= PortalSpots.VISIBLE_ANGLE + 0.001
 
 
 ## どのポータルにも 4 人分の立ち位置があり、どれもポータルと同じ高さで、ポータルから向く向きの先にあり、
@@ -47,7 +76,45 @@ func test_the_camera_after_a_return_stays_clear_of_every_arch() -> void:
 				assert_gt(sight.distance_to(center), PortalSpots.SIGHT_CLEAR - 0.01, p.stage_id)
 				var out := Basis(Vector3.UP, p.return_yaw) * Vector3.FORWARD
 				var look := Basis(Vector3.UP, p.return_view_yaw) * Vector3.FORWARD
-				assert_gt(out.dot(look), -0.01, "%s: still looking out at the hub" % p.stage_id)
+				# 次のポータルを見せるために振り返ることはある（2026-11-23）。それ以外は広場の側を向く
+				var next := def.overworld.recommended()
+				if next == null or not _on_screen(spot, p.return_view_yaw, next.position):
+					assert_gt(out.dot(look), -0.01, "%s: still looking out at the hub" % p.stage_id)
+
+
+## W1 のステージをクリアして広場へ戻ると、次に遊ぶ W1 のポータル（光の柱の「つぎはここ」）が、4 人どの
+## カメラの画面にも入る向きで立つ（2026-11-23 本人の判断「次のポータルに向ける」）。製品版の開き方（次だけ開く）
+## と試遊の版（全部開いている）の両方。カメラの条件は上の test_the_camera_after_a_return_stays_clear_of_every_arch。
+func test_returning_from_a_w1_stage_faces_the_next_w1_portal() -> void:
+	var ids := _w1_ids()
+	for cleared in _w1_progress():
+		for open_all: bool in [false, true]:
+			var def := Overworld.build(OverworldState.of(cleared, open_all, open_all, false))
+			var next := def.overworld.recommended()
+			var expected := ids[cleared.size()]
+			assert_true(next != null and next.stage_id == expected, "next is %s" % expected)
+			assert_true(next.next, "the portal with the orange column")
+			var back := PortalReturn.new()
+			back.portal = cleared[cleared.size() - 1]
+			back.choose(def, true, false)
+			for spot in back.spots:
+				assert_true(
+					_on_screen(spot, back.yaw, next.position), "%s -> %s" % [back.portal, expected]
+				)
+
+
+## W1 を全部クリアした後は、本編の順で次に開いていてまだクリアしていないポータルへ向ける（光の柱は無い）。
+func test_after_w1_the_next_recommended_portal_is_the_first_open_uncleared_one() -> void:
+	var ids := _w1_ids()
+	var def := Overworld.build(OverworldState.of(ids, true, true, false))
+	var next := def.overworld.recommended()
+	assert_true(next != null, "a next portal")
+	assert_false(next.next, "no orange column after W1")
+	assert_false(ids.has(next.stage_id), "outside W1")
+	var slot := CampaignPlan.slot(next.stage_id)
+	assert_false(CampaignPlan.world(slot.world_id).optional, "a main-campaign portal")
+	var everything := Overworld.build(OverworldState.everything(true))
+	assert_eq(everything.overworld.recommended(), null, "nothing left: keep the old view")
 
 
 ## 草原と鐘の谷の最初のポータルは、正面の先に立つ（広場の側を向く）。

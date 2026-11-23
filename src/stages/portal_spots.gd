@@ -14,6 +14,11 @@ extends RefCounted
 ##   カメラも門から CAMERA_CLEAR 以上離れ、カメラから人への視線も門から SIGHT_CLEAR 以上離れる向きにする。
 ##   門は人の横に見える（「いまこの門から出てきた」）。カメラの下が高い壁なら（ばねで引き寄せられる）避ける
 ## 建物・住む生き物・置物は当たり判定が無いので見ない。広場が育っても立ち位置は変わらない。
+## - 次のポータルへ向ける（2026-11-23 本人の判断「次のポータルに向ける」。face_next）: 次に遊ぶとよいポータル
+##   （OverworldLayout.recommended。W1 は光の柱の「つぎはここ」）が画面に入る向きを、上と同じカメラの条件
+##   （門に入り込まない・視線が門を横切らない・カメラの下に高い壁が無い）の中で選び直す。戻った門も画面に
+##   入る向きを先に選び、両方は無理なら次のポータルを見せる方を選ぶ。どの向きでもカメラの条件を満たせなければ、
+##   上で決めた向きのまま
 
 ## ポータルの正面からの角度（ラジアン。前から順に試す）
 const TURNS: Array[float] = [
@@ -55,8 +60,22 @@ const VISIBLE_ANGLE := deg_to_rad(45.0)
 ## カメラと比べる門を、探しているポータルからこのきょりの中に絞る（立ち位置 10 m ＋カメラ 5.2 m ＋ゆとり）
 const NEAR_GATES := 25.0
 
+## 次のポータルへ向ける向きの候補（次のポータルへのまっすぐな向きからのずれ。前から順に試す。どれも
+## 次のポータルが VISIBLE_ANGLE の中に入る範囲）
+const NEXT_TURNS: Array[float] = [
+	0.0,
+	deg_to_rad(12.0),
+	deg_to_rad(-12.0),
+	deg_to_rad(24.0),
+	deg_to_rad(-24.0),
+	deg_to_rad(34.0),
+	deg_to_rad(-34.0),
+]
+
 ## 同じ地形・同じ門の並びなら同じ答えなので覚えておく（広場は入るたびに作り直すため。探すのは数十ミリ秒かかる）。
 static var _cache: Dictionary[int, Array] = {}
+## face_next の答え（同じ地形・門の並び・次のポータルなら同じ）。キー → ポータルごとの向き（NAN は変えない）。
+static var _next_cache: Dictionary[int, PackedFloat32Array] = {}
 
 var _def: StageDef
 var _field: HeightField
@@ -87,6 +106,77 @@ static func place(def: StageDef, layout: OverworldLayout, field: HeightField) ->
 		p.returns = (found[0] as Array[Vector3]).duplicate()
 		p.return_yaw = float(found[1])
 		p.return_view_yaw = float(found[2])
+
+
+## 戻ったときの体と視点の向き（return_view_yaw）を、次に遊ぶとよいポータルが画面に入る向きに選び直す
+## （2026-11-23 本人の判断）。place の後に呼ぶ。次のポータルが無い・戻った門が次のポータルなら変えない。
+static func face_next(def: StageDef, layout: OverworldLayout, field: HeightField) -> void:
+	var next := layout.recommended()
+	if next == null:
+		return
+	var key := [_cache_key(def, layout), next.stage_id].hash()
+	if not _next_cache.has(key):
+		var finder := PortalSpots.new(def, field)
+		var yaws := PackedFloat32Array()
+		for p in layout.portals:
+			var yaw := NAN
+			if p != next and p.returns.size() == StageDef.MAX_PLAYERS:
+				yaw = finder.view_toward(p.position, p.returns, p.return_yaw, next.position)
+			yaws.append(yaw)
+		if _next_cache.size() > 32:
+			_next_cache.clear()
+		_next_cache[key] = yaws
+	var found := _next_cache[key]
+	for i in layout.portals.size():
+		if not is_nan(found[i]):
+			layout.portals[i].return_view_yaw = found[i]
+
+
+## 戻ったポータル（portal）の前の立ち位置 spots から、target（次のポータル）が画面に入り、カメラの条件
+## （_clear_view の門と視線・カメラの下の壁）を満たす向き。戻った門も画面に入り、広場の側（out_yaw の前半分）を
+## 向く向きを先に選ぶ。無ければ NAN。
+func view_toward(portal: Vector3, spots: Array[Vector3], out_yaw: float, target: Vector3) -> float:
+	_near_gates = PackedVector3Array()
+	for e in _def.entrances:
+		if Vector2(e.position.x - portal.x, e.position.z - portal.z).length() < NEAR_GATES:
+			_near_gates.append(e.position)
+	var middle := Vector3.ZERO
+	for spot in spots:
+		middle += spot / float(spots.size())
+	var toward := atan2(-(target.x - middle.x), -(target.z - middle.z))
+	var out := Basis(Vector3.UP, out_yaw) * Vector3.FORWARD
+	for both: bool in [true, false]:
+		for turn in NEXT_TURNS:
+			var yaw := toward + turn
+			if not _shows(spots, yaw, target) or not _clear_view(portal, spots, yaw, false):
+				continue
+			if not _no_wall_behind(spots, yaw):
+				continue
+			var look := Basis(Vector3.UP, yaw) * Vector3.FORWARD
+			if both and (not _shows(spots, yaw, portal) or out.dot(look) < 0.0):
+				continue
+			return yaw
+	return NAN
+
+
+## その向きで、どの人のカメラにも point が画面に入るか（視線と point への向きの角度が VISIBLE_ANGLE 以内）。
+static func _shows(spots: Array[Vector3], yaw: float, point: Vector3) -> bool:
+	var view := Basis(Vector3.UP, yaw) * Vector3.FORWARD
+	var flat := Vector2(view.x, view.z)
+	for spot in spots:
+		var cam := camera_point(spot, yaw)
+		if absf(flat.angle_to(Vector2(point.x - cam.x, point.z - cam.z))) > VISIBLE_ANGLE:
+			return false
+	return true
+
+
+## その向きで、どの人のカメラの下にも高い壁が無いか（ばねで人の前まで引き寄せられない）。
+func _no_wall_behind(spots: Array[Vector3], yaw: float) -> bool:
+	for spot in spots:
+		var cam := camera_point(spot, yaw)
+		if _field.top(floori(cam.x), floori(cam.z)) > roundi(spot.y) + 2:
+			return false
+	return true
 
 
 static func _cache_key(def: StageDef, layout: OverworldLayout) -> int:

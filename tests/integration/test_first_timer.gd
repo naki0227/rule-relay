@@ -93,7 +93,7 @@ func _put(at: Vector3) -> void:
 func _aim_at(target: Node3D) -> bool:
 	var w := _world()
 	for h: float in [0.0, 0.2, 0.4, -0.2, 0.6]:
-		var eye := w.player.global_position + Vector3(0.0, 1.5, 0.0)
+		var eye := w.player.global_position + Vector3(0.0, CameraRig.PIVOT_HEIGHT, 0.0)
 		var dir := (target.global_position + Vector3(0.0, h, 0.0) - eye).normalized()
 		w.camera_rig.yaw = atan2(-dir.x, -dir.z)
 		w.camera_rig.pitch = clampf(asin(dir.y), CameraRig.MIN_PITCH, CameraRig.MAX_PITCH)

@@ -61,7 +61,7 @@
 | ホットバー9枠: 能力が有効（付与中は無効）。禁止は有効 | 実装＋テスト | `rule_ledger.gd` `player_has_ability`／`player_prohibited` | `test_acceptance` 5 |
 | 通常インベントリ（無制限）: 能力は無効、禁止は有効 | 実装＋テスト | 同上 | `test_acceptance` 5、`test_inventory_panel`（大量の器） |
 | 他者へ付与中: 能力・禁止とも本人に無効 | 実装＋テスト | `is_lent()` の除外 | `test_rule_ledger` |
-| F で拾ったアイテムは通常インベントリへ | 実装＋テスト | `rule_ledger.gd` `pickup`、`game_world.gd` `nearest_world_item` | `test_throw_and_pickup`、`test_throw_pickup_shuttle` |
+| F で拾ったアイテムは通常インベントリへ → **2026-11-23 本人の判断で「ホットバーに空きがあればホットバー、無ければ通常インベントリ」**（装備は身につけずにホットバーへ。重い・浮く・泳ぐは通常インベントリ。ADR 0021） | 実装＋テスト | `rule_ledger.gd` `pickup`、`world_lending.gd` `vessel_to_hotbar_if_free`、`game_world.gd` `nearest_world_item` | `test_throw_and_pickup`、`test_throw_pickup_shuttle`、`test_first_ten_minutes`、`test_equipment_in_world` |
 | E で開いてホットバーへ移すと適用・付与できる | 実装＋テスト | `inventory_panel.gd` | `test_inventory_panel` |
 | UI: 検索、能力／禁止／装備の絞り込み、貸出中・装備中・禁止適用中の状態表示 | 実装＋テスト | `inventory_query.gd`、`inventory_panel.gd` | `test_inventory_query`、`test_equipment` |
 | 倍率アイテム・自由倍率・倍率クラフトは導入しない | 実装（導入していない） | — | — |

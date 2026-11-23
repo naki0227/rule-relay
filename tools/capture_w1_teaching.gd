@@ -113,7 +113,7 @@ func _put(w: StageWorld, at: Vector3, yaw: float, pitch_degrees: float) -> void:
 ## カメラを target へ向け、照準が合うまで向きを少しずつ変える（マウスで狙うのと同じ。遠い相手は照準の補助が
 ## 効かないので、細かく探す）。
 func _aim(w: StageWorld, target: Node3D) -> void:
-	var eye := w.player.global_position + Vector3(0.0, 1.5, 0.0)
+	var eye := w.player.global_position + Vector3(0.0, CameraRig.PIVOT_HEIGHT, 0.0)
 	var dir := (target.global_position - eye).normalized()
 	var base_yaw := atan2(-dir.x, -dir.z)
 	var base_pitch := asin(dir.y)

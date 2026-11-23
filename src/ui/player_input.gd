@@ -21,6 +21,11 @@ const PAD_LOOK_SPEED: float = 800.0
 ## 操作の案内「歩く」「見回す」を慣れたことにする量（1回分。HintMemory.LEARN_AFTER 回で消える）。
 const WALK_SECONDS_PER_USE: float = 1.0
 const LOOK_RADIANS_PER_USE: float = 0.8
+## 貸した W/A/S/D の単発を起動した押し下げでは、自分は歩かない（2026-11-23 本人の判断「動かした瞬間は自分は
+## 歩かない」）。押し続けて WALK_AFTER_FIRE 秒たつか、いったん離して押し直すと、ふつうに歩く。
+## 0.25 秒は、ふつうに「押して離す」1 回（0.1〜0.2 秒）より長く、「押し続けて歩きたい」ときに待たされると
+## 感じにくい長さ（仮の値）。
+const WALK_AFTER_FIRE: float = 0.25
 
 var world: GameWorld
 var hud: Hud
@@ -31,6 +36,8 @@ var _vote_hold := HoldAction.new()
 var _walked: float = 0.0
 var _turned: float = 0.0
 var _last_yaw: float = NAN
+## 貸した単発を起動した移動キー → 押し続けている秒数（その間は自分を歩かせない）。
+var _held_after_fire: Dictionary[StringName, float] = {}
 
 
 func _ready() -> void:
@@ -41,11 +48,12 @@ func _process(delta: float) -> void:
 	if world == null or world.player == null:
 		return
 	var blocked := hud != null and hud.is_inventory_open()
+	_tick_held_after_fire(delta)
 	var intent := Vector2.ZERO
 	if not blocked:
 		intent = Vector2(
-			Input.get_axis(&"move_left", &"move_right"),
-			Input.get_axis(&"move_back", &"move_forward")
+			_walk_strength(&"move_right") - _walk_strength(&"move_left"),
+			_walk_strength(&"move_forward") - _walk_strength(&"move_back")
 		)
 	world.player.move_intent = intent
 	_hold_vote(blocked, delta)
@@ -106,7 +114,8 @@ func _handle_gameplay(event: InputEvent) -> void:
 		if event.is_action_pressed(action_name):
 			var kind := ACTION_KEYS[action_name]
 			_note_press(kind)
-			world.press_action(kind)
+			if world.press_action(kind):
+				_held_after_fire[action_name] = 0.0
 	for i in RuleLedger.HOTBAR_SIZE:
 		if event.is_action_pressed(StringName("slot_%d" % (i + 1))):
 			world.select_slot(i)
@@ -159,6 +168,28 @@ func _handle_gameplay(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			_note(&"menu")
 			_restart_retry_timer()
+
+
+## 歩く強さ（0〜1）。貸した単発を起動した押し下げの間は 0（_held_after_fire）。
+func _walk_strength(action_name: StringName) -> float:
+	if _held_after_fire.has(action_name):
+		return 0.0
+	return Input.get_action_strength(action_name)
+
+
+## 起動した押し下げの時間を数え、離したか WALK_AFTER_FIRE 秒たったら、ふつうに歩けるように戻す。
+func _tick_held_after_fire(delta: float) -> void:
+	for action_name: StringName in _held_after_fire.keys():
+		var held := _held_after_fire[action_name] + delta
+		if not Input.is_action_pressed(action_name) or held >= WALK_AFTER_FIRE:
+			_held_after_fire.erase(action_name)
+		else:
+			_held_after_fire[action_name] = held
+
+
+## 貸した単発を起動した押し下げで、いま自分を歩かせていない移動キー（テスト用）。
+func walk_held_back(action_name: StringName) -> bool:
+	return _held_after_fire.has(action_name)
 
 
 func _radial_open() -> bool:

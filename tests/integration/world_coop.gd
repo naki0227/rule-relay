@@ -109,17 +109,35 @@ func _give(
 func _pick(i: int, at: Vector3, action: RuleAction.Kind) -> void:
 	assert_true(await _walk(i, at, 0.5), "side %d walks to the item" % i)
 	await party.settle(i)
-	_w(i).interact(null)
 	var pid := party.pid(i)
+	var before := (
+		_w(i)
+		. ledger
+		. all_vessels()
+		. filter(func(v: RuleVessel) -> bool: return _held_by(v, pid))
+		. size()
+	)
+	_w(i).interact(null)
+	# 拾った器は、ホットバーに空きがあればそこへ入る（2026-11-23）。かばんに入ったときだけ並べる
 	var found := func() -> RuleVessel:
 		for v in _w(i).ledger.inventory_vessels(pid):
 			if _w(i).ledger.token(v.token_id).action == action:
 				return v
 		return null
-	await party.until(func() -> bool: return found.call() != null, "side %d picks up" % i)
+	var picked := func() -> bool:
+		var now := _w(i).ledger.all_vessels().filter(
+			func(v: RuleVessel) -> bool: return _held_by(v, pid)
+		)
+		return now.size() > before
+	await party.until(picked, "side %d picks up" % i)
 	var vessel: RuleVessel = found.call()
-	_w(i).ledger_actions.move_to_hotbar(vessel.id, _free_slot(i))
+	if vessel != null:
+		_w(i).ledger_actions.move_to_hotbar(vessel.id, _free_slot(i))
 	await party.until(func() -> bool: return _slot(i, action) != -1, "on side %d's hotbar" % i)
+
+
+static func _held_by(v: RuleVessel, pid: int) -> bool:
+	return v.owner_id == pid and v.location != RuleVessel.Location.WORLD
 
 
 ## i が target（ノード）に F を押す（鐘を鳴らす・回収する）。

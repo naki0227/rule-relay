@@ -144,13 +144,14 @@ func test_three_clients_pick_up_the_same_world_vessel() -> void:
 	await party.assert_consistent("vessel pickup race")
 	var owners: Array[int] = []
 	for i in CLIENTS:
-		var held := party.world(i).ledger.inventory_vessels(party.pid(i))
+		var held := carried(party.world(i).ledger, party.pid(i))
 		if held.any(func(x: RuleVessel) -> bool: return x.id == v.id):
 			owners.append(i)
 	assert_eq(owners.size(), 1, "exactly one client has the vessel")
 	for i in party.count():
 		var copy := party.world(i).ledger.vessel(v.id)
-		assert_eq(copy.location, RuleVessel.Location.INVENTORY, "side %d: in an inventory" % i)
+		# 拾った器はホットバーの空きへ入る（2026-11-23）。どの画面でも同じ場所
+		assert_eq(copy.location, RuleVessel.Location.HOTBAR, "side %d: on a hotbar" % i)
 		assert_eq(party.world(i).ledger.all_vessels().size(), vessels, "side %d: no copy" % i)
 
 

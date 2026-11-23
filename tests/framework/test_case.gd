@@ -79,6 +79,17 @@ func wait_physics_frames(count: int) -> void:
 		await tree.physics_frame
 
 
+## その人が持っている器（かばん＋ホットバー）。拾った器は、ホットバーに空きがあればそこへ入るので
+## （2026-11-23 本人の判断。docs/adr/0021）、拾った物を探すときはかばんだけでなくホットバーも見る。
+static func carried(ledger: RuleLedger, player_id: int) -> Array[RuleVessel]:
+	var result := ledger.inventory_vessels(player_id)
+	for slot in RuleLedger.HOTBAR_SIZE:
+		var v := ledger.hotbar_vessel(slot, player_id)
+		if v != null:
+			result.append(v)
+	return result
+
+
 ## 投げたメダル（docs/adr/0017）が当たるか手元へ戻るまで待つ（結合テスト用）。待ち切ったら true。
 func wait_throws(world: GameWorld, frames: int = 300) -> bool:
 	for i in frames:

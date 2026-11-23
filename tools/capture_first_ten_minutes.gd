@@ -233,7 +233,7 @@ func _aim(target: Node3D, cell: Variant = null) -> bool:
 	await _turn_to(_yaw_to(base), -0.4)
 	for h: float in [0.0, 0.3, -0.3, 0.6, -0.6, 0.9, 1.2]:
 		for dyaw: float in [0.0, 0.08, -0.08, 0.16, -0.16]:
-			var eye := w.player.global_position + Vector3(0.0, 1.5, 0.0)
+			var eye := w.player.global_position + Vector3(0.0, CameraRig.PIVOT_HEIGHT, 0.0)
 			var dir := (base + Vector3(0.0, h, 0.0) - eye).normalized()
 			w.camera_rig.yaw = atan2(-dir.x, -dir.z) + dyaw
 			w.camera_rig.pitch = clampf(asin(dir.y), CameraRig.MIN_PITCH, CameraRig.MAX_PITCH)

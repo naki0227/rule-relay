@@ -528,7 +528,8 @@ func pickup_token(token_id: int, player_id: int = PLAYER_ID) -> bool:
 	return true
 
 
-## 世界に落ちている器を拾い、通常インベントリへ入れる（企画書 7: F で拾ったものは通常インベントリへ）。
+## 世界に落ちている器を拾い、通常インベントリへ入れる（台帳の規則。企画書 7）。ゲームでは、拾った直後に
+## GameWorld がホットバーの空きへ移す（2026-11-23 本人の判断。WorldLending.vessel_to_hotbar_if_free）。
 func pickup(vessel_id: int, player_id: int = PLAYER_ID) -> bool:
 	var v := vessel(vessel_id)
 	if v == null or v.location != RuleVessel.Location.WORLD:
