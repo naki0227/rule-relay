@@ -7,7 +7,7 @@ extends RefCounted
 ## - ステージに入った直後の目的の札（ObjectivePanel が大きく出ている 3 秒）とは重ねない
 ## - どこで何を教えるかは、ステージの「教える場所」（StageDef.HintSpot）でも決められる
 ## 選ぶ順（上ほど急ぐ）: その場の動作（入口・拾う）→ 貸した単発を使う → 取り戻す → 鐘 → 投げる（遠くを狙った）→
-## 動物に移動をあげる → ステージの教える場所 → 渡す（選ぶ）→ 装備 → 保存 → 足もとの禁止 → 段差でジャンプ →
+## 動物に移動をあげる → かばんの能力をホットバーへ → ステージの教える場所 → 渡す（選ぶ）→ 装備 → 保存 → 足もとの禁止 → 段差でジャンプ →
 ## 歩く・見回す → やり直し・メニュー。
 ## 返り値は [キーの表記, 動作, 表記をそのまま出すか] か、空の配列（何も出さない）。
 
@@ -19,7 +19,7 @@ static var _stage_names: Dictionary[String, String] = {}
 
 static func pick(hud: Hud, target: Node3D, in_reach: bool, on_checkpoint: bool) -> Array:
 	var w := hud.world
-	if w == null or w.player == null or _objectives_big(hud):
+	if w == null or w.player == null or _objectives_big(hud) or _cleared(hud):
 		return []
 	_learn_from_state(hud)
 	# 上から順に見て、最初に当てはまった 1 つだけを返す（毎フレーム呼ぶので、残りは調べない）
@@ -30,6 +30,7 @@ static func pick(hud: Hud, target: Node3D, in_reach: bool, on_checkpoint: bool) 
 		func() -> Array: return _bell(target, in_reach),
 		func() -> Array: return _throw(hud, target, in_reach),
 		func() -> Array: return _creature(hud, target, in_reach),
+		func() -> Array: return _bag(hud, target, in_reach),
 		func() -> Array: return _spot(hud),
 		func() -> Array: return _lend(hud, target, in_reach),
 		func() -> Array: return _equip(hud),
@@ -50,6 +51,13 @@ static func pick(hud: Hud, target: Node3D, in_reach: bool, on_checkpoint: bool) 
 static func _objectives_big(hud: Hud) -> bool:
 	var panel := hud.get_node_or_null(^"Objectives") as ObjectivePanel
 	return panel != null and panel.is_big()
+
+
+## クリアした後（広場へ戻るのを待つ 4 秒）は案内を出さない。ゴールの窪みの壁を向いているだけで
+## 「Space ジャンプ」が出ていた（2026-11-22 のはじめての 10 分の通し）。
+static func _cleared(hud: Hud) -> bool:
+	var panel := hud.get_node_or_null(^"Objectives") as ObjectivePanel
+	return panel != null and panel.director != null and panel.director.last_clear_text != ""
 
 
 ## 状態から分かる「できた」を記録する（装備を身につけた、など。押したキーでは数えにくいもの）。
@@ -136,6 +144,15 @@ static func _take_back(hud: Hud, target: Node3D, in_reach: bool) -> Array:
 
 static func _bell(target: Node3D, in_reach: bool) -> Array:
 	return ["F", "鳴らす"] if target is Bell and in_reach else []
+
+
+## 拾った能力がかばんにあって、ホットバーに空きがあるとき（何かを狙って渡す案内とは重ねない）。
+static func _bag(hud: Hud, target: Node3D, in_reach: bool) -> Array:
+	if target != null and in_reach and not target is TerrainCell:
+		return []  # 足もとの地面を見ているだけなら出す
+	if not hud.needs_bag_prompt():
+		return []
+	return [InputMode.key(&"inventory"), "かばんの能力をホットバーへ", true]
 
 
 ## ステージの「教える場所」（StageDef.HintSpot）。近くにいて、まだ慣れていない案内のうち、いちばん近いもの。

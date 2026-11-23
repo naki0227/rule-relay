@@ -289,7 +289,7 @@ func set_lend_mode(mode: TriggerMode.Kind) -> bool:
 		_post("%s は音波と一緒に実装予定です（P1）" % TriggerMode.label(mode))
 		return false
 	lend_mode = mode
-	_post("付与方式: %s" % TriggerMode.label(lend_mode))
+	_post("渡し方: %s" % TriggerMode.label(lend_mode))
 	state_changed.emit()
 	return true
 
@@ -405,7 +405,7 @@ func _range_refusal(target: Node3D) -> String:
 		return "ホットバー %d は空です" % (selected_slot + 1)
 	var t := ledger.token(v.token_id)
 	if not t.is_in_vessel():
-		return "%s は貸出中です" % t.describe()
+		return "%sは貸出中です" % t.describe()
 	return _range_target_refusal(target)
 
 
@@ -469,7 +469,7 @@ func interact(target: Node3D) -> void:
 		_interact(target)
 		return
 	ledger.pickup_token(dropped, acting_id())
-	_post("落ちていた %s を拾いました" % ledger.token(dropped).describe())
+	_post("落ちていた%sを拾いました" % ledger.token(dropped).describe())
 	_sound(&"ui_pick", player.global_position)
 
 
@@ -486,16 +486,21 @@ func _interact(target: Node3D) -> void:
 		_post("鐘を鳴らしました")
 		return
 	if target != null and _within_touch(target):
-		var picked := _recall_all(ledger.tokens_on(_entity_of(target)))
+		var on_target := ledger.tokens_on(_entity_of(target))
+		# 照準の下の案内と同じ言い方（自分が渡した物は「取り戻す」、置かれていた物は「取る」。TeachHints）
+		var me := acting_id()
+		var mine := on_target.any(func(t: RuleToken) -> bool: return t.lender_id == me)
+		var picked := _recall_all(on_target)
 		if not picked.is_empty():
-			_post("%s を回収しました" % _describe_tokens(picked))
+			var verb := "取り戻しました" if mine else "取りました"
+			_post("%sを%s%s" % [_describe_tokens(picked), verb, _bag_note(picked)])
 			var only_bans := picked.all(func(t: RuleToken) -> bool: return t.is_prohibition)
 			var back := "recall@%d" % RuleAction.motif_semitone(picked[0].action)
 			_sound(&"prohibit" if only_bans else StringName(back), target.global_position)
 			return
 	var zone := _recall_all(ledger.range_tokens_at(player.global_position))
 	if not zone.is_empty():
-		_post("範囲の %s を回収しました" % _describe_tokens(zone))
+		_post("範囲の%sを取り戻しました" % _describe_tokens(zone))
 		_sound(&"recall", player.global_position)
 		return
 	_post("回収できるものがありません")
@@ -680,7 +685,7 @@ func _physics_process(delta: float) -> void:
 		restore_checkpoint()
 	if not goal_cleared and goal_box.has_volume() and goal_box.has_point(player.global_position):
 		goal_cleared = true
-		_post("高台に到達しました！")
+		_post("ゴールに着きました！")
 		_ui_sound(&"goal")
 		goal_reached.emit()
 
@@ -704,6 +709,16 @@ func _recall_all(tokens: Array[RuleToken]) -> Array[RuleToken]:
 				unowned.append(t)
 	WorldLending.to_hotbar_if_free(self, unowned)
 	return picked
+
+
+## 回収した物がかばんに入ったとき（置かれていた能力・生き物が最初から持っていた能力）の一言。
+## ホットバーには出てこないので、どこへ行ったか分からなかった（2026-11-22 の通し）。
+func _bag_note(tokens: Array[RuleToken]) -> String:
+	for t in tokens:
+		var v := ledger.vessel(t.vessel_id)
+		if v != null and v.location == RuleVessel.Location.INVENTORY and t.is_in_vessel():
+			return "（かばんへ。%s で開いてホットバーへ）" % InputMode.token(&"inventory")
+	return ""
 
 
 func _describe_tokens(tokens: Array[RuleToken]) -> String:

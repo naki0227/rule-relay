@@ -85,6 +85,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event.is_action_pressed(&"inventory") and hud != null:
 		world.cancel_range_preview()
+		if hud.needs_bag_prompt():
+			_note(&"bag")
 		var open := hud.toggle_inventory()
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if open else Input.MOUSE_MODE_CAPTURED
 		if open and event is InputEventJoypadButton:

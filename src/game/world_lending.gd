@@ -131,7 +131,7 @@ static func give_token(
 	var result := w.ledger.give_to_player(token_id, from_player, target.player_id)
 	var t := w.ledger.token(token_id)
 	if result == RuleLedger.LendResult.OK:
-		w._post("%s を仲間に渡しました" % t.describe())
+		w._post("%sを仲間に渡しました" % t.describe())
 		w._sound(&"lend", target.global_position)
 	else:
 		w._post(WorldQueries.describe(t, result, false))

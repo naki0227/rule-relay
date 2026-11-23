@@ -226,8 +226,8 @@ static func finish_single_shot(w: GameWorld, token_id: int, outcome: Dictionary)
 	var drop_at := w.blocks[t.holder_ids[0]].global_position + Vector3(0.0, 0.8, 0.0)
 	w.ledger.complete_single_shot(token_id, results, drop_at)
 	if BlockRules.single_shot_succeeded(results):
-		w._post("単発の %s が成功して戻りました" % label)
+		w._post("%sが戻ってきました" % label)
 	else:
-		w._post("単発の %s は動けなかったので、そのまま戻りました" % label)
+		w._post("%sは動けなかったので、そのまま戻ってきました" % label)
 		var blocked := results.has(BlockRules.Attempt.PROHIBITED)
 		w._ui_sound(&"prohibit" if blocked else &"ui_error")

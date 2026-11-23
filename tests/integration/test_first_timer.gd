@@ -182,7 +182,8 @@ func test_a_first_timer_follows_the_hints_from_the_hub_to_the_clear() -> void:
 	assert_eq(game.director.lifecycle.latest_checkpoint(), "cp0", "walked over the pad")
 	var told := " ".join(_hud().toasts.messages())
 	assert_true(told.contains("チェックポイント"), told)
-	assert_true(told.contains("F"), "the toast names the key")
+	assert_true(told.contains("落ちたらここから"), "solo: what the pad means for me")
+	assert_false(told.contains("全員"), "solo: no team words")
 
 	# 6. 窪みのブロックを狙う: 最初は W が選ばれているので「[5] ジャンプをえらぶ」。選ぶと「ジャンプを渡す」
 	var lift := _lift()

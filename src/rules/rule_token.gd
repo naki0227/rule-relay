@@ -36,9 +36,10 @@ func is_in_vessel() -> bool:
 	return holder_ids.is_empty() and carrier_id == -1 and not dropped
 
 
+## 知らせに出す名前（ホットバーの名前と同じ「ジャンプ」「ジャンプ禁止」）。前は「能力[ジャンプ]」で、
+## 画面の案内（「ジャンプを渡す」）と言い方がずれていた（2026-11-22 の通し）。
 func describe() -> String:
-	var kind := "禁止" if is_prohibition else "能力"
-	return "%s[%s]" % [kind, RuleAction.label(action)]
+	return ("%s禁止" if is_prohibition else "%s") % RuleAction.label(action)
 
 
 func to_dict() -> Dictionary:

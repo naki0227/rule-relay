@@ -182,3 +182,19 @@ func test_state_survives_the_network_round_trip() -> void:
 	assert_true(back.all_regions_open)
 	var broken := OverworldState.from_dict({"cleared": 3})
 	assert_true(broken.cleared.is_empty(), "a broken value becomes the default")
+
+
+## クリアした後の看板: 次の門が「つぎはここ」、どの看板にも開発の注記「（仮）」は出ない。
+func test_the_next_portal_sign_after_a_clear_has_no_developer_notes() -> void:
+	var state := OverworldState.new()  # 試遊の版（全部開いている）
+	state.cleared = PackedStringArray([StageCatalog.INTRO_ID])
+	var def := Overworld.build(state)
+	var relay := def.overworld.portal(StageCatalog.RELAY_ID)
+	assert_true(relay.next, "the next stage in the plan")
+	var portal := OverworldPortal.new()
+	for p in def.overworld.portals:
+		portal.spec = p
+		assert_false(portal.caption().contains("（仮）"), portal.caption())
+	portal.spec = relay
+	assert_true(portal.caption().begins_with("つぎはここ"), portal.caption())
+	portal.free()

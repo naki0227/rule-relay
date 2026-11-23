@@ -6,16 +6,19 @@ extends RefCounted
 static func describe(t: RuleToken, result: RuleLedger.LendResult, use_range: bool) -> String:
 	match result:
 		RuleLedger.LendResult.OK:
-			var how := "範囲（%d個）" % t.holder_ids.size() if use_range else "単体"
-			var mode := "" if t.mode == TriggerMode.Kind.NONE else "・%s" % TriggerMode.label(t.mode)
-			return "%s を%s%sで付与しました" % [t.describe(), how, mode]
+			# 案内（「ジャンプを渡す」）と同じ「渡す」で言う（前は「単体・単発で付与しました」）
+			var how := "%d こにまとめて" % t.holder_ids.size() if use_range else ""
+			var mode := (
+				"" if t.mode == TriggerMode.Kind.NONE else "（%s）" % TriggerMode.label(t.mode)
+			)
+			return "%sを%s渡しました%s" % [t.describe(), how, mode]
 		RuleLedger.LendResult.ALREADY_LENT:
-			return "%s は貸出中です（%s で回収）" % [t.describe(), InputMode.token(&"interact")]
+			return "%sは貸出中です（%s で回収）" % [t.describe(), InputMode.token(&"interact")]
 		RuleLedger.LendResult.EQUIPPED_CANNOT_LEND:
 			return "身につけている装備からは渡せません（外してホットバーに置くと、中の能力だけを渡せます）"
 		RuleLedger.LendResult.NO_TARGETS:
 			return "範囲内にブロックがありません"
-	return "付与できません（%s）" % RuleLedger.LendResult.keys()[result]
+	return "渡せません（%s）" % RuleLedger.LendResult.keys()[result]
 
 
 ## マスごとの立てる高さ（地形とブロックの上面）。上から光線を落として最初に当たった高さ。穴のマスは入れない。
