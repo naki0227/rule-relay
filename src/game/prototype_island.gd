@@ -139,41 +139,10 @@ func _give_starting_items() -> void:
 	)
 
 
-## 空・日の光・霧（ステージの島でも同じものを使う）。
+## 空・日の光・霧と、見た目の効果（ステージの島でも同じものを使う）。中身は WorldLook
+## （docs/adr/0022-visual-direction-and-quality.md）。
 static func build_environment(parent: Node) -> void:
-	var sun := DirectionalLight3D.new()
-	sun.rotation = Vector3(deg_to_rad(-48.0), deg_to_rad(-35.0), 0.0)
-	sun.light_color = Color(1.0, 0.93, 0.8)
-	sun.light_energy = 1.15
-	sun.shadow_enabled = true
-	sun.directional_shadow_max_distance = 60.0
-	parent.add_child(sun)
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color(0.4, 0.64, 0.9)
-	sky_material.sky_horizon_color = Color(0.86, 0.92, 0.93)
-	sky_material.ground_horizon_color = Color(0.86, 0.92, 0.93)
-	sky_material.ground_bottom_color = Color(0.78, 0.84, 0.88)
-	var sky := Sky.new()
-	sky.sky_material = sky_material
-	var env := Environment.new()
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = 0.5
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.ssao_enabled = true
-	env.glow_enabled = true
-	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	env.glow_hdr_threshold = 1.2
-	env.adjustment_enabled = true
-	env.adjustment_contrast = 1.0
-	env.adjustment_saturation = 1.1
-	env.fog_enabled = true
-	env.fog_light_color = Color(0.9, 0.92, 0.9)
-	env.fog_density = 0.004
-	var world_env := WorldEnvironment.new()
-	world_env.environment = env
-	parent.add_child(world_env)
+	WorldLook.attach(parent)
 
 
 ## 島の見た目: 浮かぶ岩の底、外周の木、草・花・小石（固定シードで毎回同じ配置）。

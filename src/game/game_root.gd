@@ -194,6 +194,7 @@ func _on_world_changed(world: StageWorld) -> void:
 	for old: Node in [_hud, _input]:
 		if old != null:
 			old.queue_free()
+	StageTransition.play_on(self)  # 新しい島を生成りの幕から丸く開いて見せる（見た目だけ）
 	world.sound_requested.connect(
 		func(event: StringName, at: Vector3, positional: bool) -> void:
 			if positional:

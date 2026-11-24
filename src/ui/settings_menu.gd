@@ -1,7 +1,8 @@
 class_name SettingsMenu
 extends Control
 ## 設定の画面（Esc のメニューの「せってい」から開く）。生成りの札を1枚、画面の中央に出す。
-##   文字の大きさ（4段階）／視点の速さ（マウス・パッド）／音の大きさ（BGM・効果音）／
+##   文字の大きさ（4段階）／画質（低・中・高、ミニチュア風のぼかし）／視点の速さ（マウス・パッド）／
+##   音の大きさ（BGM・効果音）／
 ##   キー割り当て（キーボード・マウスとパッド）
 ## ゲームパッドだけでも使える: 十字キーで項目を移り、A で決定、つまみは左右で動かす。B か Start でもどる。
 ## 割り当ては、ボタンを選んでから割り当てたい入力を押す（5秒押さなければ取り消し）。
@@ -23,6 +24,9 @@ var play_sound: Callable
 var _card: PanelContainer
 var _scroll: ScrollContainer
 var _scale_buttons: Array[Button] = []
+var _quality_buttons: Array[Button] = []
+var _quality_note: Label
+var _dof_button: Button
 var _mouse_slider: HSlider
 var _pad_slider: HSlider
 var _mouse_value: Label
@@ -85,6 +89,11 @@ func refresh() -> void:
 		return
 	for i in _scale_buttons.size():
 		_scale_buttons[i].set_pressed_no_signal(i == settings.scale_step)
+	for i in _quality_buttons.size():
+		_quality_buttons[i].set_pressed_no_signal(i == settings.visual_quality)
+	_quality_note.text = VisualQuality.NOTES[settings.visual_quality]
+	_dof_button.set_pressed_no_signal(settings.miniature_dof)
+	_dof_button.text = "ミニチュア風のぼかし: %s" % ("あり" if settings.miniature_dof else "なし")
 	_mouse_slider.set_value_no_signal(settings.mouse_sensitivity)
 	_pad_slider.set_value_no_signal(settings.pad_sensitivity)
 	_mouse_value.text = "×%.1f" % settings.mouse_sensitivity
@@ -107,6 +116,20 @@ func choose_scale(step: int) -> void:
 	settings.apply(get_tree())
 	_saved("文字の大きさ: %s" % GameSettings.SCALE_NAMES[settings.scale_step])
 	_fit()
+
+
+## 画質を選ぶ（0 = 低、1 = 中、2 = 高）。いまの島の効果へすぐ反映し、保存する。テストからも呼ぶ。
+func choose_quality(level: int) -> void:
+	settings.set_visual_quality(level)
+	VisualQuality.apply_all(get_tree())
+	_saved("画質: %s" % VisualQuality.NAMES[settings.visual_quality])
+
+
+## 遠くを少しぼかす（ミニチュア風）。テストからも呼ぶ。
+func choose_miniature_dof(on: bool) -> void:
+	settings.miniature_dof = on
+	VisualQuality.apply_all(get_tree())
+	_saved("ミニチュア風のぼかし: %s" % ("あり" if on else "なし"))
 
 
 ## BGM の音量（0〜100%）。すぐにバスへ反映し、保存は閉じるときにまとめて行う。テストからも呼ぶ。
@@ -183,7 +206,7 @@ func choose_reset() -> void:
 	if not _reset_armed:
 		_reset_armed = true
 		refresh()
-		_set_status("もう一度えらぶと、文字の大きさ・視点の速さ・音の大きさ・キー割り当てをはじめにもどします。")
+		_set_status("もう一度えらぶと、文字の大きさ・画質・視点の速さ・音の大きさ・キー割り当てをはじめにもどします。")
 		_sound(&"ui_select")
 		return
 	_reset_armed = false
@@ -302,6 +325,8 @@ func _build() -> void:
 	gutter.add_child(body)
 	body.add_child(SettingsRows.section("文字の大きさ"))
 	body.add_child(_build_scale_row())
+	body.add_child(SettingsRows.section("画質"))
+	body.add_child(_build_quality_row())
 	body.add_child(SettingsRows.section("視点の速さ"))
 	_mouse_slider = SettingsRows.slider(_on_mouse_changed)
 	_mouse_value = Label.new()
@@ -341,6 +366,33 @@ func _build_scale_row() -> Control:
 		row.add_child(button)
 		_scale_buttons.append(button)
 	return row
+
+
+## 画質（低・中・高）と、その中身の短い説明、ミニチュア風のぼかしの入り切り。
+func _build_quality_row() -> Control:
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 8)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var group := ButtonGroup.new()
+	for i in VisualQuality.NAMES.size():
+		var button := SettingsRows.small_button(VisualQuality.NAMES[i])
+		button.custom_minimum_size.x = 120
+		button.toggle_mode = true
+		button.button_group = group
+		button.pressed.connect(choose_quality.bind(i))
+		row.add_child(button)
+		_quality_buttons.append(button)
+	_dof_button = SettingsRows.small_button("")
+	_dof_button.toggle_mode = true
+	_dof_button.toggled.connect(choose_miniature_dof)
+	row.add_child(_dof_button)
+	column.add_child(row)
+	_quality_note = Label.new()
+	_quality_note.theme_type_variation = &"Note"
+	UiTheme.wrap_text(_quality_note)
+	column.add_child(_quality_note)
+	return column
 
 
 func _build_bindings() -> Control:
