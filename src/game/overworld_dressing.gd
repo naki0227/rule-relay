@@ -57,20 +57,13 @@ static func refresh_portals(world: Node3D, state: OverworldState) -> void:
 
 
 ## 広場は広いので、霧を薄くして遠くの地方まで見えるようにする（島の霧は近くの島に合わせた濃さ）。
-## 空は島より少し青くする（環境は広場の島ごとに作り直すので、ほかの島には影響しない）。
+## 空と霧の色は島と同じ（WorldLook）。色だけ少し鮮やかにする（環境は広場の島ごとに作り直すので、ほかの島には
+## 影響しない）。
 static func _soften_fog(world: Node) -> void:
 	for node in world.find_children("*", "WorldEnvironment", false, false):
 		var env := (node as WorldEnvironment).environment
-		env.fog_density = 0.0012
-		env.fog_light_color = Color(0.8, 0.89, 0.96)
-		env.adjustment_saturation = 1.15
-		# 明るい昼の空: 地平線まで白く飛ばさず、やわらかい水色にする
-		var sky := env.sky.sky_material as ProceduralSkyMaterial
-		if sky != null:
-			sky.sky_top_color = Color(0.36, 0.6, 0.9)
-			sky.sky_horizon_color = Color(0.7, 0.85, 0.95)
-			sky.ground_horizon_color = Color(0.7, 0.85, 0.95)
-			sky.ground_bottom_color = Color(0.6, 0.76, 0.88)
+		env.fog_density = 0.0016
+		env.adjustment_saturation = 1.12
 
 
 ## 建物に動く部分（風車の羽根など）のアニメーションがあれば、繰り返し再生する。

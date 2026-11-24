@@ -35,6 +35,9 @@ var _context: PanelContainer
 var _context_row: HBoxContainer
 var _goal: PanelContainer
 var _goal_note: Label
+var _goal_title: Label
+## クリアのカードの上の3つの印（順に弾んで出る）。
+var _goal_marks: Array[Control] = []
 var _last_selected: int = -1
 var _last_mode: int = -1
 var _last_throw: int = -1
@@ -321,10 +324,25 @@ func _show_goal() -> void:
 	_goal.visible = true
 	_goal.modulate.a = 0.0
 	_goal.pivot_offset = _goal.size * 0.5
-	_goal.scale = Vector2.ONE * 0.9
+	_goal.scale = Vector2.ONE * 0.6
+	# カードが弾んで出て、上の印が1つずつ弾み、見出しが小さく跳ねる（見せて伝える。文字は増やさない）
 	var tween := _goal.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tween.tween_property(_goal, "modulate:a", 1.0, 0.3)
-	tween.parallel().tween_property(_goal, "scale", Vector2.ONE, 0.4)
+	tween.tween_property(_goal, "modulate:a", 1.0, 0.22)
+	tween.parallel().tween_property(_goal, "scale", Vector2.ONE, 0.45)
+	for i in _goal_marks.size():
+		var mark := _goal_marks[i]
+		mark.scale = Vector2.ZERO
+		var pop := mark.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		pop.tween_interval(0.25 + 0.12 * i)
+		pop.tween_property(mark, "scale", Vector2.ONE * 1.5, 0.16)
+		pop.tween_property(mark, "scale", Vector2.ONE, 0.18)
+	if _goal_title != null:
+		_goal_title.pivot_offset = _goal_title.size * 0.5
+		var hop := _goal_title.create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+		hop.tween_interval(0.55)
+		hop.tween_property(_goal_title, "scale", Vector2(1.08, 0.94), 0.08)
+		hop.tween_property(_goal_title, "scale", Vector2(0.96, 1.06), 0.1)
+		hop.tween_property(_goal_title, "scale", Vector2.ONE, 0.16)
 	tween.tween_interval(3.6)
 	tween.tween_property(_goal, "modulate:a", 0.0, 0.6)
 	tween.tween_callback(func() -> void: _goal.visible = false)
@@ -488,9 +506,12 @@ func _build_goal_card() -> void:
 		leaf.color = UiTheme.LEAF if i != 1 else UiTheme.SUN
 		leaf.custom_minimum_size = Vector2(8, 8)
 		leaf.rotation = PI * 0.25
+		leaf.pivot_offset = Vector2(4, 4)
 		stars.add_child(leaf)
+		_goal_marks.append(leaf)
 	box.add_child(stars)
 	var title := Label.new()
+	_goal_title = title
 	title.text = GOAL_TITLE
 	title.theme_type_variation = &"Title"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

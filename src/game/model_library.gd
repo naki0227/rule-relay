@@ -12,6 +12,7 @@ static var _meshes: Dictionary[String, Mesh] = {}
 static func scene(model_name: String) -> PackedScene:
 	if not _scenes.has(model_name):
 		_scenes[model_name] = load(DIR % model_name) as PackedScene
+		Foliage.prepare(model_name, _scenes[model_name])  # 草花・木の葉のそよぎ（見た目だけ）
 	return _scenes[model_name]
 
 
