@@ -54,6 +54,8 @@ func _make_side(i: int) -> void:
 	side.name = "Side%d" % i
 	tree.root.add_child(side)
 	tree.set_multiplayer(SceneMultiplayer.new(), side.get_path())
+	# 移譲のあとに HostMigration が作る接続も含め、つながるたびに ENet の間引きを止める
+	TestCase.keep_enet_steady(side)
 	var view := SubViewport.new()
 	view.name = "View"
 	view.own_world_3d = true
@@ -85,8 +87,7 @@ func _join(i: int) -> void:
 	nets[i].start_client(peer, migrations[i].session_key)
 	migrations[i].watch()
 	await _until(func() -> bool: return directors[i].world.player.player_id == i + 1)
-	TestCase.steady_enet(peer)
-	TestCase.steady_enet(nets[0].multiplayer.multiplayer_peer)
+	assert_true(TestCase.enet_is_steady(peer), "joined peer is steady")
 	await _until(func() -> bool: return directors[i].stage_id == StageCatalog.INTRO_ID)
 
 
@@ -131,6 +132,8 @@ func test_second_player_takes_over_and_the_state_continues() -> void:
 	await _until(func() -> bool: return not migrations[2].migrating)
 	await _until(func() -> bool: return nets[1].session.peer_of_player(3) != -1)
 	assert_eq(c.world.player.player_id, 3, "C keeps its player id")
+	assert_true(TestCase.enet_is_steady(nets[1].session.multiplayer.multiplayer_peer), "new host B")
+	assert_true(TestCase.enet_is_steady(nets[2].session.multiplayer.multiplayer_peer), "rejoined C")
 	assert_true(b.world.ledger.can_initiate(lift_id, JUMP), "B's lend survived the migration")
 	var t := b.world.ledger.tokens_on(lift_id).filter(
 		func(x: RuleToken) -> bool: return x.lender_id == 2

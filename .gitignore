@@ -29,3 +29,6 @@ Thumbs.db
 # steam_appid.txt（開発用の App ID）も書き出し・コミットに入れない。
 /addons/godotsteam/
 steam_appid.txt
+
+# 企画書 PDF の道具（tools/build_proposal.js）をリポジトリの中に入れたとき
+node_modules/
