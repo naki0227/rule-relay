@@ -376,11 +376,9 @@ func range_selection(target: Node3D) -> Dictionary:
 	var layer := floori(center.y - 0.5 + 0.001)
 	var radius := BlockRules.DEFAULT_RANGE_RADIUS
 	var ids := BlockRules.select_in_range(center, radius, layer, _block_cells())
-	var cells: Array[Vector3i] = []
-	for cell: Vector3i in terrain.cells if terrain != null else {}:
-		var flat := Vector2(cell.x + 0.5 - center.x, cell.z + 0.5 - center.z)
-		if cell.y == layer and flat.length() <= radius + 0.0001:
-			cells.append(cell)
+	var cells: Array[Vector3i] = (
+		terrain.cells_in_disc(center, radius, layer) if terrain != null else []
+	)
 	return {"center": center, "radius": radius, "layer": layer, "ids": ids, "cells": cells}
 
 

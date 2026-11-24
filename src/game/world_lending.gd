@@ -97,9 +97,9 @@ static func lend_token(
 	if use_range:
 		var selection := w.range_selection(target)
 		var ids := selection["ids"] as PackedInt32Array
-		for cell: Vector3i in selection["cells"] as Array:
-			# 範囲内の地形のセルも、全部ブロックとして受け取る
-			ids.append(TerrainPromotion.promote(w, cell).entity_id)
+		# 範囲内の地形のセルも、全部ブロックとして受け取る（当たり判定の作り直しは 1 回にまとめる）
+		for block in TerrainPromotion.promote_many(w, selection["cells"] as Array):
+			ids.append(block.entity_id)
 		selection["ids"] = ids
 		result = w.ledger.lend_token(token_id, by_player, ids, mode, selection)
 	else:

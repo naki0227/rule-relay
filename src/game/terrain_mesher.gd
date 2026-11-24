@@ -34,6 +34,14 @@ const BASE_COLORS := {
 }
 ## 島の底の面の暗さ（下から見上げたときに、影になっているように見せる）。
 const BOTTOM_SHADE: float = 0.72
+## 頂点の陰（docs/adr/0022）: 面の前の層にとなりのマスがあると、その角を暗くする（入り組んだ角・壁の足もと）。
+## 0〜3 の段階（3 = 何も無い）を明るさにする。画面ごとの計算（SSAO）と違って、作るときに1回だけで重さは無い。
+const AO_LEVELS: Array[float] = [0.72, 0.8, 0.9, 1.0]
+## 丸めた縁の上向きの部分を明るくする量（縁が光を受けて、角の丸さが読める）。
+const EDGE_LIGHT: float = 0.1
+## セルごとの明るさの揺らぎ（2色の市松に見えないように）と、広い範囲の色のむら（草）。
+const CELL_JITTER: float = 0.035
+const GRASS_DRIFT := Color("#a3c763")
 
 const NORMALS: Array[Vector3i] = [
 	Vector3i(1, 0, 0),
@@ -52,6 +60,8 @@ const BASE_NORMALS: Array[Vector3i] = [
 	Vector3i(0, 0, 1),
 	Vector3i(0, 0, -1),
 ]
+
+static var _material: StandardMaterial3D
 
 
 ## cells: {Vector3i: 種類（grass / rock / sand）}。solid: となりとして扱うほかのマス（土台）。
@@ -87,6 +97,46 @@ static func build_foundation(foundation: Dictionary, cells: Dictionary) -> Array
 	return _to_mesh(verts, normals, colors, indices)
 
 
+## 1 つの区画の表のセルと土台を、1 つのメッシュ（1 回の描画の呼び出し）にまとめて作る（TerrainGrid の区画）。
+## surface: 面を作る表のセル、base: 面を作る土台のマス、floors: 上面を見せる土台のマス（build と同じ）。
+## となりの判定には cells と foundation の全部を使う（区画のつなぎ目も、1 つで作ったときと同じ）。
+static func build_chunk(
+	cells: Dictionary,
+	foundation: Dictionary,
+	floors: Array[Vector3i],
+	surface: Array[Vector3i],
+	base: Array[Vector3i]
+) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	var indices := PackedInt32Array()
+	for cell in surface:
+		for n in NORMALS:
+			if cells.has(cell + n) or foundation.has(cell + n):
+				continue
+			_add_face(cells, foundation, cell, n, verts, normals, colors, indices)
+	for cell in floors:
+		_add_face(foundation, cells, cell, Vector3i.UP, verts, normals, colors, indices)
+	for cell in base:
+		for n in BASE_NORMALS:
+			if foundation.has(cell + n):
+				continue
+			_add_face(foundation, cells, cell, n, verts, normals, colors, indices)
+	return _to_mesh(verts, normals, colors, indices)
+
+
+## 地形のメッシュはどれも同じマテリアルを使う（区画ごとに作ると、同じ設定のマテリアルが区画の数だけでき、
+## 描画のまとめ（同じマテリアルの続け描き）が効かない）。
+static func material() -> StandardMaterial3D:
+	if _material == null:
+		_material = StandardMaterial3D.new()
+		_material.vertex_color_use_as_albedo = true
+		_material.vertex_color_is_srgb = true  # 色は sRGB で書いている（無いと白っぽく飛ぶ）
+		_material.roughness = 0.9
+	return _material
+
+
 static func _to_mesh(
 	verts: PackedVector3Array,
 	normals: PackedVector3Array,
@@ -103,11 +153,7 @@ static func _to_mesh(
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.vertex_color_is_srgb = true  # 色は sRGB で書いている（無いと白っぽく飛ぶ）
-	material.roughness = 0.9
-	mesh.surface_set_material(0, material)
+	mesh.surface_set_material(0, material())
 	return mesh
 
 
@@ -137,6 +183,7 @@ static func _add_face(
 	var kind := String(cells[cell])
 	var light := _hash(cell) > 0.55
 	var top := float(cell.y + 1)
+	var ao := _face_ao(cells, solid, cell, n, u, v)
 	for b in b_list:
 		for a in a_list:
 			var p := origin + Vector3(u) * a + Vector3(v) * b
@@ -152,7 +199,8 @@ static func _add_face(
 			var out := (p - c).normalized()
 			verts.append(c + out * RADIUS)
 			normals.append(out)
-			colors.append(_color(kind, light, n, p.y, top, out))
+			var color := _color(kind, light, n, p.y, top, out)
+			colors.append(_shade(color, cell, nf, out, ao, a, b))
 	var w := a_list.size()
 	for j in b_list.size() - 1:
 		for i in w - 1:
@@ -190,6 +238,52 @@ static func _color(
 	if kind == "sand" or kind == "ice":
 		return COLORS[kind][index]
 	return COLORS["rock"][index]
+
+
+## 面の4隅の陰の段階（0〜3）。順に (−u,−v) (+u,−v) (−u,+v) (+u,+v)。
+static func _face_ao(
+	cells: Dictionary, solid: Dictionary, cell: Vector3i, n: Vector3i, u: Vector3i, v: Vector3i
+) -> PackedFloat32Array:
+	var front := cell + n
+	var result := PackedFloat32Array()
+	for sv: int in [-1, 1]:
+		for su: int in [-1, 1]:
+			var side_u := _occupied(cells, solid, front + u * su)
+			var side_v := _occupied(cells, solid, front + v * sv)
+			var corner := _occupied(cells, solid, front + u * su + v * sv)
+			var level := 0 if side_u and side_v else 3 - int(side_u) - int(side_v) - int(corner)
+			result.append(float(level))
+	return result
+
+
+static func _occupied(cells: Dictionary, solid: Dictionary, cell: Vector3i) -> bool:
+	return cells.has(cell) or solid.has(cell)
+
+
+## 頂点の色に、陰・縁の明るさ・セルごとの揺らぎ・草の色のむらを掛ける。
+static func _shade(
+	color: Color,
+	cell: Vector3i,
+	nf: Vector3,
+	out: Vector3,
+	ao: PackedFloat32Array,
+	a: float,
+	b: float
+) -> Color:
+	var level := lerpf(lerpf(ao[0], ao[1], a), lerpf(ao[2], ao[3], a), b)
+	var low := floori(level)
+	var shade := lerpf(AO_LEVELS[clampi(low, 0, 3)], AO_LEVELS[clampi(low + 1, 0, 3)], level - low)
+	var result := color
+	if color.g > color.r and color.g > color.b:
+		# 草は広い範囲でゆっくり色を変える（同じ緑の平面が続かないように）
+		var drift := 0.5 + 0.5 * sin(cell.x * 0.21 + cos(cell.z * 0.17) * 1.7 + cell.z * 0.11)
+		result = result.lerp(GRASS_DRIFT, drift * 0.22)
+	var jitter := 1.0 + (_hash(cell + Vector3i(17, 5, 3)) - 0.5) * 2.0 * CELL_JITTER
+	result = Color(result.r * shade * jitter, result.g * shade * jitter, result.b * shade * jitter)
+	var bevel := clampf((1.0 - out.dot(nf)) * 2.5, 0.0, 1.0)
+	if out.y > 0.2:
+		result = result.lightened(EDGE_LIGHT * bevel * out.y)
+	return result
 
 
 static func _hash(cell: Vector3i) -> float:

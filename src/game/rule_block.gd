@@ -41,6 +41,8 @@ var _aimed: bool = false
 var _assigned: bool = false
 var _previewed: bool = false
 var _signal_label: Label3D
+## 狙いが乗った瞬間の輪郭の弾み。
+var _pop: Tween
 ## 登る（クライミンググローブの能力）を持っているとき、底面をこの高さまで上げてつかまる。NAN なら登らない。
 var _climb_bottom: float = NAN
 var _remote_target: Vector3 = Vector3.ZERO
@@ -229,8 +231,14 @@ func restore_state(state: Dictionary) -> void:
 
 ## 照準が当たっているとき（黄）。付与先の赤い輪郭とは色と太さで区別する。
 func set_highlight(on: bool) -> void:
+	var started := on and not _aimed
 	_aimed = on
 	_update_outline()
+	if started and not _assigned and _outline != null and is_inside_tree():
+		# 狙いが乗った瞬間だけ、輪郭が少し大きく出て締まる（狙えたことを見せる。ADR 0022）
+		_outline.scale = Vector3.ONE * 1.07
+		_pop = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		_pop.tween_property(_outline, "scale", Vector3.ONE * 0.97, 0.16)
 
 
 func show_tokens(tokens: Array[RuleToken]) -> void:
@@ -400,6 +408,8 @@ func is_previewed() -> bool:
 func _update_outline() -> void:
 	if _outline == null:
 		return
+	if _pop != null and _pop.is_valid():
+		_pop.kill()
 	_outline.visible = _aimed or _assigned
 	_outline_material.albedo_color = Color("#d9483b") if _assigned else UiTheme.SUN
 	_outline.scale = Vector3.ONE * (1.0 if _assigned else 0.97)

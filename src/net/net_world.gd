@@ -23,6 +23,8 @@ var give_starting_items: Callable = Callable()
 var manage_falls: bool = true
 
 var _send_timer: float = 0.0
+## 前に送った世界の様子（動いたブロックだけを送るため。WorldFrame.Sender）。
+var _frame_sender: WorldFrame.Sender = WorldFrame.Sender.new()
 var _ledger_dirty: bool = false
 var _ball_ghosts: Array[MeshInstance3D] = []
 ## 投げたメダルの見た目（番号 → MedalVisual。MedalThrow.apply_frame）。
@@ -98,6 +100,7 @@ func bind(new_world: GameWorld) -> void:
 			_adopt_local_id(session.player_id)
 	_ball_ghosts.clear()
 	_medal_ghosts.clear()
+	_frame_sender = WorldFrame.Sender.new()
 	sync_avatars()
 
 
@@ -126,7 +129,7 @@ func _physics_process(delta: float) -> void:
 		return
 	_send_timer = 0.0
 	if is_host():
-		_frame.rpc(WorldFrame.capture(world))
+		_frame.rpc(WorldFrame.capture(world, _frame_sender))
 	elif session.player_id != -1 and world.player != null and multiplayer.get_unique_id() != 1:
 		_avatar_state.rpc_id(1, world.player.remote_state())
 
@@ -149,6 +152,7 @@ func spawn_point(player_id: int) -> Vector3:
 
 
 func _on_player_joined(player_id: int) -> void:
+	_frame_sender.force_full()  # 入った人へ、動いていないブロックとセルも次の回で送る
 	if (
 		give_starting_items.is_valid()
 		and world.ledger.all_vessels().all(

@@ -1,6 +1,6 @@
 # 企画書の下書き（SQUARE ENIX GAME CONTEST 2026 提出用）
 
-- 状態: 下書き（2026-11-20 作成、**2026-11-22 に v0.3.0 の中身に合わせて直した**）。PDF にする前に、本人が【未決・本人が決める】【本人が記入】をすべて埋める。
+- 状態: 下書き（2026-11-20 作成、**2026-11-22 に v0.3.0 の中身に合わせて直した**）。PDF の原稿と作り方は [proposal-build.md](proposal-build.md)（2026-11-24。v0.3.1 に合わせた点もそこに書いた）。PDF にする前に、本人が【未決・本人が決める】【本人が記入】をすべて埋める。
 - 構成: 公式サイトの「企画書の詳細」（https://gc2026.jp.square-enix.com/proposal/ 、2026-11-20 に読み、2026-11-22 に読み直して見出しと条件が変わっていないことを確かめた）の見出しと順番どおり。
   - 「基本情報」と「プレイ環境の構築方法説明資料」は記載必須。そのほかは「全てを網羅する必要はない」とされている。
   - 15 ページ以内の PDF。下の「ページ割り」で 15 ページに収める。
@@ -281,7 +281,7 @@
 | Godot に組み込まれたそのほかの部品（FreeType・HarfBuzz・ICU・ENet・Ogg Vorbis など） | 文字の描画・和文の折り返し・通信・音声など | 各部品のライセンス（Expat（MIT）・BSD・Zlib・Apache-2.0・MPL-2.0 など。`LICENSES.txt` に Godot が報告する一覧と本文） | `tools/dump_engine_licenses.gd` |
 | Zen Maru Gothic（Medium・Bold） | UI の書体。収録する文字を絞った改変版 | SIL Open Font License 1.1 | `assets/fonts/README.md` |
 | 効果音 32 個（全部）と BGM 3 曲（Stable Audio 3 medium の生成物） | 効果音: UI・能力・物の応え・ブロック・自分の動き・足音 4 種・保存・到達・鐘など、ゲームの効果音すべて。BGM: タイトル・ハブ・島（仮の選曲） | モデルは Stability AI Community License | `docs/sound-design.md`、下の 3.6 |
-| 自作の素材 | 3D モデル 15 点・アイコンは、このゲームのために書いたスクリプト（Blender の Python）で生成。効果音の加工（フィルター・切り出し・音量）も自作の Python | 自作 | `art/README.md`、`docs/sound-design.md` |
+| 自作の素材 | 3D モデル（2026-11-24 の `assets/models/` で 50 点）・アイコンは、このゲームのために書いたスクリプト（Blender の Python）で生成。効果音の加工（フィルター・切り出し・音量）も自作の Python | 自作 | `art/README.md`、`docs/sound-design.md` |
 
 - 外部のアドオンはゲームに入れていない（ADR 0002「Godot のゲーム本体には、外部アドオンを入れていない」）。
 - CC0 などの外部の素材: **いまは使っていない**。2026-11-19 に CC0 の実録音を一時使ったが、同日に合成へ戻し、素材は消した（`docs/sound-design.md`）。

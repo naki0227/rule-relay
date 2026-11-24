@@ -34,6 +34,16 @@ static func promote(w: GameWorld, cell: Vector3i) -> RuleBlock:
 	return block
 
 
+## 地形のセルをまとめて動くブロックにする（範囲付与）。当たり判定の作り直しを最後に 1 回にまとめる。
+static func promote_many(w: GameWorld, cells: Array) -> Array[RuleBlock]:
+	var made: Array[RuleBlock] = []
+	w.terrain.begin_batch()
+	for cell: Vector3i in cells:
+		made.append(promote(w, cell))
+	w.terrain.end_batch()
+	return made
+
+
 ## 動くブロックにしたセルを地形へ戻す（チェックポイントの復元）。
 static func demote(w: GameWorld, cell: Vector3i) -> void:
 	if not w.promoted.has(cell):

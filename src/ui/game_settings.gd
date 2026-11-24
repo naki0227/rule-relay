@@ -1,7 +1,7 @@
 class_name GameSettings
 extends RefCounted
-## 遊ぶ人ごと（PC ごと）の設定: 文字の大きさ、視点の速さ（マウス・パッド）、音の大きさ（BGM・効果音）、
-## キー割り当て。
+## 遊ぶ人ごと（PC ごと）の設定: 文字の大きさ、画質（低・中・高とミニチュア風のぼかし）、視点の速さ
+## （マウス・パッド）、音の大きさ（BGM・効果音）、キー割り当て。
 ## `user://settings.cfg`（ConfigFile）に保存し、起動時に読んで反映する。秘密の情報は入れない。
 ## 記録の名前（プロファイル）には依存しない（同じ PC の同じ人の手に合わせる設定なので）。
 
@@ -29,6 +29,10 @@ var path: String = DEFAULT_PATH
 var scale_step: int = DEFAULT_SCALE_STEP
 var mouse_sensitivity: float = 1.0
 var pad_sensitivity: float = 1.0
+## 画質（VisualQuality.Level）。見た目だけで、遊びと通信には効かない。
+var visual_quality: int = VisualQuality.DEFAULT_LEVEL
+## 遠くを少しぼかして、模型を近くで見ているように見せる（はじめは切る。遠くの巣の光が読みにくくなるので）。
+var miniature_dof: bool = false
 var music_volume: int = DEFAULT_MUSIC_VOLUME
 var sfx_volume: int = DEFAULT_SFX_VOLUME
 var bindings: KeyBindings = KeyBindings.new()
@@ -61,6 +65,10 @@ func set_scale_step(step: int) -> void:
 	scale_step = clampi(step, 0, SCALES.size() - 1)
 
 
+func set_visual_quality(level: int) -> void:
+	visual_quality = clampi(level, 0, VisualQuality.NAMES.size() - 1)
+
+
 func set_mouse_sensitivity(value: float) -> void:
 	mouse_sensitivity = clampf(value, SENSITIVITY_MIN, SENSITIVITY_MAX)
 
@@ -85,6 +93,8 @@ func apply_volumes() -> void:
 
 func reset_to_defaults() -> void:
 	scale_step = DEFAULT_SCALE_STEP
+	visual_quality = VisualQuality.DEFAULT_LEVEL
+	miniature_dof = false
 	mouse_sensitivity = 1.0
 	pad_sensitivity = 1.0
 	music_volume = DEFAULT_MUSIC_VOLUME
@@ -92,10 +102,11 @@ func reset_to_defaults() -> void:
 	bindings.reset_to_defaults()
 
 
-## 画面の拡大率・音の大きさ・Input Map を反映する。
+## 画面の拡大率・画質・音の大きさ・Input Map を反映する。
 func apply(tree: SceneTree) -> void:
 	if tree != null and tree.root != null:
 		tree.root.content_scale_factor = ui_scale()
+	VisualQuality.apply_all(tree)
 	apply_volumes()
 	bindings.apply()
 
@@ -105,6 +116,8 @@ func save_file() -> Error:
 	var config := ConfigFile.new()
 	config.set_value("meta", "version", VERSION)
 	config.set_value("display", "scale_step", scale_step)
+	config.set_value("display", "quality", visual_quality)
+	config.set_value("display", "miniature_dof", miniature_dof)
 	config.set_value("look", "mouse", mouse_sensitivity)
 	config.set_value("look", "pad", pad_sensitivity)
 	config.set_value("audio", "music", music_volume)
@@ -139,6 +152,15 @@ func load_file() -> Error:
 			)
 		)
 	)
+	set_visual_quality(
+		int(
+			_number(
+				config.get_value("display", "quality", VisualQuality.DEFAULT_LEVEL),
+				VisualQuality.DEFAULT_LEVEL
+			)
+		)
+	)
+	miniature_dof = config.get_value("display", "miniature_dof", false) == true
 	set_mouse_sensitivity(_number(config.get_value("look", "mouse", 1.0), 1.0))
 	set_pad_sensitivity(_number(config.get_value("look", "pad", 1.0), 1.0))
 	set_music_volume(_percent(config, "music", DEFAULT_MUSIC_VOLUME))

@@ -182,7 +182,7 @@ func test_overworld_is_dressed_and_entrances_are_portals() -> void:
 	tree.root.add_child(world)
 	var dressing := world.get_node_or_null("OverworldDressing")
 	assert_ne(dressing, null)
-	assert_gt(dressing.get_node("Props").get_child_count(), 40, "trees, flowers, lamps, benches")
+	assert_gt(OverworldDressing.prop_count(dressing), 40, "trees, flowers, lamps, benches")
 	var portals := dressing.find_children("Portal_*", "OverworldPortal", false, false)
 	assert_eq(portals.size(), world.def.entrances.size(), "one portal per entrance")
 	var intro := dressing.get_node("Portal_%s" % StageCatalog.INTRO_ID) as OverworldPortal

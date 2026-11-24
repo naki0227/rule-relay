@@ -42,12 +42,16 @@ static func capture(w: GameWorld) -> Dictionary:
 static func apply(w: GameWorld, snapshot: Dictionary) -> void:
 	# 地形から動くブロックにしたセル: 保存時に地形だったものは地形へ戻し、保存時にブロックだったものはブロックにする
 	var saved := snapshot.get("promoted", {}) as Dictionary
+	if w.terrain != null:
+		w.terrain.begin_batch()  # 当たり判定の作り直しを 1 回にまとめる
 	for cell: Vector3i in w.promoted.keys():
 		if not saved.has(cell):
 			TerrainPromotion.demote(w, cell)
 	for cell: Vector3i in saved:
 		if not w.promoted.has(cell):
 			TerrainPromotion.promote(w, cell)
+	if w.terrain != null:
+		w.terrain.end_batch()
 	w.ledger.restore(snapshot["ledger"] as Dictionary)
 	# W/A/S/D の予約はホストの一時的な状態なので、保存せず復元で消す（貸した単発は残り、もう一度押せる）
 	w.move_buffer.clear()

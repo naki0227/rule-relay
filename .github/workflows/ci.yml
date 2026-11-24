@@ -24,6 +24,15 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
+      - uses: actions/checkout@v5
+
+      # タグ（v*）のときは、まずタグのコミットのプリセットがタグと同じ版かを見る（set で書き換える前）。
+      # 版を上げる PR のマージ前に Release を作ると、タグが古い版のコミットを指す（v0.3.1 で起きた）。
+      # 違えば、タグとプリセットの版と直し方を、注釈とジョブのまとめに日本語で出して止める。
+      - name: Check the tag against the presets (tag only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: python3 tools/release_version.py verify-tag "$GITHUB_REF_NAME" --github
+
       # タグ（v*）のときは、30 分の書き出しと公証を待たずに、Mac の署名に要る Secrets がそろっているかを最初に見る。
       # 値は表示しない（名前だけ）。タグ以外（main・PR・手動）は、これまでどおり署名と公証を飛ばす。
       - name: Check macOS signing secrets (tag only)
@@ -46,8 +55,6 @@ jobs:
             exit 1
           fi
           echo "Mac の署名と公証に要る Secrets は 5 つともあります"
-
-      - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v6
         with:
@@ -315,9 +322,17 @@ jobs:
           if [ -f "docs/release-notes/${TAG}.md" ]; then
             notes=(--notes-file "docs/release-notes/${TAG}.md")
           fi
-          # GitHub の画面で Release を先に作った場合は、そこへ ZIP を足す
+          # GitHub の画面で Release を先に作った場合は、そこへ ZIP を足す。
+          # 説明文が空なら docs/release-notes/<タグ>.md で埋める。手で書いた説明文は書き換えず、
+          # ノートと違えば貼り方を警告で出す（本人の意図した編集を消さない。tools/release_version.py release-body）。
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber "${files[@]}"
+            gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > "$RUNNER_TEMP/release-body.md"
+            python3 tools/release_version.py release-body "$TAG" --github \
+              --body-file "$RUNNER_TEMP/release-body.md" --action-file "$RUNNER_TEMP/release-body-action"
+            if [ "$(cat "$RUNNER_TEMP/release-body-action")" = "fill" ]; then
+              gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --notes-file "docs/release-notes/${TAG}.md"
+            fi
           else
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "rule-relay $TAG" \
               --generate-notes "${notes[@]}" "${files[@]}"

@@ -19,6 +19,11 @@ const FUR: Dictionary[String, String] = {
 const WANDER_RADIUS: float = 1.6
 const SPEED: float = 0.9
 const ARRIVE_CHEER: float = 2.4
+## この距離より遠いと描かない（FAR_FADE の幅で薄くしてから消す）。広場には生き物が最大 57 匹住み、1 匹で
+## 描画の呼び出しが約 13 回要る。体長 0.5 m ほどなので、45 m 先では 1080p で 10 ピクセルほどしかない
+## （2026-11-24 の性能の測定）。
+const FAR: float = 45.0
+const FAR_FADE: float = 8.0
 
 var spec: OverworldLayout.ResidentSpec
 var rig: RigAnimator
@@ -45,6 +50,11 @@ func _ready() -> void:
 	add_child(_model)
 	if spec.tint != Color.WHITE:
 		ModelLibrary.tint_material(_model, String(FUR.get(spec.species, "Fur")), spec.tint)
+	for node in _model.find_children("*", "GeometryInstance3D", true, false):
+		var geometry := node as GeometryInstance3D
+		geometry.visibility_range_end = FAR
+		geometry.visibility_range_end_margin = FAR_FADE
+		geometry.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	rig = RigAnimator.new(_model)
 	_pause = 0.5 + _rng.randf() * 1.5
 
