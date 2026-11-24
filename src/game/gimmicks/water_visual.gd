@@ -58,6 +58,10 @@ func _add_foam(size: Vector3) -> void:
 	var bit := SphereMesh.new()
 	bit.radius = 0.06
 	bit.height = 0.03
+	# 直径 12 cm の泡なので粗い球で足りる（既定の 64×32 分割だと 1 粒 約 4,000 三角形で、泡が 80 粒 × 川の
+	# 区切りの数だけ並ぶ 7-6 では、1 コマに 100 万を超える三角形を描いていた。2026-11-24 の性能の測定）
+	bit.radial_segments = 8
+	bit.rings = 4
 	bit.material = _material(Color(FOAM, 0.9), 0.6)
 	foam.mesh = bit
 	foam.position = surface.position + Vector3(0.0, 0.02, 0.0)
@@ -73,6 +77,7 @@ func _add_foam(size: Vector3) -> void:
 	foam.scale_amount_min = 0.6
 	foam.scale_amount_max = 1.4
 	foam.local_coords = false
+	foam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF  # 水面の泡の影は見えない
 	add_child(foam)
 
 
