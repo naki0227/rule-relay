@@ -1,18 +1,61 @@
 class_name WorldFrame
 extends RefCounted
 ## ホストが 1 秒に 20 回配る「世界のいまの様子」（位置と見た目だけ。ルールの状態は台帳で別に配る）。
-## {"blocks": {id: [位置, 光っているか(信号)]},
+## {"block_ids": PackedInt32Array, "block_pos": PackedVector3Array（同じ順。動いたブロックだけ）,
+##  "promoted": PackedInt32Array（動くブロックにした地形のセルの x, y, z の並び。変わったときと全部を送る回だけ）,
 ##  "creatures": {id: [位置, 向き, 持ち物, 頭の上の吹き出しの鍵, [見た目の動き, 回数, 体の向き]]},
 ##  "avatars": {player_id: [位置, 向き, 歩いているか, 床にいるか]}, "bells": [残り時間...],
 ##  "balls": [位置...], "medals": 投げたメダル（MedalThrow.capture_frame）,
 ##  "nature": 自然の仕掛けの時計（脈打つ風の拍子をそろえる）}
 ## アバターの5番目は投げた回数（変わったら投げる動きを再生する）。
+## 送る量（2026-11-24 の性能の測定）: 範囲で 80 マスを動くブロックにすると、辞書のままでは 1 回 約 4 KB
+## （1 秒 20 回 × 参加者 3 人で 約 1.9 Mbps、1 回が UDP の 1 パケットに収まらず分割される）だった。
+## ブロックは前に送った位置から動いたものだけ（FULL_EVERY 回に 1 回は全部）、地形のセルは変わったときだけ送り、
+## 配列は Packed にする。信頼性なしで届くので、落ちた回の分は次の「全部」の回（0.5 秒以内）で戻る。
+
+## この回数に 1 回は、動いていないブロックとセルの一覧も全部送る（落ちたパケット・途中から入った人の分を戻す）。
+const FULL_EVERY: int = 10
+## これより動いていなければ「動いていない」とみなす（m）。
+const MOVED_EPSILON: float = 0.001
+## 止まった（変わった）あとも、この回数は続けて送る（止まった位置・新しいセルの一覧が 1 回落ちても届く）。
+const REPEAT_AFTER_CHANGE: int = 2
 
 
-static func capture(w: GameWorld) -> Dictionary:
-	var block_states := {}
+## ホストが送る側の覚え（前に送ったブロックの位置・セルの一覧）。世界を差し替えたら作り直す。
+class Sender:
+	var serial: int = 0
+	var sent_blocks: Dictionary[int, Vector3] = {}
+	## ブロック → 止まってからあと何回送るか
+	var repeats: Dictionary[int, int] = {}
+	var sent_promoted_hash: int = 0
+	var promoted_repeats: int = 0
+
+	## 次の回を全部送る回にする（新しい参加者が入ったとき）。
+	func force_full() -> void:
+		serial = 0
+
+
+## sender を渡すと、前に送ってから動いたブロックだけを入れる（渡さなければ全部）。
+static func capture(w: GameWorld, sender: Sender = null) -> Dictionary:
+	var full := sender == null or sender.serial % FULL_EVERY == 0
+	if sender != null:
+		sender.serial += 1
+	var block_ids := PackedInt32Array()
+	var block_pos := PackedVector3Array()
 	for id in w.blocks:
-		block_states[id] = w.blocks[id].global_position
+		var at := w.blocks[id].global_position
+		if sender != null:
+			var moved := (
+				not sender.sent_blocks.has(id)
+				or sender.sent_blocks[id].distance_squared_to(at) >= MOVED_EPSILON * MOVED_EPSILON
+			)
+			var left := REPEAT_AFTER_CHANGE if moved else int(sender.repeats.get(id, 0)) - 1
+			sender.repeats[id] = maxi(left, 0)
+			if not full and not moved and left < 0:
+				continue
+			sender.sent_blocks[id] = at
+		block_ids.append(id)
+		block_pos.append(at)
 	var creature_states := {}
 	for id in w.creatures:
 		var c := w.creatures[id]
@@ -33,9 +76,9 @@ static func capture(w: GameWorld) -> Dictionary:
 	var balls: Array[Vector3] = []
 	for ball in w.get_tree().get_nodes_in_group(&"thrown_balls"):
 		balls.append((ball as Node3D).global_position)
-	return {
-		"promoted": w.promoted.keys(),
-		"blocks": block_states,
+	var frame := {
+		"block_ids": block_ids,
+		"block_pos": block_pos,
 		"creatures": creature_states,
 		"avatars": avatar_states,
 		"bells": bell_states,
@@ -44,17 +87,35 @@ static func capture(w: GameWorld) -> Dictionary:
 		"nature": w.nature.clock,
 		"mechanisms": MechanismSet.capture_frame(w),
 	}
+	var promoted := PackedInt32Array()
+	for cell: Vector3i in w.promoted:
+		promoted.append_array([cell.x, cell.y, cell.z])
+	var promoted_hash := hash(promoted)
+	if sender != null and sender.sent_promoted_hash != promoted_hash:
+		sender.sent_promoted_hash = promoted_hash
+		sender.promoted_repeats = REPEAT_AFTER_CHANGE + 1
+	if full or sender.promoted_repeats > 0:
+		frame["promoted"] = promoted
+	if sender != null:
+		sender.promoted_repeats -= 1
+	return frame
 
 
 ## 参加者の画面に反映する。知らない ID・壊れた値は無視する（通信から来た値なので信用しない）。
 static func apply(
 	w: GameWorld, data: Dictionary, ghosts: Array[MeshInstance3D], medal_ghosts: Dictionary = {}
 ) -> void:
-	_apply_promoted(w, data.get("promoted", []) as Array)
-	var block_states := data.get("blocks", {}) as Dictionary
-	for id: int in block_states:
-		if w.blocks.has(id) and typeof(block_states[id]) == TYPE_VECTOR3:
-			w.blocks[id].set_remote_target(block_states[id] as Vector3)
+	if typeof(data.get("promoted")) == TYPE_PACKED_INT32_ARRAY:
+		_apply_promoted(w, data["promoted"] as PackedInt32Array)
+	if (
+		typeof(data.get("block_ids")) == TYPE_PACKED_INT32_ARRAY
+		and typeof(data.get("block_pos")) == TYPE_PACKED_VECTOR3_ARRAY
+	):
+		var ids := data["block_ids"] as PackedInt32Array
+		var positions := data["block_pos"] as PackedVector3Array
+		for i in mini(ids.size(), positions.size()):
+			if w.blocks.has(ids[i]):
+				w.blocks[ids[i]].set_remote_target(positions[i])
 	var creature_states := data.get("creatures", {}) as Dictionary
 	for id: int in creature_states:
 		var c := creature_states[id] as Array
@@ -76,19 +137,20 @@ static func apply(
 
 
 ## ホストで動くブロックになった地形のセルを、参加者の画面でもブロックにする（戻ったセルは地形へ）。
-static func _apply_promoted(w: GameWorld, cells: Array) -> void:
+static func _apply_promoted(w: GameWorld, flat: PackedInt32Array) -> void:
 	if w.terrain == null:
 		return
 	var wanted := {}
-	for value: Variant in cells:
-		if typeof(value) == TYPE_VECTOR3I:
-			wanted[value] = true
+	for i in range(0, flat.size() - 2, 3):
+		wanted[Vector3i(flat[i], flat[i + 1], flat[i + 2])] = true
+	w.terrain.begin_batch()  # 当たり判定の作り直しを 1 回にまとめる
 	for cell: Vector3i in wanted:
 		if not w.promoted.has(cell) and w.terrain.has_cell(cell):
 			TerrainPromotion.promote(w, cell).remote = true
 	for cell: Vector3i in w.promoted.keys():
 		if not wanted.has(cell):
 			TerrainPromotion.demote(w, cell)
+	w.terrain.end_batch()
 
 
 static func _apply_avatars(w: GameWorld, states: Dictionary) -> void:

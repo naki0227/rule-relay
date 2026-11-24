@@ -61,6 +61,8 @@ const BASE_NORMALS: Array[Vector3i] = [
 	Vector3i(0, 0, -1),
 ]
 
+static var _material: StandardMaterial3D
+
 
 ## cells: {Vector3i: 種類（grass / rock / sand）}。solid: となりとして扱うほかのマス（土台）。
 ## floors: 上面を見せる土台のマス（上のセルが抜けた窪みの床）。
@@ -95,6 +97,46 @@ static func build_foundation(foundation: Dictionary, cells: Dictionary) -> Array
 	return _to_mesh(verts, normals, colors, indices)
 
 
+## 1 つの区画の表のセルと土台を、1 つのメッシュ（1 回の描画の呼び出し）にまとめて作る（TerrainGrid の区画）。
+## surface: 面を作る表のセル、base: 面を作る土台のマス、floors: 上面を見せる土台のマス（build と同じ）。
+## となりの判定には cells と foundation の全部を使う（区画のつなぎ目も、1 つで作ったときと同じ）。
+static func build_chunk(
+	cells: Dictionary,
+	foundation: Dictionary,
+	floors: Array[Vector3i],
+	surface: Array[Vector3i],
+	base: Array[Vector3i]
+) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colors := PackedColorArray()
+	var indices := PackedInt32Array()
+	for cell in surface:
+		for n in NORMALS:
+			if cells.has(cell + n) or foundation.has(cell + n):
+				continue
+			_add_face(cells, foundation, cell, n, verts, normals, colors, indices)
+	for cell in floors:
+		_add_face(foundation, cells, cell, Vector3i.UP, verts, normals, colors, indices)
+	for cell in base:
+		for n in BASE_NORMALS:
+			if foundation.has(cell + n):
+				continue
+			_add_face(foundation, cells, cell, n, verts, normals, colors, indices)
+	return _to_mesh(verts, normals, colors, indices)
+
+
+## 地形のメッシュはどれも同じマテリアルを使う（区画ごとに作ると、同じ設定のマテリアルが区画の数だけでき、
+## 描画のまとめ（同じマテリアルの続け描き）が効かない）。
+static func material() -> StandardMaterial3D:
+	if _material == null:
+		_material = StandardMaterial3D.new()
+		_material.vertex_color_use_as_albedo = true
+		_material.vertex_color_is_srgb = true  # 色は sRGB で書いている（無いと白っぽく飛ぶ）
+		_material.roughness = 0.9
+	return _material
+
+
 static func _to_mesh(
 	verts: PackedVector3Array,
 	normals: PackedVector3Array,
@@ -111,11 +153,7 @@ static func _to_mesh(
 	arrays[Mesh.ARRAY_COLOR] = colors
 	arrays[Mesh.ARRAY_INDEX] = indices
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.vertex_color_is_srgb = true  # 色は sRGB で書いている（無いと白っぽく飛ぶ）
-	material.roughness = 0.9
-	mesh.surface_set_material(0, material)
+	mesh.surface_set_material(0, material())
 	return mesh
 
 

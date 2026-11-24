@@ -99,6 +99,7 @@ func apply_quality() -> void:
 	if sun != null:
 		# 影の縁をぼかす（プロジェクト設定の柔らかい影の質に掛かる）
 		sun.shadow_blur = 1.6 if bool(flags["soft_shadow"]) else 0.6
+		VisualQuality.apply_sun(sun, flags)  # 影の分割と距離（描画の重さ。docs/adr/0023）
 	if world_environment != null:
 		world_environment.camera_attributes = (_camera_attributes if bool(flags["dof"]) else null)
 	if _clouds != null:
