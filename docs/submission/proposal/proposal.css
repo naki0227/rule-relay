@@ -1,0 +1,434 @@
+/* 企画書 PDF の見た目。色は src/ui/ui_theme.gd と src/game/art_palette.gd の値だけを使う。
+   書体はゲームと同じ Zen Maru Gothic（assets/fonts、SIL OFL 1.1）。 */
+
+@font-face {
+  font-family: "Zen Maru Gothic";
+  src: url("../../../assets/fonts/ZenMaruGothic-Medium.ttf") format("truetype");
+  font-weight: 500;
+}
+@font-face {
+  font-family: "Zen Maru Gothic";
+  src: url("../../../assets/fonts/ZenMaruGothic-Bold.ttf") format("truetype");
+  font-weight: 700;
+}
+
+:root {
+  /* ui_theme.gd */
+  --cream: #fff8ec;
+  --cream-deep: #f4e7d1;
+  --edge: #e2cdac;
+  --edge-deep: #cdb38b;
+  --ink: #4d3a2c;
+  --ink-soft: #8a7462;
+  --ink-faint: #b7a28e;
+  --sun: #f09a45;
+  --sun-soft: #fde3c6;
+  --leaf: #76a85f;
+  --leaf-soft: #e3f0d6;
+  --honey: #e2a72e;
+  --honey-soft: #fbecc4;
+  --ban: #e0644f; /* 禁止にだけ使う */
+  --ban-soft: #fadcd4;
+  --sky: #8cc4e8;
+  /* art_palette.gd: プレイヤー1〜4 */
+  --p1: #6fa8dc;
+  --p2: #ec8a6a;
+  --p3: #82b866;
+  --p4: #b794d9;
+  --glyph: #7a4e16;
+  --radius: 22px;
+  --radius-s: 14px;
+}
+
+@page {
+  size: 297mm 210mm;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #d9cdb9;
+}
+
+body {
+  font-family: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", sans-serif;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  line-break: strict;
+  word-break: auto-phrase;
+}
+
+.page {
+  position: relative;
+  width: 297mm;
+  height: 210mm;
+  overflow: hidden;
+  background: var(--cream);
+  padding: 13mm 15mm 11mm;
+  page-break-after: always;
+  break-after: page;
+  display: flex;
+  flex-direction: column;
+}
+.page:last-child {
+  page-break-after: auto;
+  break-after: auto;
+}
+@media screen {
+  .page {
+    margin: 10mm auto;
+    box-shadow: 0 4px 18px rgba(74, 51, 31, 0.18);
+  }
+}
+
+/* 見出し */
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 5mm;
+  margin-bottom: 6mm;
+}
+.head .no {
+  font-weight: 700;
+  font-size: 11pt;
+  color: var(--cream);
+  background: var(--sun);
+  border-radius: 999px;
+  min-width: 11mm;
+  text-align: center;
+  padding: 0.6mm 3mm;
+}
+.head h2 {
+  margin: 0;
+  font-size: 25pt;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.head .kicker {
+  font-size: 11pt;
+  color: var(--ink-soft);
+}
+.lead {
+  font-size: 14pt;
+  margin: -2mm 0 5mm;
+}
+.foot {
+  position: absolute;
+  left: 15mm;
+  right: 15mm;
+  bottom: 5mm;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5pt;
+  color: var(--ink-faint);
+}
+
+/* 画面写真 */
+.shot {
+  position: relative;
+  margin: 0;
+  border-radius: var(--radius-s);
+  overflow: hidden;
+  border: 2px solid var(--edge);
+  background: var(--cream-deep);
+}
+.shot img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.shot figcaption {
+  position: absolute;
+  left: 3mm;
+  bottom: 3mm;
+  max-width: calc(100% - 6mm);
+  background: var(--cream);
+  border: 2px solid var(--edge);
+  border-radius: 999px;
+  padding: 0.6mm 3.2mm;
+  font-size: 9pt;
+  font-weight: 700;
+}
+.shot .step {
+  position: absolute;
+  left: 3mm;
+  top: 3mm;
+  width: 8mm;
+  height: 8mm;
+  border-radius: 50%;
+  background: var(--sun);
+  color: var(--cream);
+  font-weight: 700;
+  font-size: 12pt;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 札（カード） */
+.card {
+  background: #fff;
+  border: 2px solid var(--edge);
+  border-radius: var(--radius-s);
+  padding: 3.5mm 4.5mm;
+}
+.card h3 {
+  margin: 0 0 1.5mm;
+  font-size: 12.5pt;
+  font-weight: 700;
+}
+.card p {
+  margin: 0;
+  font-size: 10pt;
+}
+.card.sun {
+  background: var(--sun-soft);
+  border-color: var(--sun);
+}
+.card.leaf {
+  background: var(--leaf-soft);
+  border-color: var(--leaf);
+}
+.card.honey {
+  background: var(--honey-soft);
+  border-color: var(--honey);
+}
+.card.ban {
+  background: var(--ban-soft);
+  border-color: var(--ban);
+}
+
+.pill {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 0.3mm 2.6mm;
+  font-size: 9pt;
+  font-weight: 700;
+  border: 2px solid var(--edge);
+  background: var(--cream);
+}
+.pill.sun {
+  background: var(--sun);
+  border-color: var(--sun);
+  color: #fff;
+}
+.pill.leaf {
+  background: var(--leaf);
+  border-color: var(--leaf);
+  color: #fff;
+}
+.pill.honey {
+  background: var(--honey);
+  border-color: var(--honey);
+  color: #fff;
+}
+.pill.ban {
+  background: var(--ban);
+  border-color: var(--ban);
+  color: #fff;
+}
+.pill.sky {
+  background: var(--sky);
+  border-color: var(--sky);
+  color: #fff;
+}
+.tag-plan {
+  /* AI の提案（本人はまだ選んでいない） */
+  display: inline-block;
+  font-size: 7.5pt;
+  font-weight: 700;
+  color: var(--ink-soft);
+  border: 1.5px dashed var(--ink-faint);
+  border-radius: 6px;
+  padding: 0 1.5mm;
+  margin-left: 1mm;
+  vertical-align: 1px;
+}
+
+/* 本人が埋める・確かめる印。PDF の中で探しやすいように蛍光ペンの見た目にする */
+.mark {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 0.9em;
+  color: #3a2a10;
+  background: #fff176;
+  border: 1.5px dashed #b08a00;
+  border-radius: 6px;
+  padding: 0 1.6mm;
+  margin: 0 0.5mm;
+  line-height: 1.45;
+}
+.mark.fill {
+  background: #d9f0ff;
+  border-color: #3b88c3;
+}
+.mark.open {
+  background: #efe3ff;
+  border-color: #8a63c7;
+}
+.marks-legend {
+  position: absolute;
+  right: 15mm;
+  top: 13mm;
+  font-size: 7.5pt;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
+/* 表 */
+table.info {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 10.5pt;
+  background: #fff;
+  border: 2px solid var(--edge);
+  border-radius: var(--radius-s);
+  overflow: hidden;
+}
+table.info th,
+table.info td {
+  text-align: left;
+  vertical-align: top;
+  padding: 2.1mm 4mm;
+  border-bottom: 1.5px solid var(--cream-deep);
+}
+table.info tr:last-child th,
+table.info tr:last-child td {
+  border-bottom: none;
+}
+table.info th {
+  width: 40mm;
+  background: var(--cream-deep);
+  font-weight: 700;
+  white-space: nowrap;
+}
+table.info td small {
+  color: var(--ink-soft);
+  font-size: 8.5pt;
+}
+table.info.compact {
+  font-size: 9pt;
+}
+table.info.compact th,
+table.info.compact td {
+  padding: 1.3mm 3mm;
+}
+
+.grid {
+  display: grid;
+  gap: 5mm;
+}
+.flex1 {
+  flex: 1;
+  min-height: 0;
+}
+.note {
+  font-size: 8.5pt;
+  color: var(--ink-soft);
+}
+.big-num {
+  font-size: 34pt;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--sun);
+}
+kbd {
+  display: inline-block;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.85em;
+  background: #fff;
+  border: 2px solid var(--edge-deep);
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  padding: 0 1.4mm;
+  line-height: 1.35;
+}
+svg text {
+  font-family: "Zen Maru Gothic", sans-serif;
+}
+
+/* 表紙 */
+.cover {
+  padding: 0;
+}
+.cover .hero {
+  position: absolute;
+  inset: 0;
+}
+.cover .hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cover .veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(255, 248, 236, 0.96) 0%, rgba(255, 248, 236, 0.88) 38%, rgba(255, 248, 236, 0) 62%);
+}
+.cover .copy {
+  position: absolute;
+  left: 18mm;
+  top: 30mm;
+  width: 135mm;
+}
+.cover h1 {
+  margin: 0 0 3mm;
+  font-size: 42pt;
+  font-weight: 700;
+  line-height: 1.15;
+}
+.cover .tagline {
+  font-size: 19pt;
+  font-weight: 700;
+  color: var(--sun);
+  margin: 4mm 0 8mm;
+}
+.cover .facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2mm;
+}
+.cover .facts .pill {
+  font-size: 10.5pt;
+  padding: 0.8mm 3.5mm;
+}
+.cover .meta {
+  position: absolute;
+  left: 18mm;
+  bottom: 12mm;
+  font-size: 9pt;
+  color: var(--ink-soft);
+}
+
+/* ステップの矢印 */
+.arrow {
+  align-self: center;
+  color: var(--sun);
+  font-size: 22pt;
+  font-weight: 700;
+}
+
+/* グリッドの中身が写真の大きさで行を押し広げないように */
+.grid > *,
+.flex1 {
+  min-width: 0;
+  min-height: 0;
+}
+table.info.ai th {
+  white-space: normal;
+}
+.cover .veil {
+  background: linear-gradient(90deg, rgba(255, 248, 236, 1) 0%, rgba(255, 248, 236, 0.97) 44%, rgba(255, 248, 236, 0) 66%);
+}

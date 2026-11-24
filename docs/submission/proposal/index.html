@@ -1,0 +1,620 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>企画書（タイトル未定）</title>
+<!--
+  企画書 PDF の原稿。tools/build_proposal.js が PDF とページごとの見本 PNG にする（docs/submission/proposal-build.md）。
+  中身の出典は docs/submission/proposal-draft.md と、そこに書かれた ADR・文書・コード。数字を変えたら下書きも直す。
+  本人が埋める・確かめる所は <span class="mark ...">【…】</span> にする（build が数えて一覧を出す）:
+    【要確認】 AI が確かめきれなかったこと / 【記入】 本人しか知らない事実 / 【未決】 本人がまだ決めていないこと
+-->
+<link rel="stylesheet" href="proposal.css">
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- 能力のメダル（はちみつ色の面にこげ茶の記号） -->
+    <symbol id="medal" viewBox="0 0 40 40">
+      <circle cx="20" cy="20" r="18" fill="#e2a72e" stroke="#7a4e16" stroke-width="2.5"/>
+      <circle cx="20" cy="20" r="13" fill="#fbecc4"/>
+      <path d="M12 23 L20 14 L28 23" fill="none" stroke="#7a4e16" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <!-- 禁止の札 -->
+    <symbol id="ban" viewBox="0 0 40 40">
+      <circle cx="20" cy="20" r="18" fill="#fadcd4" stroke="#e0644f" stroke-width="3"/>
+      <path d="M13 24 L20 16 L27 24" fill="none" stroke="#55525a" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M8 32 L32 8" stroke="#e0644f" stroke-width="3.5" stroke-linecap="round"/>
+    </symbol>
+    <marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#f09a45"/>
+    </marker>
+    <marker id="ah-ink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#8a7462"/>
+    </marker>
+  </defs>
+</svg>
+
+<!-- 1 表紙 -->
+<section class="page cover">
+  <div class="hero"><img src="../../images/overworld/all_portal.png" alt="広場の門の前に立つプレイヤー" style="object-position:100% 50%"></div>
+  <div class="veil"></div>
+  <div class="copy">
+    <div class="pill sun" style="font-size:10pt">SQUARE ENIX GAME CONTEST 2026 企画書</div>
+    <h1 style="margin-top:7mm">（タイトル未定）</h1>
+    <span class="mark open">【未決】タイトル（候補は docs/title/）</span>
+    <div class="tagline">ルールは厳格に。<br>解法は自由に。</div>
+    <div class="facts">
+      <span class="pill">3D 箱庭探索パズル</span>
+      <span class="pill">ひとりでも・1〜4 人オンライン協力</span>
+      <span class="pill">Windows / Mac</span>
+    </div>
+  </div>
+  <div class="meta">
+    応募者: <span class="mark fill">【記入】氏名/チーム名</span>
+    　対象の版: v0.3.1（試遊版）　作業名: rule-relay (working title)<br>
+    画面はすべて開発中のもの（ソフトウェア描画で撮影。実機の色とは違うことがある）
+  </div>
+</section>
+
+<!-- 2 基本情報 -->
+<section class="page">
+  <div class="head"><span class="no">01</span><h2>基本情報</h2><span class="kicker">記載必須</span></div>
+  <div class="marks-legend">
+    <span class="mark">【要確認】</span>確かめる　<span class="mark fill">【記入】</span>本人が書く　<span class="mark open">【未決】</span>本人が決める
+  </div>
+  <div class="grid flex1" style="grid-template-columns: 1.55fr 1fr; align-items:start">
+    <table class="info">
+      <tr><th>氏名/チーム名/法人名</th><td><span class="mark fill">【記入】</span></td></tr>
+      <tr><th>タイトル（仮でも可）</th><td>（タイトル未定）<span class="mark open">【未決】</span><br><small>作業名 rule-relay (working title)。候補は docs/title/（本人はまだ選んでいない）</small></td></tr>
+      <tr><th>ジャンル</th><td>3D 箱庭探索パズル（協力プレイ対応）</td></tr>
+      <tr><th>ターゲット</th><td>協力パズル・物理の試行錯誤が好きな人。友人と通話しながら遊ぶ PC プレイヤー。ひとりでじっくり解きたい人も<span class="tag-plan">案</span><br><small>ソロで全ステージを遊べることは確定。年齢層の言い方は</small><span class="mark open">【未決】</span></td></tr>
+      <tr><th>プラットフォーム</th><td>PC（Windows・Mac）<br><small>Windows x86_64 と macOS（Intel・Apple シリコン）。CI で両方の起動を確かめている</small></td></tr>
+      <tr><th>一言コンセプト</th><td><b>ルールは厳格に。解法は自由に。</b></td></tr>
+      <tr><th>現在の完成度（/100）</th><td><span class="mark open">【未決】</span><br><small>仕組み・協力・広場・57 ステージ・通しプレイの自動テストは実装済み。タイトル・物語・目安時間の実測・他者の試遊・Windows 11 実機の確認はまだ</small></td></tr>
+      <tr><th>SNS アカウント</th><td><span class="mark fill">【記入】</span></td></tr>
+      <tr><th>プレイスタイル</th><td>1 人、または 1〜4 人のオンライン協力（専用サーバーなし）</td></tr>
+    </table>
+    <div style="display:flex; flex-direction:column; gap:5mm">
+      <figure class="shot" style="height:58mm"><img src="../../images/models/lineup.png" alt=""><figcaption>プレイヤー 1〜4・動物・メダル・装備</figcaption></figure>
+      <figure class="shot" style="height:58mm"><img src="../../images/overworld/all_meadow.png" alt=""><figcaption>浮島の広場からステージへ</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>（タイトル未定） 企画書</span><span>2</span></div>
+</section>
+
+<!-- 3 コンセプトとゲームサイクル -->
+<section class="page">
+  <div class="head"><span class="no">02</span><h2>自分の「操作」を、貸し出す。</h2></div>
+  <p class="lead">前へ進む力・跳ぶ力・投げる力が、1 つずつ<b>メダル</b>になっている。<br>ブロックにジャンプを貸せばブロックが跳ぶ。貸しているあいだ、自分は跳べない。</p>
+  <div class="grid flex1" style="grid-template-columns: 1fr 1.15fr; align-items:stretch">
+    <figure class="shot"><img src="../../images/video/jump_lend.png" alt=""><figcaption>窪みのブロックにジャンプを貸して、乗って跳ぶ（1-1）</figcaption></figure>
+    <div class="card" style="padding:4mm">
+      <h3>ゲームサイクル</h3>
+      <svg viewBox="0 0 520 330" width="100%" height="88%">
+        <!-- 環 -->
+        <g font-size="17" font-weight="700" fill="#4d3a2c" text-anchor="middle">
+          <rect x="175" y="8" width="170" height="62" rx="20" fill="#e3f0d6" stroke="#76a85f" stroke-width="2.5"/>
+          <text x="260" y="36">広場を歩く</text>
+          <text x="260" y="58" font-size="12.5" font-weight="500" fill="#8a7462">門（ポータル）を見つける</text>
+
+          <rect x="345" y="128" width="170" height="74" rx="20" fill="#fde3c6" stroke="#f09a45" stroke-width="2.5"/>
+          <text x="430" y="156">ステージ（島）</text>
+          <text x="430" y="177" font-size="12.5" font-weight="500" fill="#8a7462">貸す・集める・回す</text>
+          <text x="430" y="194" font-size="12.5" font-weight="500" fill="#8a7462">動物の願いを叶える</text>
+
+          <rect x="175" y="258" width="170" height="62" rx="20" fill="#fbecc4" stroke="#e2a72e" stroke-width="2.5"/>
+          <text x="260" y="286">全員でゴールへ</text>
+          <text x="260" y="308" font-size="12.5" font-weight="500" fill="#8a7462">クリアで入った門の前へ</text>
+
+          <rect x="5" y="128" width="170" height="74" rx="20" fill="#fff" stroke="#cdb38b" stroke-width="2.5"/>
+          <text x="90" y="156">広場が育つ</text>
+          <text x="90" y="177" font-size="12.5" font-weight="500" fill="#8a7462">動物が住む・建物が建つ</text>
+          <text x="90" y="194" font-size="12.5" font-weight="500" fill="#8a7462">次の地方への橋・階段</text>
+        </g>
+        <g fill="none" stroke="#f09a45" stroke-width="3.5" marker-end="url(#ah)">
+          <path d="M345 50 Q420 70 430 122"/>
+          <path d="M430 206 Q420 260 350 285"/>
+          <path d="M170 285 Q100 260 90 208"/>
+          <path d="M90 122 Q100 70 170 50"/>
+        </g>
+        <g transform="translate(232 128)">
+          <use href="#medal" width="56" height="56"/>
+        </g>
+        <text x="260" y="210" text-anchor="middle" font-size="12.5" fill="#8a7462">報酬は見た目・記録・収集品だけ</text>
+        <text x="260" y="227" text-anchor="middle" font-size="12.5" fill="#8a7462">（恒久的な能力強化はしない）</text>
+      </svg>
+    </div>
+  </div>
+  <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-top:5mm">
+    <div class="card sun"><h3>手放す決断</h3><p>貸せば世界が動き、自分は動けなくなる。「誰が・いつ・何を手放すか」が協力の会話になる。</p></div>
+    <div class="card leaf"><h3>ルールは厳格</h3><p>メダルは世界に 1 つずつ。複製も消滅もしない。禁止は必ず優先。</p></div>
+    <div class="card honey"><h3>解法は自由</h3><p>クリアは結果だけを見る。開けた島に道が何通りもあり、ルールに合えば想定外の解き方も歓迎。</p></div>
+  </div>
+  <div class="foot"><span>出典: proposal-draft 2.1・2.4・2.6、ADR 0008・0013、src/stages/clear_condition.gd</span><span>3</span></div>
+</section>
+
+<!-- 4 貸す・取り戻す -->
+<section class="page">
+  <div class="head"><span class="no">03</span><h2>貸す・取り戻す</h2><span class="kicker">器は手元に残り、メダルだけが動く</span></div>
+  <div class="grid" style="grid-template-columns: 1fr auto 1fr auto 1fr; gap:3mm; height:54mm">
+    <figure class="shot"><span class="step">1</span><img src="../../images/w1-teaching/03-intro-lend.png" alt=""><figcaption>狙って <kbd>左クリック</kbd> で貸す</figcaption></figure>
+    <div class="arrow">›</div>
+    <figure class="shot"><span class="step">2</span><img src="../../images/video/jump_lend.png" alt=""><figcaption><kbd>Space</kbd> で貸したジャンプを使う</figcaption></figure>
+    <div class="arrow">›</div>
+    <figure class="shot"><span class="step">3</span><img src="../../images/w1-teaching/04-relay-take-back.png" alt=""><figcaption><kbd>F</kbd> で取り戻す・拾う</figcaption></figure>
+  </div>
+  <div class="grid flex1" style="grid-template-columns: 1fr 1fr 1fr; margin-top:4mm">
+    <div class="card">
+      <h3>貸す相手</h3>
+      <svg viewBox="0 0 300 112" width="100%" height="27mm">
+        <g font-size="13" text-anchor="middle" fill="#4d3a2c" font-weight="700">
+          <circle cx="40" cy="55" r="26" fill="#6fa8dc"/><text x="40" y="104">自分</text>
+          <use href="#medal" x="26" y="41" width="28" height="28"/>
+          <rect x="125" y="18" width="46" height="46" rx="8" fill="#f4e7d1" stroke="#cdb38b" stroke-width="2"/><text x="148" y="80">ブロック・地面</text>
+          <circle cx="250" cy="28" r="16" fill="#ec8a6a"/><text x="250" y="60">仲間</text>
+          <ellipse cx="250" cy="92" rx="18" ry="13" fill="#fff" stroke="#cdb38b" stroke-width="2"/><text x="282" y="97">動物</text>
+        </g>
+        <g fill="none" stroke="#f09a45" stroke-width="3" marker-end="url(#ah)">
+          <path d="M70 50 L118 42"/><path d="M70 45 Q160 0 228 26"/><path d="M70 64 Q160 110 226 92"/>
+        </g>
+      </svg>
+      <p>地形のセルを含むどのブロックにも、動物にも、仲間にも（承認なし）。</p>
+    </div>
+    <div class="card">
+      <h3>3 つの発動方式</h3>
+      <p style="margin-bottom:1.8mm"><span class="pill sun">単発</span> キーで 1 回。使ったら貸した人へ自動で戻る</p>
+      <p style="margin-bottom:1.8mm"><span class="pill leaf">繰り返し</span> 一定の間隔で動き続ける。F で回収</p>
+      <p><span class="pill sky">信号</span> 鐘の音が届くあいだだけ動く。F で回収</p>
+          </div>
+    <div class="card honey">
+      <h3>集めると強くなる</h3>
+      <svg viewBox="0 0 300 92" width="100%" height="20mm">
+        <g font-size="14" font-weight="700" fill="#4d3a2c" text-anchor="middle">
+          <rect x="20" y="70" width="60" height="10" rx="4" fill="#cdb38b"/>
+          <use href="#medal" x="38" y="38" width="24" height="24"/><text x="50" y="30">×1</text>
+          <rect x="120" y="70" width="60" height="10" rx="4" fill="#cdb38b"/>
+          <use href="#medal" x="126" y="38" width="24" height="24"/><use href="#medal" x="150" y="38" width="24" height="24"/><text x="150" y="30">×2</text>
+          <rect x="220" y="70" width="60" height="10" rx="4" fill="#cdb38b"/>
+          <use href="#medal" x="216" y="38" width="24" height="24"/><use href="#medal" x="238" y="38" width="24" height="24"/><use href="#medal" x="260" y="38" width="24" height="24"/><text x="250" y="30">×3</text>
+        </g>
+      </svg>
+      <p>同じ能力を n 個でジャンプは高さ n 倍、W は速さ n 倍、投げるは射程 n 倍。上限なし（本人 2026-11-20）。</p>
+    </div>
+  </div>
+  <div class="grid" style="grid-template-columns: 1fr 1fr; margin-top:4mm; height:38mm">
+    <div class="grid" style="grid-template-columns: 1.1fr 1fr; gap:3mm">
+      <figure class="shot"><img src="../../images/video/range_lend.png" alt=""><figcaption>範囲で貸す <kbd>右クリック</kbd></figcaption></figure>
+      <div class="card"><p>半径 5 ブロック（仮）の円の中の全ブロックへ、1 つのメダルで一度に貸す。範囲で渡したブロックは一緒に動く。</p></div>
+    </div>
+    <div class="grid" style="grid-template-columns: 1.1fr 1fr; gap:3mm">
+      <figure class="shot"><img src="../../images/video/throw_arc.png" alt=""><figcaption>投げる <kbd>C</kbd></figcaption></figure>
+      <div class="card"><p>メダルが弧を描いて飛び、当たった物に能力が付く。谷の向こうのブロック・動物・仲間へ届く。外れたら手元へ戻る。</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>出典: requirements-status 4〜5、ADR 0003・0005・0011 決定 11・0017、BlockRules.DEFAULT_RANGE_RADIUS</span><span>4</span></div>
+</section>
+
+<!-- 5 動物と願い -->
+<section class="page">
+  <div class="head"><span class="no">04</span><h2>動物と願い</h2><span class="kicker">命令はできない。能力を渡すと、自分で使う。</span></div>
+  <div class="grid flex1" style="grid-template-columns: repeat(4, 1fr); gap:4mm">
+    <div style="display:flex; flex-direction:column; gap:3mm">
+      <figure class="shot flex1"><span class="step">1</span><img src="../../images/ux/nest-from-afar.png" alt="" style="object-position:50% 30%"></figure>
+      <div class="card"><h3>願いがある</h3><p>「高いところの巣へ行きたい」「鐘を鳴らしたい」。巣には遠くから見える光の柱。</p></div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:3mm">
+      <figure class="shot flex1"><span class="step">2</span><img src="../../images/video/creature_medal.png" alt="" style="object-position:70% 40%"></figure>
+      <div class="card"><h3>足りない能力を見せて待つ</h3><p>今の能力で行けるところまで近づき、吹き出しの中のメダルで「これが欲しい」。</p></div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:3mm">
+      <figure class="shot flex1"><span class="step">3</span><img src="../../images/w1-teaching/06-steps-push-stone.png" alt="" style="object-position:60% 50%"></figure>
+      <div class="card"><h3>道を作る・能力を渡す</h3><p>石を押して段にする、ジャンプを渡す。禁止は願いより優先。</p></div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:3mm">
+      <figure class="shot flex1"><span class="step">4</span><img src="../../images/overworld/all_village.png" alt=""></figure>
+      <div class="card leaf"><h3>広場に住む</h3><p>願いを叶えた動物が門のそばに住み、建物が建つ。「閉じ込められた動物を救う」話にはしない。</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>出典: requirements-status 6、ADR 0013・0016・0019（本人 2026-11-21「吹き出しの中に欲しいこういうメダルのやつ」）</span><span>5</span></div>
+</section>
+
+<!-- 6 禁止 -->
+<section class="page">
+  <div class="head"><span class="no">05</span><h2>禁止も、持ち運べる</h2></div>
+  <p class="lead">「ジャンプ禁止」の札も、能力と同じように貸し借りできる。禁止は能力より必ず強い。</p>
+  <div class="grid flex1" style="grid-template-columns: 1.35fr 1fr">
+    <div class="grid" style="grid-template-rows: 1fr 1fr; gap:4mm">
+      <figure class="shot"><img src="../../images/w1-teaching/11-quarry-ban.png" alt="" style="object-position:50% 60%"><figcaption>ジャンプ禁止の石の上では跳べない（1-6）</figcaption></figure>
+      <figure class="shot"><img src="../../images/ux/floor-ban-hotbar.png" alt="" style="object-position:50% 70%"><figcaption>禁止のブロックに立つと、ホットバーのジャンプが薄くなる</figcaption></figure>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <div class="card">
+        <h3>強さの順</h3>
+        <svg viewBox="0 0 300 96" width="100%" height="30mm">
+          <g font-size="15" font-weight="700" text-anchor="middle" fill="#4d3a2c">
+            <use href="#ban" x="10" y="14" width="56" height="56"/><text x="38" y="90">禁止</text>
+            <text x="92" y="50" fill="#8a7462">＞</text>
+            <use href="#medal" x="122" y="14" width="56" height="56"/><text x="150" y="90">能力</text>
+            <text x="204" y="50" fill="#8a7462">＞</text>
+            <ellipse cx="262" cy="44" rx="28" ry="20" fill="#fff" stroke="#cdb38b" stroke-width="2.5"/>
+            <text x="262" y="49" font-size="12">巣へ…</text><text x="262" y="90">願い</text>
+          </g>
+        </svg>
+      </div>
+      <div class="card ban"><h3>貸した単発も止まる</h3><p>禁止中は、貸した単発も起動できない（本人 2026-11-19）。</p></div>
+      <div class="card"><h3>上に立つ人と動物にも効く</h3><p>禁止の付いたブロックの上では、乗った人も動物も禁止される。外から押されて動くことは妨げない。</p></div>
+      <div class="card sun"><h3>手放すか、持ったまま別の道か</h3><p>F で取ると自分が禁止される。もう一方の石や地面へ渡して手放す。それが選択になる。</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>出典: requirements-status 4-4、v0.3.0 リリースノート、src/game/floor_bans.gd、ADR 0011（札の庭）</span><span>6</span></div>
+</section>
+
+<!-- 7 協力 -->
+<section class="page">
+  <div class="head"><span class="no">06</span><h2>ひとりでも、4 人でも</h2><span class="kicker">1〜4 人のオンライン協力</span></div>
+  <div class="grid flex1" style="grid-template-columns: 1.25fr 1fr">
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <figure class="shot flex1"><img src="../../images/video/coop_jumps.png" alt="" style="object-position:50% 45%"><figcaption>2 人目がジャンプを渡し、×2 で岩棚へ（1-1 の協力の近道）</figcaption></figure>
+      <div class="grid" style="grid-template-columns: 1fr 1fr; gap:4mm">
+        <div class="card"><h3>同じ島を 2 通りで</h3><p>ひとりなら装備や回り道で。協力なら能力を集める近道で。</p></div>
+        <div class="card"><h3>倒れても世界は戻らない</h3><p>落ちたら観戦。仲間が台座で全員復活。過半数の投票でチェックポイントへ戻す。</p></div>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <div class="card leaf">
+        <h3>全員でゴールに集まる</h3>
+        <svg viewBox="0 0 300 110" width="100%" height="33mm">
+          <path d="M10 60 H95 V85 H205 V60 H290" fill="none" stroke="#76a85f" stroke-width="4" stroke-linejoin="round"/>
+          <rect x="95" y="60" width="110" height="25" fill="#e3f0d6"/>
+          <circle cx="120" cy="72" r="9" fill="#6fa8dc"/><circle cx="145" cy="72" r="9" fill="#ec8a6a"/>
+          <circle cx="170" cy="72" r="9" fill="#82b866"/>
+          <circle cx="250" cy="48" r="9" fill="#b794d9"/>
+          <path d="M240 40 Q215 20 192 50" fill="none" stroke="#8a7462" stroke-width="2.5" stroke-dasharray="5 4" marker-end="url(#ah-ink)"/>
+          <text x="150" y="104" text-anchor="middle" font-size="12.5" fill="#4d3a2c">ゴールは 1 段低い窪み</text>
+          <text x="150" y="22" text-anchor="middle" font-size="12.5" fill="#8a7462" font-weight="700">あと 1 人</text>
+        </svg>
+        <p>島の条件に加えて、生きている全員がゴールに入るとクリア。集めた力を誰かが返す・回す手間が残る。</p>
+      </div>
+      <div class="card sun">
+        <h3>妨害をルールで止めない</h3>
+        <p>「ゴールの中からは渡せない」のような規則は足さない。窪みの地形で狙いにくくするだけ。</p>
+        <p class="note" style="margin-top:1.5mm">本人（2026-11-20）「システム的に妨害するとかは絶対にしたくない。自由な発想を妨げるから」</p>
+      </div>
+      <div class="card"><h3>途中参加・ホスト移譲</h3><p>途中で入った人は観戦で待ち、次のやり直しで合流。ホストが落ちても新しいホストを選んで続ける。</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>出典: ADR 0005・0007・0010・0011 決定 2・8〜11、tests/integration/test_goal_sightlines.gd</span><span>7</span></div>
+</section>
+
+<!-- 8 世界と広場 -->
+<section class="page">
+  <div class="head"><span class="no">07</span><h2>歩ける広場が、育っていく</h2></div>
+  <div class="grid flex1" style="grid-template-columns: 1fr 1fr">
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <figure class="shot" style="height:70mm"><img src="../../images/overworld/all_aerial.png" alt="" style="object-position:50% 50%; transform:scale(1.25)"><figcaption>広場の全体。7 つの地方と寄り道の庭・小島</figcaption></figure>
+      <div class="card">
+        <h3>地方は地形だけで開く</h3>
+        <p>クリアで橋が架かる・岩がどく・階段がせり上がる。通せんぼのルールは足さない。広場でも能力が使え、秘密の庭・小島が寄り道のワールドの入口。</p>
+      </div>
+      <div class="card"><h3>雰囲気</h3><p>ゆるふわで温かみのある 3D ブロックの箱庭。明るい昼、丸くてかわいい生き物、やさしく暴力のない世界。物語は脇役（本人 2026-11-21）。</p></div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <div class="card" style="padding:3mm">
+        <svg viewBox="0 0 420 250" width="100%" height="64mm">
+          <g font-size="12.5" font-weight="700" text-anchor="middle" fill="#4d3a2c">
+            <g stroke="#cdb38b" stroke-width="3" fill="none">
+              <path d="M210 160 L330 160"/><path d="M210 160 L90 160"/><path d="M210 160 L210 92"/>
+              <path d="M210 92 L210 30"/><path d="M90 160 L90 92"/><path d="M330 160 L330 92"/>
+            </g>
+            <ellipse cx="210" cy="160" rx="62" ry="34" fill="#e3f0d6" stroke="#76a85f" stroke-width="2.5"/>
+            <text x="210" y="157">W1 はじまりの草原</text><text x="210" y="173" font-size="11" fill="#8a7462">真ん中・出現地点</text>
+            <ellipse cx="350" cy="160" rx="52" ry="24" fill="#fff" stroke="#cdb38b" stroke-width="2"/><text x="350" y="164">W2 鐘の谷</text>
+            <ellipse cx="350" cy="92" rx="56" ry="22" fill="#fff" stroke="#cdb38b" stroke-width="2"/><text x="350" y="96">W3 ふわふわ浮島</text>
+            <ellipse cx="70" cy="160" rx="52" ry="24" fill="#fff" stroke="#cdb38b" stroke-width="2"/><text x="70" y="164">W4 けものの森</text>
+            <ellipse cx="70" cy="92" rx="46" ry="22" fill="#fff" stroke="#cdb38b" stroke-width="2"/><text x="70" y="96">W5 札の庭</text>
+            <ellipse cx="210" cy="92" rx="48" ry="22" fill="#fff" stroke="#cdb38b" stroke-width="2"/><text x="210" y="96">W6 霧の峰</text>
+            <ellipse cx="210" cy="30" rx="48" ry="22" fill="#fde3c6" stroke="#f09a45" stroke-width="2"/><text x="210" y="34">W7 空の頂</text>
+            <g font-size="11" font-weight="500" fill="#8a7462">
+              <text x="285" y="150">橋</text><text x="140" y="150">岩</text><text x="225" y="128">階段</text>
+              <text x="225" y="64">階段</text><text x="102" y="128">橋</text><text x="362" y="128">橋</text>
+            </g>
+            <g font-size="11" fill="#4d3a2c">
+              <rect x="300" y="210" width="110" height="26" rx="13" fill="#efe3ff" stroke="#b794d9" stroke-width="2"/><text x="355" y="227">O1 からくり工房</text>
+              <rect x="10" y="210" width="110" height="26" rx="13" fill="#efe3ff" stroke="#b794d9" stroke-width="2"/><text x="65" y="227">O3 ひみつの温室</text>
+              <rect x="300" y="8" width="110" height="26" rx="13" fill="#efe3ff" stroke="#b794d9" stroke-width="2"/><text x="355" y="25">O2 さかさ雲</text>
+            </g>
+          </g>
+        </svg>
+        <p class="note">配置は docs/campaign-plan.md の地図を簡略化。題・順番はすべて仮</p>
+      </div>
+      <figure class="shot flex1"><img src="../../images/overworld/all_village.png" alt="" style="object-position:50% 45%"><figcaption>助けた動物が住み、家・風車・噴水などが建つ</figcaption></figure>
+    </div>
+  </div>
+  <div class="foot"><span>出典: ADR 0013、docs/campaign-plan.md、proposal-draft 2.4・2.5</span><span>8</span></div>
+</section>
+
+<!-- 9 キャンペーン -->
+<section class="page">
+  <div class="head"><span class="no">08</span><h2>57 ステージ</h2><span class="kicker">本編 7 ワールド × 6 ＋ 寄り道 3 ワールド × 5</span></div>
+  <div class="grid flex1" style="grid-template-columns: 1fr 66mm; gap:6mm">
+    <table class="info compact">
+      <tr><th style="width:44mm">ワールド</th><th style="width:44mm">ステージ</th><th style="width:auto">主に教える・使う仕組み</th></tr>
+      <tr><th>W1 はじまりの草原</th><td id="dots-w1"></td><td>ジャンプを貸す・F で取る・繰り返し・ブロックの W/A/S/D・動物・地面と範囲・投げる・装備・禁止 <span class="mark">【要確認】</span></td></tr>
+      <tr><th>W2 鐘の谷</th><td></td><td>発射台と鐘・信号の方式（こだまの鐘）・時の鐘</td></tr>
+      <tr><th>W3 ふわふわ浮島</th><td></td><td>ダッシュ・往復足場・風・谷越しに投げ渡す</td></tr>
+      <tr><th>W4 けものの森</th><td></td><td>動物を導く・重さの板と「重い」・群れ</td></tr>
+      <tr><th>W5 札の庭</th><td></td><td>禁止の札を手放す・範囲で渡す・氷</td></tr>
+      <tr><th>W6 霧の峰</th><td></td><td>ワープの石・浮く・泳ぐ・水の流れ</td></tr>
+      <tr><th>W7 空の頂</th><td></td><td>これまでの組み合わせ。最後は「頂の祭り」</td></tr>
+      <tr><th>O1〜O3 寄り道</th><td></td><td>スイッチと扉・空中の移動・札の門。進行に不要で、全部むずかしい</td></tr>
+    </table>
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <div class="card sun" style="text-align:center">
+        <div class="big-num">57</div>
+        <p style="margin-top:1mm">すべてコードにあり、広場の門から入れる（StageCatalog.all_stages()）</p>
+      </div>
+      <div class="card"><p><span class="pill">●</span> ふつう　<span class="pill sun">★</span> むずかしい<br><span class="note">各ワールドの 3 番目と最後が★（本人 2026-11-21「マリオのように」）</span></p></div>
+      <div class="card">
+        <h3>決まっていないこと</h3>
+        <p>最終的なステージ数 <span class="mark open">【未決】</span></p>
+        <p style="margin-top:1.5mm">目安の時間は根拠のない仮の値。本人の試遊で測って直す</p>
+      </div>
+      <p class="note"><span class="mark">【要確認】</span> W1 の教え方は v0.3.1 で直した直後（下の 10 ページ）。PDF にする日に campaign-plan と照らし直す。2-1 の「禁止の初出」は campaign-plan に残るが、v0.3.1 では 1-6 で禁止を教える</p>
+    </div>
+  </div>
+  <div class="foot"><span>出典: src/stages/campaign_plan.gd、docs/campaign-plan.md、ADR 0011・0013、v0.3.1 リリースノート</span><span>9</span></div>
+</section>
+
+<!-- 10 W1 の教え方 -->
+<section class="page">
+  <div class="head"><span class="no">09</span><h2>最初のワールドは、形で教える</h2><span class="kicker">新しいことは 1 回に 1 つ。それをしないと先へ進めない場所で</span></div>
+  <div class="grid flex1" style="grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; gap:4mm">
+    <figure class="shot"><img src="../../images/w1-teaching/03-intro-lend.png" alt=""><figcaption>1-1 ジャンプ・ブロックに渡す</figcaption></figure>
+    <figure class="shot"><img src="../../images/w1-teaching/04-relay-take-back.png" alt=""><figcaption>1-2 F で取る</figcaption></figure>
+    <figure class="shot"><img src="../../images/w1-teaching/07-steps-critter.png" alt=""><figcaption>1-3 繰り返し・W/A/S/D・動物</figcaption></figure>
+    <figure class="shot"><img src="../../images/w1-teaching/08-path-ground.png" alt=""><figcaption>1-4 地面に渡す・範囲</figcaption></figure>
+    <figure class="shot"><img src="../../images/w1-teaching/09-hill-throw.png" alt=""><figcaption>1-5 投げる・装備</figcaption></figure>
+    <figure class="shot"><img src="../../images/w1-teaching/11-quarry-ban.png" alt=""><figcaption>1-6 禁止</figcaption></figure>
+  </div>
+  <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-top:4mm">
+    <div class="card"><h3>案内は 1 つだけ</h3><p>キーの絵と数文字。必要なときだけ短く出て、同じ操作を 3 回すると消える。</p></div>
+    <div class="card"><h3>取った能力はすぐ使える</h3><p>F で取った・拾った能力は空いていればホットバーへ入り、自動で選ばれる。</p></div>
+    <div class="card"><h3>最初の門に光の柱</h3><p>広場では次に遊ぶ門に「はじめはここから」「つぎはここ」。</p></div>
+  </div>
+  <p class="note" style="margin:2mm 0 0">人の試遊はまだ。並び・数値（幅 14・柱の距離など）は仮 <span class="mark">【要確認】</span> 本人の試遊のあとで見直す</p>
+  <div class="foot"><span>出典: docs/w1-teaching.md、v0.3.1 リリースノート、ADR 0021、src/ui/teach_hints.gd</span><span>10</span></div>
+</section>
+
+<!-- 11 見た目と音 -->
+<section class="page">
+  <div class="head"><span class="no">10</span><h2>見た目と音</h2><span class="mark open">【未決】アートスタイルの仕上げ</span></div>
+  <div class="grid flex1" style="grid-template-columns: 1.3fr 1fr">
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <figure class="shot flex1"><img src="../../images/compare/cozy-art-after.png" alt="" style="object-position:40% 50%"><figcaption>生成りの札と丸い文字の UI・丸い地形</figcaption></figure>
+      <figure class="shot" style="height:52mm"><img src="../../images/models/hub.png" alt="" style="object-position:50% 70%"><figcaption>1 つのモデルをプレイヤー 1〜4 の色で</figcaption></figure>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <div class="card">
+        <h3>色（状態ごとに 1 色）</h3>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:2mm; font-size:8.5pt; text-align:center">
+          <div><div style="height:10mm;border-radius:8px;background:var(--sun)"></div>選択</div>
+          <div><div style="height:10mm;border-radius:8px;background:var(--leaf)"></div>有効</div>
+          <div><div style="height:10mm;border-radius:8px;background:var(--honey)"></div>貸出中</div>
+          <div><div style="height:10mm;border-radius:8px;background:var(--ban)"></div>禁止だけ</div>
+          <div><div style="height:10mm;border-radius:8px;background:var(--p1)"></div>P1</div>
+          <div><div style="height:10mm;border-radius:8px;background:var(--p2)"></div>P2</div>
+          <div><div style="height:10mm;border-radius:8px;background:var(--p3)"></div>P3</div>
+          <div><div style="height:10mm;border-radius:8px;background:var(--p4)"></div>P4</div>
+        </div>
+        <p class="note" style="margin-top:1.5mm">文字はこげ茶、地は生成り。線は 2px にそろえる</p>
+      </div>
+      <div class="card">
+        <h3 style="font-size:15pt">Zen Maru Gothic</h3>
+        <p>やわらかい丸ゴシック。子ども向けに寄りすぎず、小さい字でも読める（SIL OFL 1.1）。</p>
+      </div>
+      <div class="card">
+        <h3>3D モデルはスクリプトで作る</h3>
+        <p>Blender の Python スクリプトで生成した自作のモデル 50 点とアイコン。画像生成 AI・3D 生成 AI は使っていない。</p>
+      </div>
+      <div class="card">
+        <h3>音</h3>
+        <p>効果音 32 個と BGM 3 曲（タイトル・広場・島）。Stable Audio 3 medium で本人の Mac の中で生成（13 ページ）。BGM は仮の選曲。</p>
+        <p class="note" style="margin-top:1mm">本人の試聴 <span class="mark fill">【記入】</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>出典: src/ui/ui_theme.gd、src/game/art_palette.gd、docs/art-direction.md（提案）、docs/ui-design.md（仮）、art/README.md、docs/sound-design.md</span><span>11</span></div>
+</section>
+
+<!-- 12 技術 -->
+<section class="page">
+  <div class="head"><span class="no">11</span><h2>技術と品質</h2><span class="kicker">Godot 4.6.3（型付き GDScript）・Jolt Physics</span></div>
+  <div class="grid flex1" style="grid-template-columns: 1fr 1fr">
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <div class="card">
+        <h3>ホスト権威（専用サーバーなし）</h3>
+        <svg viewBox="0 0 360 150" width="100%" height="45mm">
+          <g font-size="12.5" font-weight="700" text-anchor="middle" fill="#4d3a2c">
+            <rect x="120" y="10" width="120" height="60" rx="16" fill="#fde3c6" stroke="#f09a45" stroke-width="2.5"/>
+            <circle cx="148" cy="40" r="11" fill="#6fa8dc"/>
+            <text x="200" y="36">ホスト</text><text x="200" y="54" font-size="10.5" font-weight="500" fill="#8a7462">台帳を確定</text>
+            <circle cx="50" cy="122" r="14" fill="#ec8a6a"/><text x="50" y="148" font-size="11">参加者</text>
+            <circle cx="180" cy="122" r="14" fill="#82b866"/><text x="180" y="148" font-size="11">参加者</text>
+            <circle cx="310" cy="122" r="14" fill="#b794d9"/><text x="310" y="148" font-size="11">参加者</text>
+          </g>
+          <g stroke-width="2.5" fill="none">
+            <path d="M58 106 L128 72" stroke="#8a7462" stroke-dasharray="5 4" marker-end="url(#ah-ink)"/>
+            <path d="M140 72 L70 108" stroke="#f09a45" marker-end="url(#ah)"/>
+            <path d="M175 106 L175 74" stroke="#8a7462" stroke-dasharray="5 4" marker-end="url(#ah-ink)"/>
+            <path d="M188 74 L188 104" stroke="#f09a45" marker-end="url(#ah)"/>
+            <path d="M302 106 L232 72" stroke="#8a7462" stroke-dasharray="5 4" marker-end="url(#ah-ink)"/>
+            <path d="M220 72 L290 108" stroke="#f09a45" marker-end="url(#ah)"/>
+          </g>
+          <text x="0" y="62" font-size="10.5" fill="#8a7462">依頼</text><text x="0" y="76" font-size="10.5" fill="#8a7462">（渡したい・回収したい）</text>
+          <text x="272" y="62" font-size="10.5" fill="#f09a45">確定した状態</text>
+        </svg>
+        <p>提出版はソロと Steam なしの直接接続（ENet、UDP 24565）。ホストが落ちたら全員が同じ情報から次のホストを選んで続ける。</p>
+      </div>
+      <div class="card"><h3>ルールと物理を分ける</h3><p>能力・器・禁止・発動方式・範囲は物理と入力から切り離した純粋なクラス（src/rules/）。単体テストで確かめられる。</p></div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <div class="card sun" style="display:flex; align-items:center; gap:5mm">
+        <div class="big-num" id="test-count">1099</div>
+        <p>件の自動テストが成功（失敗 0）<br><span class="note">2026-11-24、main 7a50463（v0.3.1）で tools/check.sh を実行</span></p>
+      </div>
+      <div class="card"><h3>通しプレイ</h3><p>全ステージを、プレイヤーと同じ操作（歩く・跳ぶ・渡す・拾う。瞬間移動なし）で最初から最後まで遊んでクリアできることを毎回確かめる。協力の近道も。</p></div>
+      <div class="card"><h3>協力も 1 台で自動テスト</h3><p>同じ PC の中で 2〜4 人をつなぎ、受け渡し・回収・観戦・投票・途中参加・ホスト移譲・4 人の同時操作でメダルが増減しないことを確かめる。</p></div>
+      <div class="card"><h3>CI（GitHub Actions）</h3><p>整形・静的検査・全テスト・起動確認・Windows / macOS / Linux の書き出し。Windows と macOS のランナーで実行ファイルを起動。提出版に Steam・秘密・原本が入っていないことも確かめる。</p></div>
+      <p class="note">まだ: 他者の試遊、Windows 11 実機、別々の PC・インターネット越しの協力。スペック想定は未測定 <span class="mark open">【未決】</span></p>
+    </div>
+  </div>
+  <div class="foot"><span>出典: ADR 0001・0002・0003・0006・0010・0012、.github/workflows/ci.yml、docs/requirements-status.md</span><span>12</span></div>
+</section>
+
+<!-- 13 AI -->
+<section class="page">
+  <div class="head"><span class="no">12</span><h2>AI ツールの使用</h2><span class="kicker">正本: docs/ai-usage.md</span></div>
+  <table class="info compact ai" style="font-size:10pt">
+    <tr><th style="width:42mm">AI ツール</th><th style="width:50mm">モデル・バージョン</th><th style="width:auto">使用工程と用途</th><th style="width:30mm">使用時期</th><th style="width:36mm">人の確認</th></tr>
+    <tr>
+      <th>Claude Code<br><small>Anthropic</small></th>
+      <td><span class="mark fill">【記入】</span><br><small>提出時にサービスの表示で確かめる</small></td>
+      <td>プログラムの生成（ルール・物理・通信・UI）、テスト・CI、技術選定の比較、3D モデルとアイコンを作る Blender のスクリプト、効果音の合成と取り込みのスクリプト、効果音の候補の測定と選定、記録・文書の作成</td>
+      <td>2026-11-18〜<span class="mark fill">【記入】</span><br><small>終わりの日</small></td>
+      <td>本人が PR でレビュー</td>
+    </tr>
+    <tr>
+      <th>Stable Audio 3 medium<br><small>Stability AI。Audio Studio MCP 1.2.0 で本人の Mac の中で生成（外部に送っていない）</small></th>
+      <td>Hugging Face stabilityai/stable-audio-3-optimized の MLX 版、リビジョン 30cb264</td>
+      <td>音楽の作曲・効果音の生成。候補を 4 回生成し、効果音 32 個（ゲームの効果音すべて）と BGM 3 曲を採用。効果音の加工は人の書いたスクリプトでのフィルター・切り出し・ピッチ・音量だけ。BGM は加工なし</td>
+      <td>2026-11-20〜21</td>
+      <td>効果音は AI が測定値で選んだ（足音 4 つは本人が指定）。BGM は仮の選曲。本人の試聴 <span class="mark fill">【記入】</span></td>
+    </tr>
+    <tr>
+      <th>ChatGPT<br><small>OpenAI</small></th>
+      <td><span class="mark fill">【記入】</span></td>
+      <td>企画の相談（仕様は本人が選択）</td>
+      <td>2026-11-17</td>
+      <td>本人が仕様を選択</td>
+    </tr>
+  </table>
+  <div class="grid" style="grid-template-columns: repeat(3, 1fr); margin-top:5mm">
+    <div class="card leaf"><h3>使っていないもの</h3><p>画像生成 AI・3D 生成 AI（モデルとアイコンはスクリプトで生成）。ゲームの中で動く AI もない。この企画書の図も HTML と SVG で描いた。</p></div>
+    <div class="card"><h3>ライセンスと権利</h3><p>生成音声のモデルは Stability AI Community License。特定の個人の声・作家の作風を真似る指示は出していない <span class="mark fill">【記入】</span> 本人の最終確認</p></div>
+    <div class="card honey"><h3>ガイドラインは策定中</h3><p>2026-11-22 時点の公式の AI 利用ガイドラインは「策定中」。確定版（2026-12-15 以降）で読み直す <span class="mark">【要確認】</span></p></div>
+  </div>
+  <div class="foot"><span>出典: docs/ai-usage.md、proposal-draft 3.6、docs/submission/checklist.md 3</span><span>13</span></div>
+</section>
+
+<!-- 14 プレイ環境の構築方法 -->
+<section class="page">
+  <div class="head"><span class="no">13</span><h2>プレイ環境の構築方法</h2><span class="kicker">記載必須・2 次審査で使用</span></div>
+  <div class="grid" style="grid-template-columns: 1fr 1fr; gap:4mm">
+    <div class="card"><h3><span class="pill sun">Windows</span>　rule-relay-windows.zip</h3><p>rule-relay.exe（データ埋め込みの 1 ファイル）・LICENSES.txt・README_Windows.txt</p></div>
+    <div class="card"><h3><span class="pill sky">Mac</span>　rule-relay-macos.zip</h3><p>Mac のアプリ（.app、Intel・Apple シリコン両対応）・LICENSES.txt</p></div>
+  </div>
+  <p style="font-size:10.5pt; margin:3mm 0">インストールは不要。Steam・追加のランタイム・アカウント登録も不要。</p>
+  <div class="grid flex1" style="grid-template-columns: 1.25fr 1fr; gap:5mm">
+    <div class="card" style="font-size:10.6pt; line-height:1.65">
+      <h3>Windows 11</h3>
+      <ol style="margin:0; padding-left:5mm">
+        <li>ZIP を展開して rule-relay.exe を起動。<b>exe はコード署名をしていない</b>ため、次の画面が出ることがある（ZIP の README_Windows.txt にも同じ案内）。</li>
+        <li>「Windows によって PC が保護されました」→「詳細情報」→「実行」。または展開の前に ZIP を右クリック →「プロパティ」→「許可する」→「OK」。</li>
+        <li>「スマート アプリ コントロールでブロックされました」と出る PC（この機能がオン）では起動できない。設定 → プライバシーとセキュリティ → Windows セキュリティ → アプリとブラウザー コントロール → スマート アプリ コントロール。版によっては一度オフにすると戻せない。オフにしない代わりに、公式の Godot 4.6.3 エディターでソース一式を開いて実行できる。</li>
+        <li>部屋を作るときにファイアウォールの許可を聞かれたら許可する。</li>
+      </ol>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:4mm">
+      <div class="card" style="font-size:9.6pt">
+        <h3>Mac</h3>
+        <ol style="margin:0; padding-left:5mm">
+          <li>ZIP を展開してアプリを開く。</li>
+          <li>署名なしの版で「開発元を確認できません」と出たら、右クリック →「開く」。</li>
+          <li>受信接続の許可を聞かれたら許可する。</li>
+        </ol>
+        <p class="note" style="margin-top:1mm">提出する Mac 版を署名・公証済みにするか <span class="mark open">【未決】</span></p>
+      </div>
+      <div class="card leaf" style="font-size:9.6pt">
+        <h3>ひとりで遊ぶ</h3>
+        <p>タイトルで「ひとりで遊ぶ」→ 広場の正面の光の柱が立つ門の前で <kbd>F</kbd>。</p>
+      </div>
+      <div class="card" style="font-size:9.6pt">
+        <h3>協力で遊ぶ（2〜4 人）</h3>
+        <p>タイトルの「友だちと遊ぶ」→ ホストは「部屋を作る」。参加者はホストの IP アドレスを入れて「部屋に入る」（ポート 24565）。インターネット越しはホスト側で UDP 24565 のポート開放が要る。1 台で試すなら 2 つ起動し、2 つ目は記録の名前を変えて 127.0.0.1 に入る。</p>
+        <p class="note" style="margin-top:1mm">審査員向けに 1 台で 2 つ起動する手順を載せるか <span class="mark open">【未決】</span>　試遊版は全ステージが開いている。提出版の開き方 <span class="mark open">【未決】</span></p>
+      </div>
+    </div>
+  </div>
+  <p class="note" style="margin:2mm 0 0">Windows 11 実機・Mac 実機で展開から 1 ステージクリアまでの確認 <span class="mark">【要確認】</span></p>
+  <div class="foot"><span>出典: proposal-draft 3.3、README_Windows.txt、docs/how-to-test.md、tools/check_submission.py、src/ui/title_menu.gd</span><span>14</span></div>
+</section>
+
+<!-- 15 操作方法・制作 -->
+<section class="page">
+  <div class="head"><span class="no">14</span><h2>操作方法と制作</h2><span class="kicker">キーとボタンは「せってい」で変えられる（一部を除く）</span></div>
+  <div class="grid flex1" style="grid-template-columns: 1.15fr 1fr; gap:5mm">
+    <table class="info compact" style="font-size:8.8pt">
+      <tr><th style="width:auto">操作</th><th style="width:40mm">キーボード・マウス</th><th style="width:34mm">ゲームパッド</th></tr>
+      <tr><td>移動（カメラから見た向き）</td><td><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></td><td>左スティック</td></tr>
+      <tr><td>カメラ</td><td>マウス</td><td>右スティック</td></tr>
+      <tr><td>ジャンプ</td><td><kbd>Space</kbd></td><td>A</td></tr>
+      <tr><td>ダッシュ</td><td><kbd>Shift</kbd></td><td>B</td></tr>
+      <tr><td>取り戻す・拾う・鐘・台座・入口</td><td><kbd>F</kbd></td><td>X</td></tr>
+      <tr><td>触る ↔ 投げる</td><td><kbd>C</kbd></td><td>Y</td></tr>
+      <tr><td>狙ったものに渡す</td><td>左クリック</td><td>RT</td></tr>
+      <tr><td>範囲でまとめて渡す</td><td>右クリック</td><td>LT</td></tr>
+      <tr><td>ホットバーの枠</td><td><kbd>1</kbd>〜<kbd>9</kbd></td><td>LB / RB</td></tr>
+      <tr><td>発動方式の切り替え</td><td><kbd>Q</kbd>・ホイール押し込み</td><td>十字↑</td></tr>
+      <tr><td>やり直しの投票（長押し）</td><td><kbd>V</kbd></td><td>十字↓</td></tr>
+      <tr><td>持ち物</td><td><kbd>E</kbd></td><td>View</td></tr>
+      <tr><td>メニュー</td><td><kbd>Esc</kbd></td><td>Start</td></tr>
+      <tr><td>目的をもう一度出す</td><td><kbd>Tab</kbd></td><td>Start のメニュー</td></tr>
+    </table>
+    <div style="display:flex; flex-direction:column; gap:3.5mm">
+      <div class="card">
+        <h3>使ったもの</h3>
+        <p style="font-size:9pt">Godot Engine 4.6.3（MIT）・Jolt Physics（MIT）・Godot 組み込みの部品（各ライセンス）・Zen Maru Gothic（SIL OFL 1.1）・Stable Audio 3 medium の生成音（Stability AI Community License）・自作のモデルとアイコン。外部のアドオン・CC0 素材は使っていない。全文は ZIP の LICENSES.txt。</p>
+      </div>
+      <div class="card">
+        <h3>これから<span class="tag-plan">案</span></h3>
+        <p style="font-size:9pt">〜2026-12 中旬 世界観・タイトル・アートスタイルを決める、他者の試遊<br>2026-12〜2027-01 見た目の作り込み、ステージ数と目安時間の実測<br>2027-02 Windows 実機で画面写真・動画を撮る<br>〜2027-03-15 提出</p>
+      </div>
+      <div class="card" style="font-size:9pt">
+        <h3>ビジネス・体制</h3>
+        <p>開発体制 <span class="mark fill">【記入】</span>（いまは個人開発＋AI ツール）</p>
+        <p style="margin-top:1mm">販売・収益モデル <span class="mark open">【未決】</span>　想定価格 <span class="mark open">【未決】</span>　レーティング <span class="mark open">【未決】</span></p>
+        <p class="note" style="margin-top:1mm">決まっていること: 報酬は見た目・記録・収集品だけで、能力を有利にする要素は売らない前提（ADR 0008）。戦闘・流血の表現・チャットはない</p>
+      </div>
+      <div class="card sun" style="font-size:9pt">
+        <h3>連絡先</h3>
+        <p>応募者 <span class="mark fill">【記入】</span>　SNS <span class="mark fill">【記入】</span></p>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>出典: proposal-draft 3.2・3.5・4、project.godot [input]、docs/how-to-test.md、ADR 0002・0008</span><span>15</span></div>
+</section>
+
+<script>
+  // キャンペーンの表のステージの印（●ふつう・★むずかしい）。本編は 3 番目と 6 番目が★、寄り道は全部★。
+  (function () {
+    const rows = document.querySelectorAll("#dots-w1")[0].closest("table").querySelectorAll("tr");
+    rows.forEach((row, i) => {
+      if (i === 0) return;
+      const cell = row.children[1];
+      const optional = i === rows.length - 1;
+      const n = optional ? 15 : 6;
+      let html = "";
+      for (let k = 1; k <= n; k++) {
+        const hard = optional || k === 3 || k === 6;
+        html += hard
+          ? '<span style="color:var(--sun);font-size:11pt">★</span>'
+          : '<span style="color:var(--edge-deep);font-size:11pt">●</span>';
+      }
+      cell.innerHTML = '<span style="letter-spacing:0.5mm; white-space:nowrap">' + html + "</span>";
+    });
+  })();
+</script>
+</body>
+</html>
