@@ -14,9 +14,14 @@
   - `rule-relay-v0.2.1-linux.zip`（Linux・Steam Deck 用。展開して `rule-relay.x86_64` を起動）
 - アプリの版（Mac の「情報を見る」・Windows の exe のプロパティ「詳細」）はタグから入る（`v0.2.1` → Mac `0.2.1`・Windows `0.2.1.0`）。CI が書き出しの前に `tools/release_version.py set` で入れ、書き出した exe と .app の版がタグと同じかを確かめる。
 - タグの Release には、署名と公証を済ませた Mac 版が要る。Mac の署名の Secrets（`MACOS_DEVELOPER_ID_P12_BASE64`・`MACOS_DEVELOPER_ID_PASSWORD`・`ASC_KEY_ID`・`ASC_ISSUER_ID`・`ASC_P8`）が足りないと、CI の最初の段で、足りない名前を出して止まる（`docs/macos-signing.md`）。タグ以外（main・PR）は、これまでどおり署名と公証を飛ばす。
-- タグの付け方:
-  - GitHub の「Releases」→「Draft a new release」→「Choose a tag」に新しいタグ名を入れて公開すると、少しして ZIP が自動で付く（この画面で ZIP を付ける必要はない）。
-  - またはターミナルで次を実行する。
+- リリースの出し方（この順番で。順番が逆だと、タグが古い版のコミットを指して CI が止まる。v0.3.1 で起きた）:
+  1. 版を上げる PR（`export_presets.cfg` の版・`tools/test_release_version.py` の版・`docs/release-notes/<タグ>.md`）を main にマージする。
+  2. main の CI が通ったのを確かめる。
+  3. GitHub の「Releases」→「Draft a new release」→「Choose a tag」に新しいタグ名（例 `v0.3.1`）を入れ、Target は `main` にする。
+  4. 説明文は**空のまま**公開する。CI が `docs/release-notes/<タグ>.md` で埋め、ZIP を付ける（この画面で ZIP を付ける必要はない）。
+  - 説明文を手で書いて公開した場合、CI は書き換えない（意図した編集を消さないため）。ノートと違えば、CI の注釈（警告）に貼り方が出る。
+  - タグとプリセットの版が違うと、CI の最初の段で止まり、注釈とジョブのまとめに直し方が出る。そのときは、Release とタグを GitHub の画面で消し、版の PR をマージしてから main からタグを作り直す（説明文は空のまま）。
+- タグだけをターミナルで付ける場合（版の PR をマージした後の main で）:
 
     ```bash
     git tag v0.2.1
@@ -243,6 +248,8 @@ tools/check.sh
   - `user://`（進行・設定・案内の記録）は、組ごとに `XDG_DATA_HOME` を `build/test-shards/<i>/data` に分ける。分かれていないとテストランナーが止まる。
   - テストの部屋のポートは `TestCase.free_port()` で組ごとに別の範囲（12000 から 2000 ずつ）から選ぶ。
   - オンライン協力のテストは、つないだ後に `TestCase.steady_enet()` を呼ぶ（CPU が混むと ENet が画面の同期を間引き、コマ数で待つテストが時間切れになるため）。
+  - ホスト移譲のように、ゲームのコード（`HostMigration`）があとから接続を作るテストは、枝に `TestCase.keep_enet_steady(枝)` をかけておく（つながるたびに `steady_enet` がかかる）。
+  - 間引きを止めるのはテストだけ。本番の接続は ENet の既定のまま（混雑への備え。実際のネットワークで止めてよいかは測っていない。時間切れは `--fixed-fps` でコマ数だけ数えるテスト特有の揺れが原因）。
   - 実時間（ms）の上限を確かめるテストのファイルは、`tests/run_tests.gd` の `RUN_ALONE_FILES` に入れる（並列の組が終わってから 1 つで流す）。
 
 ## 気づいたことの返し方

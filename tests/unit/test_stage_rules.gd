@@ -147,6 +147,27 @@ func test_catalog_definitions_are_consistent() -> void:
 	assert_eq(StageCatalog.by_id("nope"), null)
 
 
+## 一覧は作る関数だけを覚え、定義は毎回新しく作る。受け取った定義を書き換えても次に混ざらない。
+func test_catalog_hands_out_fresh_definitions() -> void:
+	var first := StageCatalog.all_stages()
+	var ids: Array[String] = []
+	for def in first:
+		ids.append(def.stage_id)
+	first[0].target_minutes = 999
+	first[0].blocks.clear()
+	var again := StageCatalog.all_stages()
+	assert_ne(again[0], first[0], "a new object each call")
+	assert_ne(again[0].target_minutes, 999)
+	var again_ids: Array[String] = []
+	for def in again:
+		again_ids.append(def.stage_id)
+	assert_eq(again_ids, ids, "same order every call")
+	var intro := StageCatalog.by_id(StageCatalog.INTRO_ID)
+	intro.spawn_points.clear()
+	assert_false(StageCatalog.by_id(StageCatalog.INTRO_ID).spawn_points.is_empty())
+	assert_ne(StageCatalog.by_id(StageCatalog.INTRO_ID), intro)
+
+
 ## どのステージも「島の条件＋生きている全員がゴールに集まる」（docs/adr/0011 決定 9）。
 ## 島の条件（ゴール以外の部分）はステージごとに違う（ゴールだけ・鐘・要石を運ぶ）。
 func test_stages_use_different_clear_conditions() -> void:
