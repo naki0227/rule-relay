@@ -66,6 +66,12 @@ static func echo_bells() -> StageDef:
 	_kit(def, Vector3(-3.5, 0.0, 4.5))
 	def.spawn_points = _spawns(Vector3(0.0, 0.0, 6.5))
 	def.checkpoints = [Vector3(6.5, 0.0, 5.5), Vector3(6.5, 2.0, -4.5)]
+	# 2-2 の新しいことは信号（docs/w2-w3-teaching.md）。鐘 1 の真下の青い台のそばでだけ、台に乗ったまま鐘を
+	# 鳴らす案内を出す（台の信号のジャンプを取った後は出さない）。鳴ると台が跳ねるのは見て分かる
+	def.hint_spots = [
+		StageDef.HintSpot.new("signal", Vector3(2.5, 0.0, 0.5), 1.8, "F", "乗ったまま鐘を鳴らす"),
+	]
+	def.hint_spots[0].while_holding = "echo_lift_1"
 	def.clear_condition = _kit_and_goal(ECHO_NEST, goal)
 	return def
 

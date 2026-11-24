@@ -56,6 +56,13 @@ static func dash_beach() -> StageDef:
 	CampaignKit.item(def, RuleAction.Kind.DASH, Vector3(1.5, 0.0, 2.5))
 	def.spawn_points = CampaignKit.spawns(Vector3(0.0, 0.0, 5.5))
 	def.checkpoints = [Vector3(-4.5, 0.0, -9.5), Vector3(6.5, 0.0, -7.5)]
+	# 3-1 の新しいことはダッシュ（docs/w2-w3-teaching.md）。ダッシュを持って空の縁に立ったときだけ、
+	# 「跳んでからダッシュ」（Space → Shift）。3 回ダッシュしたら出ない
+	def.hint_spots = [
+		StageDef.HintSpot.new("dash", Vector3(-3.5, 0.0, -0.5), 2.2, "Space→Shift", "跳んでからダッシュ"),
+		StageDef.HintSpot.new("dash", Vector3(-2.0, 0.0, -9.5), 1.6, "Space→Shift", "跳んでからダッシュ"),
+		StageDef.HintSpot.new("dash", Vector3(5.5, 1.0, 0.5), 2.2, "Space→Shift", "跳んでからダッシュ"),
+	]
 	def.clear_condition = CampaignKit.clear_with(
 		goal, {"bunny": CampaignKit.perch_box(BEACH_PERCH, 3)}
 	)
@@ -145,6 +152,11 @@ static func wind_path() -> StageDef:
 	CampaignKit.wish_creature(def, "bunny", Vector3(2.5, 0.0, -11.5))
 	def.spawn_points = CampaignKit.spawns(Vector3(2.0, 0.0, 6.5))
 	def.checkpoints = [Vector3(4.5, 0.0, 2.5), Vector3(2.5, 0.0, -8.5)]
+	# 3-4 の新しいことは風（docs/w2-w3-teaching.md）。追い風の空の手前でだけ「風が吹いたら跳ぶ」。
+	# 吹いているのは木の葉の流れで見える。風の中を跳んだら出ない
+	def.hint_spots = [
+		StageDef.HintSpot.new("wind", Vector3(-1.5, 0.0, 1.0), 2.0, "Space", "風が吹いたら跳ぶ"),
+	]
 	def.clear_condition = CampaignKit.clear_with(
 		goal, {"bunny": CampaignKit.perch_box(WIND_PERCH, 3)}
 	)

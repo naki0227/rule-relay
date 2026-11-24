@@ -132,7 +132,9 @@ static func quarry() -> StageDef:
 ## 三つの鐘の島（目安 20 分・仮）。広い島の西の丘・北の崖・東の小島の鐘を全部鳴らす。協力なら手分けできる。
 ## 西の丘（台地 高さ 3）: 裾（高さ 1）の窪みのブロック／ブーツ
 ## 北の崖（台地 高さ 5）: 東側の階段で段（高さ 3）へ → 段の窪みのブロック／グローブ
-## 東の小島（谷の幅 4）: 岸の発射台に「投げる」を渡して鐘を撃つ／空中ダッシュ・ブーツで渡って F で鳴らす
+## 東の小島（谷の幅 4）: 岸の発射台に「投げる」を渡して鐘を撃つ／ブーツで渡って F で鳴らす
+## 2026-11-24（docs/w2-w3-teaching.md）: 原っぱのダッシュを外した。ダッシュを教えるのは 3-1 で、W2 では
+## 説明の無いまま拾えるだけだった（どの道にも要らない）。
 ## 北の崖のもう1つの道: 台地の南の縁に、木の実を持った生き物が鐘の方（北）を向いて座っている。
 ##   下の原っぱから「投げる」を投げて渡すと、木の実を投げて鐘を鳴らす（1回きり。投げるは発射台と取り合い）
 ## 鐘は台地の真ん中（下からは手が届かない広さにしてある）。
@@ -169,7 +171,6 @@ static func three_bells() -> StageDef:
 	_nut_creature(def, "cliff_creature", Vector3(-0.5, 5.0, -19.5))
 	_item(def, RuleAction.Kind.HIGH_JUMP, Vector3(-10.5, 0.0, 9.5), RuleVessel.Part.FEET, "ジャンプブーツ")
 	_item(def, RuleAction.Kind.CLIMB, Vector3(8.5, 0.0, 9.5), RuleVessel.Part.HANDS, "クライミンググローブ")
-	_item(def, RuleAction.Kind.DASH, Vector3(2.5, 0.0, 4.5))
 	def.spawn_points = _spawns(Vector3(0.0, 0.0, 6.5))
 	def.checkpoints = [Vector3(-12.5, 0.0, 2.5), Vector3(3.5, 0.0, -12.5), Vector3(9.5, 0.0, 3.5)]
 	def.clear_condition = _bells_and_goal(def, goal)

@@ -6,9 +6,11 @@ extends RefCounted
 ## - その操作を HintMemory.LEARN_AFTER 回したら出なくなる（記録は遊ぶ人ごと。協力中も各自の画面と記録）
 ## - ステージに入った直後の目的の札（ObjectivePanel が大きく出ている 3 秒）とは重ねない
 ## - どこで何を教えるかは、ステージの「教える場所」（StageDef.HintSpot）でも決められる
-## 選ぶ順（上ほど急ぐ）: その場の動作（入口・拾う）→ 貸した単発を使う → 取り戻す → 鐘 → 投げる（遠くを狙った）→
-## 動物に移動をあげる → かばんの能力をホットバーへ → ステージの教える場所 → 渡す（選ぶ）→ 装備 → 保存 → 足もとの禁止 → 段差でジャンプ →
-## 歩く・見回す → やり直し・メニュー。
+## 選ぶ順（上ほど急ぐ）: その場の動作（入口・拾う）→ 貸した単発を使う → 取り戻す → 鐘 → レバー → 投げる（遠くを狙った）→
+## 動物に移動をあげる → かばんの能力をホットバーへ → ステージの教える場所 → 発射台に投げるをえらぶ → 渡す（選ぶ）→ 装備 →
+## 保存 → 足もとの禁止 → 段差でジャンプ → 歩く・見回す → やり直し・メニュー。
+## W2・W3 の新しいこと（docs/w2-w3-teaching.md）: 発射台（2-1）・信号（2-2）・ダッシュ（3-1）・風（3-4）・レバー（3-5）。
+## どれも、その操作をしたことを状態から数える（_learn_from_state。押したキーでは数えにくいので）。
 ## 返り値は [キーの表記, 動作, 表記をそのまま出すか] か、空の配列（何も出さない）。
 
 ## 段差の案内を出す、足もとから段差までの水平の距離（m。近い順に調べる）。
@@ -28,10 +30,12 @@ static func pick(hud: Hud, target: Node3D, in_reach: bool, on_checkpoint: bool) 
 		func() -> Array: return _fire(hud),
 		func() -> Array: return _take_back(hud, target, in_reach),
 		func() -> Array: return _bell(target, in_reach),
+		func() -> Array: return _lever(hud),
 		func() -> Array: return _throw(hud, target, in_reach),
 		func() -> Array: return _creature(hud, target, in_reach),
 		func() -> Array: return _bag(hud, target, in_reach),
 		func() -> Array: return _spot(hud),
+		func() -> Array: return _launcher(hud, target, in_reach),
 		func() -> Array: return _lend(hud, target, in_reach),
 		func() -> Array: return _equip(hud),
 		func() -> Array: return _save(hud, on_checkpoint),
@@ -66,9 +70,59 @@ static func _learn_from_state(hud: Hud) -> void:
 	if hud.hints.should_show("equip"):
 		for part: RuleVessel.Part in [RuleVessel.Part.FEET, RuleVessel.Part.HANDS]:
 			if w.ledger.equipped_vessel(part, w.acting_id()) != null:
-				for i in HintMemory.LEARN_AFTER:
-					hud.hints.used("equip")
+				_learned(hud, "equip")
 				return
+	_learn_w2_w3(hud)
+
+
+## W2・W3 の新しいことを、状態から数える（どれも 1 回できたら慣れたことにする。
+## 毎フレーム呼ぶので、続いている状態は「始まった瞬間」だけ数える）。
+static func _learn_w2_w3(hud: Hud) -> void:
+	var w := hud.world
+	if hud.hints.should_show("launcher") and _gave_a_launcher_throw(w):
+		_learned(hud, "launcher")
+	if hud.hints.should_show("signal") and _signal_block_moving(w):
+		_learned(hud, "signal")
+	var dashing := w.player.is_dashing()
+	if dashing and not bool(hud.get_meta(&"teach_dashing", false)):
+		hud.hints.used("dash")
+	hud.set_meta(&"teach_dashing", dashing)
+	if hud.hints.should_show("wind") and not w.player.is_on_floor():
+		if w.nature.wind_at(w.player.global_position).length() > 0.1:
+			_learned(hud, "wind")
+	var levers := _lever_states(w)
+	if hud.has_meta(&"teach_levers") and hud.get_meta(&"teach_levers") != levers:
+		_learned(hud, "lever")
+	hud.set_meta(&"teach_levers", levers)
+
+
+static func _learned(hud: Hud, key: String) -> void:
+	for i in HintMemory.LEARN_AFTER:
+		hud.hints.used(key)
+
+
+## 自分が「投げる」を渡した発射台がある。
+static func _gave_a_launcher_throw(w: GameWorld) -> bool:
+	var me := w.acting_id()
+	for id: int in w._launchers:
+		for t in w.ledger.tokens_on(id):
+			if t.action == RuleAction.Kind.THROW and t.lender_id == me:
+				return true
+	return false
+
+
+## 信号の方式の能力が付いたブロックが、鐘（板・レバー）の音を受けている。
+static func _signal_block_moving(w: GameWorld) -> bool:
+	for id: int in w.blocks:
+		for t in w.ledger.tokens_on(id):
+			if t.mode == TriggerMode.Kind.SIGNAL and w.is_receiving_signal(id):
+				return true
+	return false
+
+
+static func _lever_states(w: GameWorld) -> Array:
+	var m := MechanismSet.of(w)
+	return [] if m == null else m.levers.map(func(l: SwitchLever) -> bool: return l.on)
 
 
 ## 足もとの物・ハブの入口（慣れても出す。そこで何ができるかの案内）。
@@ -146,6 +200,38 @@ static func _bell(target: Node3D, in_reach: bool) -> Array:
 	return ["F", "鳴らす"] if target is Bell and in_reach else []
 
 
+## 手の届くレバーのそば（3-5 が初出。倒すまで。docs/w2-w3-teaching.md）。
+static func _lever(hud: Hud) -> Array:
+	if not hud.hints.should_show("lever"):
+		return []
+	var m := MechanismSet.of(hud.world)
+	if m == null:
+		return []
+	for lever in m.levers:
+		if lever.within_reach(hud.world.player.global_position):
+			return ["F", "レバー"]
+	return []
+
+
+## 発射台を狙っていて、「投げる」を手元に持っているのに選んでいないとき（2-1 が初出）。発射台は「投げる」を
+## 渡すと玉を撃つ。W を選んだままだと、案内の「W を渡す」で発射台を押してしまう（2026-11-24 の通し）。
+static func _launcher(hud: Hud, target: Node3D, in_reach: bool) -> Array:
+	var block := target as RuleBlock
+	if block == null or not in_reach or not hud.hints.should_show("launcher"):
+		return []
+	var w := hud.world
+	if not w._launchers.has(block.entity_id):
+		return []
+	var throw_slot := _free_slot_of(
+		w, func(t: RuleToken) -> bool: return t.action == RuleAction.Kind.THROW
+	)
+	if throw_slot < 0:
+		return []
+	if throw_slot != w.selected_slot:
+		return [_slot_key(throw_slot), "投げるをえらぶ", true]
+	return ["左クリック", "発射台に投げるを渡す"]
+
+
 ## 使える能力が本当にかばんにあって、ホットバーに空きがあるとき（何かを狙って渡す案内とは重ねない）。
 ## 拾った・F で取った能力は空きがあればホットバーへ入るので（2026-11-23）、ふだんは出ない。
 static func _bag(hud: Hud, target: Node3D, in_reach: bool) -> Array:
@@ -169,13 +255,34 @@ static func _spot(hud: Hud) -> Array:
 			continue
 		if spot.while_holding != "" and not _holds_tokens(stage_world, spot.while_holding):
 			continue
+		if spot.key == "dash" and not _can_dash(stage_world):
+			continue
 		var d := Vector2(at.x - spot.position.x, at.z - spot.position.z).length()
 		if d <= spot.radius and d < best_distance:
 			best = spot
 			best_distance = d
 	if best == null:
 		return []
+	if best.keyboard.contains("→"):
+		# 2 つのキーを続けて押す案内（"Space→Shift" = 跳んでからダッシュ）。どちらも今の割り当てに置きかえる
+		var keys := PackedStringArray()
+		for part in best.keyboard.split("→"):
+			keys.append(InputMode.label(part))
+		return ["→".join(keys), best.text, true]
 	return [best.keyboard, best.text]
+
+
+## ダッシュを手元に持っていて、使える（W/A/D のどれかがある。2026-11-20 本人の判断）。
+static func _can_dash(w: StageWorld) -> bool:
+	var me := w.acting_id()
+	if not w.ledger.player_can(RuleAction.Kind.DASH, me):
+		return false
+	for kind: RuleAction.Kind in [
+		RuleAction.Kind.FORWARD, RuleAction.Kind.LEFT, RuleAction.Kind.RIGHT
+	]:
+		if w.ledger.player_can(kind, me):
+			return true
+	return false
 
 
 static func _holds_tokens(w: StageWorld, key: String) -> bool:
@@ -252,8 +359,9 @@ static func _in_pit(w: GameWorld, block: RuleBlock) -> bool:
 
 
 ## 手の届かない相手を狙っているとき（「投げる」を持っていれば、届き方を変えれば届く）。
+## 鐘は投げても鳴らない（発射台か生き物の木の実で鳴らす）ので、遠くの鐘には出さない（2026-11-24 の通し）。
 static func _throw(hud: Hud, target: Node3D, in_reach: bool) -> Array:
-	if target == null or in_reach or not hud.hints.should_show("throw"):
+	if target == null or in_reach or target is Bell or not hud.hints.should_show("throw"):
 		return []
 	if hud.world.throw_mode:
 		return ["C", "遠すぎる"]

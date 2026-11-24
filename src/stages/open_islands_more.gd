@@ -30,7 +30,8 @@ const WIND_COLOR := Color(0.55, 0.78, 0.86)
 ##    自分で跳べず単発も起動できなくなる → 台へ繰り返しで渡して上がる。段の風鈴（鐘）を鳴らすと、
 ##    信号で渡した風の台が鳴っている間だけ跳ねて肩へ。札をどこかへ押し付けてから、肩の台に単発で頂へ
 ## 2. 崖を崩す: 段の縁の地形のセルに S（後ろ＝南）を渡して押し出すと、1 段ずつの階段になる
-## 3. ブーツ: 浜のダッシュを拾い、跳んでから空中でダッシュして西の小島（谷の幅 4）へ。ブーツで各段を跳ぶ
+## 3. ブーツ: 浜から走って跳んで西の小島（谷の幅 3）へ。ブーツで各段を跳ぶ
+##    （2026-11-24 docs/w2-w3-teaching.md: 浜のダッシュを外し、谷を 4 から 3 にした。ダッシュを教えるのは 3-1）
 ## 4. グローブ: 段の東の端から、幅 1 の谷を跳んだ先の風車の丘にある。肩と頂の崖を登る
 ## 協力: ジャンプ×2（2.6）なら段差 2 をそのまま跳べる。東の谷筋の「突風の台」は頂の崖（高さ 4）の下にあり、
 ## ジャンプ×2 を単発で渡す（5.0）と頂へ直接上がれる近道（ひとりのジャンプ 1 個では 2.5 しか上がらない）。
@@ -45,8 +46,8 @@ static func windy_ridge() -> StageDef:
 	# 東の谷筋（段と同じ高さ 2。頂の東の崖は高さ 4）と、幅 1 の谷の先の風車の丘
 	m.fill(3, -26, 12, -14, 2)
 	m.fill(14, -12, 17, -8, 2)
-	# 西の小島（谷の幅 4）
-	m.fill(-20, -4, -17, 2, 0)
+	# 西の小島（谷の幅 3。走って跳べば届く）
+	m.fill(-19, -4, -16, 2, 0)
 	var goal := OpenIslands.goal_hollow(m, -4, -25, 0, -24)
 	var rusty := _lift(def, m, Vector2i(6, -6), "rusty_lift", RUSTY_COLOR)
 	rusty.tokens.append(StageDef.TokenSpec.new(RuleAction.Kind.JUMP, true))
@@ -56,9 +57,8 @@ static func windy_ridge() -> StageDef:
 	_lift(def, m, Vector2i(3, -23), "gust_lift", WIND_COLOR)
 	def.terrain_boxes = m.boxes()
 	def.bells = [StageDef.BellSpec.new("wind_bell", Vector3(-5.5, 2.0, -10.5))]
-	_item(def, RuleAction.Kind.DASH, Vector3(10.5, 0.0, 6.5))
 	_item(
-		def, RuleAction.Kind.HIGH_JUMP, Vector3(-18.5, 0.0, -0.5), RuleVessel.Part.FEET, "ジャンプブーツ"
+		def, RuleAction.Kind.HIGH_JUMP, Vector3(-17.5, 0.0, -0.5), RuleVessel.Part.FEET, "ジャンプブーツ"
 	)
 	_item(
 		def, RuleAction.Kind.CLIMB, Vector3(16.0, 2.0, -10.0), RuleVessel.Part.HANDS, "クライミンググローブ"
