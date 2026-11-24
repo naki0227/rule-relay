@@ -444,11 +444,13 @@ func test_accepted_quarry_floor_without_jump_needs_the_reset_vote() -> void:
 ## チェックポイントに入れて、抜け出せない状態が保存された（F4）。いまはダッシュには W/A/D の
 ## どれかが要る（2026-11-20 本人の判断）ので突っ込めず、チェックポイントも歩けない状態を保存しない。
 ## メニューの「このステージを最初から」で本当に最初へ戻れる。
+## 2026-11-24: 三つの鐘の島（2-3）のダッシュを外した（教えるのは 3-1。docs/w2-w3-teaching.md）ので、
+## ダッシュとチェックポイントが同じ平らな庭にある札の庭（5-3）で確かめる。
 func test_gate_no_way_to_walk_cannot_be_saved_and_restart_recovers() -> void:
-	await _enter(StageCatalog.THREE_BELLS_ID)
-	await _pick_dash(Vector3(2.5, 0.0, 4.5))
-	await _walk_to(Vector3(9.5, 0.0, 8.5))
-	await _walk_to(Vector3(9.5, 0.0, 5.9), 0.2)  # 北（チェックポイントの方）を向いて止まる
+	await _enter(StageCatalog.GARDEN_ID)
+	await _pick_dash(Vector3(10.5, 0.0, 6.5))
+	await _walk_to(Vector3(-8.5, 0.0, 5.5))
+	await _walk_to(Vector3(-8.5, 0.0, 2.9), 0.2)  # 北（チェックポイントの方）を向いて止まる
 	await wait_physics_frames(10)
 	w.toggle_reach()
 	var cells: Array[Vector3i] = [

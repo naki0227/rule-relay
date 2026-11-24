@@ -589,10 +589,10 @@ func aim_hint_for(target: Node3D) -> Variant:
 func update_highlight(target: Node3D) -> void:
 	if _highlighted == target:
 		return
-	if is_instance_valid(_highlighted):
+	if is_instance_valid(_highlighted) and _highlighted.has_method(&"set_highlight"):  # 鐘は光らない
 		_highlighted.call(&"set_highlight", false)
 	_highlighted = target
-	if target != null:
+	if target != null and target.has_method(&"set_highlight"):
 		target.call(&"set_highlight", true)
 
 
