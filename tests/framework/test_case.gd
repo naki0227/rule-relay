@@ -131,6 +131,33 @@ static func steady_enet(peer: MultiplayerPeer) -> void:
 		remote.throttle_configure(ENET_THROTTLE_INTERVAL_MS, ENET_THROTTLE_ACCELERATION, 0)
 
 
+## branch（set_multiplayer した枝）に相手がつながるたびに steady_enet をかける（結合テスト用）。
+## HostMigration はホストが落ちたあと、新しいホストの部屋と、つなぎ直しの peer を自分で作るので、
+## テストからはその peer に手が届かない。枝の MultiplayerAPI の peer_connected で、そのときの peer に
+## かけ直せば、移譲のあとの接続にも、最初の接続にも同じように効く（ゲームのコードは変えない）。
+## 本番の接続では間引きを止めない: ENet の混雑への備えであり、実際のネットワークで止めてよいかは
+## 測っていない（テストの時間切れは、--fixed-fps でコマ数だけ数えるテスト特有の揺れが原因）。
+static func keep_enet_steady(branch: Node) -> void:
+	# 枝（Node）だけを覚える。MultiplayerAPI を覚えると、自分の信号から自分を参照して解放されなくなる
+	branch.multiplayer.peer_connected.connect(
+		func(_id: int) -> void:
+			if is_instance_valid(branch) and branch.is_inside_tree():
+				steady_enet(branch.multiplayer.multiplayer_peer)
+	)
+
+
+## peer の、いまつながっている相手のすべてで間引きが止まっているか（keep_enet_steady の確かめ用）。
+static func enet_is_steady(peer: MultiplayerPeer) -> bool:
+	var enet := peer as ENetMultiplayerPeer
+	if enet == null or enet.host == null or enet.host.get_peers().is_empty():
+		return false
+	for remote in enet.host.get_peers():
+		var deceleration := remote.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_DECELERATION)
+		if deceleration != 0.0:
+			return false
+	return true
+
+
 ## コマンドラインの --shard=i/n（i は 1 始まり）を Vector2i(i - 1, n) で返す。無い・不正なら (0, 1)。
 static func shard_spec() -> Vector2i:
 	for arg in OS.get_cmdline_user_args():

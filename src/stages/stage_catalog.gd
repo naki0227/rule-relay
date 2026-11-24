@@ -48,84 +48,120 @@ const _MOVES: Array[RuleAction.Kind] = [
 ## by_id だけが見つける。結合テストが仕掛けの見本を PartyDirector で遊ぶために使う（docs/adr/0014）。
 static var test_stages: Dictionary[String, Callable] = {}
 
+## stage_id → そのステージを作る関数（_index が初めて呼ばれたときに 1 回だけ作る）。
+## 定義（StageDef）そのものは覚えない。呼んだ側が受け取った定義を書き換えても（テストがする）、
+## 次に渡す定義に混ざらないよう、毎回作り直して新しい物を渡す。
+static var _builder_of: Dictionary[String, Callable] = {}
+## 作る関数を、一覧の順（目安のクリア時間の短い順）に並べたもの。
+static var _ordered: Array[Callable] = []
+
 
 ## すべてのステージ（目安のクリア時間の短い順）。広場のポータルの場所は CampaignPlan の枠が決める。
-## 新しいステージは、ここに足し、CampaignPlan の同じ stage_id の枠で広場に現れる。
+## 新しいステージは _builders に足し、CampaignPlan の同じ stage_id の枠で広場に現れる。
+## 呼ぶたびにすべての定義を新しく作る（書き換えても次の呼び出しに混ざらない）。
 static func all_stages() -> Array[StageDef]:
-	var stages: Array[StageDef] = [
-		intro_jump_lend(),
-		bell_valley(),
-		relay_carry(),
-		OpenIslands.hill_top(),
-		OpenIslands.quarry(),
-		OpenIslands.three_bells(),
-		OpenIslands.floating_isles(),
-		OpenIslandsMore.windy_ridge(),
-		OpenIslandsMore.ruined_fort(),
-		OpenIslandsExtra.creature_nest(),
-		OpenIslandsExtra.ban_garden(),
-		OpenIslandsLong.long_expedition(),
-		World7Stages.summit_1(),
-		World7Stages.summit_2(),
-		World7Stages.summit_3(),
-		World7Finale.summit_4(),
-		World7Finale.summit_5(),
-		World7Finale.summit_6(),
-		OpenIslandsW1.lift_steps(),
-		OpenIslandsW1.push_path(),
-		OpenIslandsW2.echo_bells(),
-		OpenIslandsW2.rolling_shots(),
-		OpenIslandsW2.ringing_bell(),
-		World3Stages.dash_beach(),
-		World3Stages.shuttle_cove(),
-		World3Stages.wind_path(),
-		World3Stages.gap_relay(),
-		CloudCorridor.build(),
-		World4Stages.nut_toss(),
-		World4Stages.creature_ladder(),
-		World4Stages.weight_plates(),
-		World4Stages.herd_path(),
-		DeepForest.build(),
-		World5Stages.first_signs(),
-		World5Stages.range_signs(),
-		World5Stages.ice_garden(),
-		World5Stages.sign_relay(),
-		World6Stages.warp_stones(),
-		World6Stages.misty_terraces(),
-		World6Stages.peak_bells(),
-		World6Stages.river_run(),
-		World6Stages.long_ridge(),
-		OptionalWorldsO1.cog_crossing(),
-		OptionalWorldsO1.clockwork_corridor(),
-		OptionalWorldsO1.weighing_scale(),
-		OptionalWorldsO1.sign_gears(),
-		OptionalWorldsO1.grand_contraption(),
-		OptionalWorldsO2.vane_steps(),
-		OptionalWorldsO2.cloud_raft(),
-		OptionalWorldsO2.falling_isles(),
-		OptionalWorldsO2.upside_tower(),
-		OptionalWorldsO2.sky_maelstrom(),
-		OptionalWorldsO3.ice_greenhouse(),
-		OptionalWorldsO3.canal_garden(),
-		OptionalWorldsO3.sign_nursery(),
-		OptionalWorldsO3.frozen_pond(),
-		OptionalWorldsO3.grand_greenhouse(),
-	]
-	stages.sort_custom(
-		func(a: StageDef, b: StageDef) -> bool: return a.target_minutes < b.target_minutes
-	)
+	var first := _index()
+	if not first.is_empty():
+		return first
+	var stages: Array[StageDef] = []
+	for build in _ordered:
+		stages.append(build.call() as StageDef)
 	return stages
 
 
-## stage_id から定義を作る（ハブも含む）。無ければ null。
+## 一覧に出すステージを作る関数（並べ直す前）。
+static func _builders() -> Array[Callable]:
+	return [
+		intro_jump_lend,
+		bell_valley,
+		relay_carry,
+		OpenIslands.hill_top,
+		OpenIslands.quarry,
+		OpenIslands.three_bells,
+		OpenIslands.floating_isles,
+		OpenIslandsMore.windy_ridge,
+		OpenIslandsMore.ruined_fort,
+		OpenIslandsExtra.creature_nest,
+		OpenIslandsExtra.ban_garden,
+		OpenIslandsLong.long_expedition,
+		World7Stages.summit_1,
+		World7Stages.summit_2,
+		World7Stages.summit_3,
+		World7Finale.summit_4,
+		World7Finale.summit_5,
+		World7Finale.summit_6,
+		OpenIslandsW1.lift_steps,
+		OpenIslandsW1.push_path,
+		OpenIslandsW2.echo_bells,
+		OpenIslandsW2.rolling_shots,
+		OpenIslandsW2.ringing_bell,
+		World3Stages.dash_beach,
+		World3Stages.shuttle_cove,
+		World3Stages.wind_path,
+		World3Stages.gap_relay,
+		CloudCorridor.build,
+		World4Stages.nut_toss,
+		World4Stages.creature_ladder,
+		World4Stages.weight_plates,
+		World4Stages.herd_path,
+		DeepForest.build,
+		World5Stages.first_signs,
+		World5Stages.range_signs,
+		World5Stages.ice_garden,
+		World5Stages.sign_relay,
+		World6Stages.warp_stones,
+		World6Stages.misty_terraces,
+		World6Stages.peak_bells,
+		World6Stages.river_run,
+		World6Stages.long_ridge,
+		OptionalWorldsO1.cog_crossing,
+		OptionalWorldsO1.clockwork_corridor,
+		OptionalWorldsO1.weighing_scale,
+		OptionalWorldsO1.sign_gears,
+		OptionalWorldsO1.grand_contraption,
+		OptionalWorldsO2.vane_steps,
+		OptionalWorldsO2.cloud_raft,
+		OptionalWorldsO2.falling_isles,
+		OptionalWorldsO2.upside_tower,
+		OptionalWorldsO2.sky_maelstrom,
+		OptionalWorldsO3.ice_greenhouse,
+		OptionalWorldsO3.canal_garden,
+		OptionalWorldsO3.sign_nursery,
+		OptionalWorldsO3.frozen_pond,
+		OptionalWorldsO3.grand_greenhouse,
+	]
+
+
+## 初めて呼ばれたときだけ、すべてを 1 回作って stage_id と順番を覚え、作った一覧を返す（2 回目からは空）。
+## by_id が 1 つを探すたびに全部を作り直していた（テストで 1 ステージ約 1.5 ms × 全部 × 全部）のをやめる。
+static func _index() -> Array[StageDef]:
+	var stages: Array[StageDef] = []
+	if not _ordered.is_empty():
+		return stages
+	var builder_of_def: Dictionary[StageDef, Callable] = {}
+	for build in _builders():
+		var def := build.call() as StageDef
+		stages.append(def)
+		builder_of_def[def] = build
+	stages.sort_custom(
+		func(a: StageDef, b: StageDef) -> bool: return a.target_minutes < b.target_minutes
+	)
+	for def in stages:
+		_ordered.append(builder_of_def[def])
+		if not _builder_of.has(def.stage_id):
+			_builder_of[def.stage_id] = builder_of_def[def]
+	return stages
+
+
+## stage_id から定義を作る（ハブも含む）。無ければ null。呼ぶたびに新しく作る。
 static func by_id(stage_id: String) -> StageDef:
 	if stage_id == HUB_ID:
 		return hub()
 	if test_stages.has(stage_id):
 		return test_stages[stage_id].call() as StageDef
-	for def in all_stages():
-		if def.stage_id == stage_id:
-			return def
+	_index()
+	if _builder_of.has(stage_id):
+		return _builder_of[stage_id].call() as StageDef
 	return null
 
 
